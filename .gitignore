@@ -1,0 +1,10 @@
+.superpowers/
+node_modules/
+dist/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+src-tauri/target/
+library/.cache/
+models/

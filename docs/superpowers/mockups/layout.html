@@ -1,0 +1,124 @@
+<h2>Which shape feels right for the app?</h2>
+<p class="subtitle">Three rough layouts. All three have the same three pieces: a <b>Rip</b> bar (YouTube link + start/stop → Strudel code), a <b>Library</b> of patterns you've ripped or written, and <b>Strudel</b> as the engine. They differ in what sits in the middle of the screen while you play.</p>
+
+<style>
+  .wf { background:#0e0f13; color:#cfd3dc; border:1px solid #2a2d36; border-radius:8px; font: 11px/1.4 ui-monospace, Menlo, monospace; overflow:hidden; }
+  .wf .bar { background:#171a22; padding:6px 10px; border-bottom:1px solid #2a2d36; display:flex; gap:8px; align-items:center; }
+  .wf .in { background:#0a0b0e; border:1px solid #3a3e4a; border-radius:4px; padding:3px 6px; color:#8b90a0; flex:1; }
+  .wf .btn { background:#e94f37; color:#fff; border-radius:4px; padding:3px 10px; font-weight:bold; }
+  .wf .btn.ghost { background:#2a2d36; color:#cfd3dc; }
+  .wf .pane { padding:8px 10px; }
+  .wf .ttl { color:#8b90a0; text-transform:uppercase; letter-spacing:.08em; font-size:9px; margin-bottom:6px; }
+  .wf .row { padding:4px 6px; border-radius:4px; margin-bottom:3px; background:#141620; display:flex; justify-content:space-between; }
+  .wf .row.sel { background:#23304a; }
+  .wf .tag { color:#8b90a0; font-size:9px; }
+  .wf .code { background:#0a0b0e; padding:8px; border-radius:4px; color:#9ad1ff; white-space:pre; min-height:90px; }
+  .wf .code .k { color:#ffb86c; } .wf .code .s { color:#c3e88d; }
+  .wf .viz { background:#0a0b0e; border-radius:4px; height:70px; position:relative; overflow:hidden; }
+  .wf .viz span { position:absolute; bottom:0; width:6px; background:#e94f37; opacity:.8; }
+  .wf .foot { background:#171a22; border-top:1px solid #2a2d36; padding:6px 10px; display:flex; gap:12px; align-items:center; }
+  .wf .fader { flex:1; height:4px; background:#3a3e4a; border-radius:2px; position:relative; }
+  .wf .fader i { position:absolute; left:50%; top:-5px; width:10px; height:14px; background:#cfd3dc; border-radius:2px; }
+  .wf .deck { flex:1; padding:8px 10px; }
+  .wf .tl { display:flex; gap:3px; }
+  .wf .tl div { flex:1; padding:10px 4px; text-align:center; border-radius:3px; background:#1c2030; }
+  .wf .tl div.on { background:#23304a; outline:1px solid #4f7bd9; }
+</style>
+
+<div class="options" style="display:block">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)" style="margin-bottom:28px">
+    <div class="letter">A</div>
+    <div class="content" style="width:100%">
+      <h3>Crate &amp; Deck</h3>
+      <p>Classic two-pane. Library of crates on the left, one Strudel editor on the right with the visualiser above it. The simplest thing that works. Closest to the picture you described.</p>
+      <div class="wf" style="margin-top:10px">
+        <div class="bar"><span>RIP</span><span class="in">youtube.com/watch?v=…</span><span class="in" style="flex:0 0 60px">1:12</span><span class="in" style="flex:0 0 60px">1:28</span><span class="btn">Rip →</span></div>
+        <div style="display:flex">
+          <div class="pane" style="flex:0 0 220px;border-right:1px solid #2a2d36">
+            <div class="ttl">Crates</div>
+            <div class="row"><span>▸ Ripped</span><span class="tag">14</span></div>
+            <div class="row sel"><span>&nbsp;&nbsp;Daft Punk – Around… 1:12</span><span class="tag">126</span></div>
+            <div class="row"><span>&nbsp;&nbsp;Bicep – Glue 0:40</span><span class="tag">120</span></div>
+            <div class="row"><span>&nbsp;&nbsp;Overmono – So U… 2:04</span><span class="tag">132</span></div>
+            <div class="row"><span>▸ Mine</span><span class="tag">9</span></div>
+            <div class="row"><span>▸ Set: Friday v3</span><span class="tag">6</span></div>
+            <div class="ttl" style="margin-top:10px">Tags</div>
+            <div class="tag">house · breaks · bass · 4/4 · dark</div>
+          </div>
+          <div class="pane" style="flex:1">
+            <div class="viz"><span style="left:5%;height:40%"></span><span style="left:15%;height:70%"></span><span style="left:25%;height:30%"></span><span style="left:35%;height:90%"></span><span style="left:45%;height:50%"></span><span style="left:55%;height:65%"></span><span style="left:65%;height:35%"></span><span style="left:75%;height:80%"></span><span style="left:85%;height:45%"></span></div>
+            <div class="code" style="margin-top:8px"><span class="k">setcpm</span>(126/4)
+$: <span class="k">s</span>(<span class="s">"bd*4, [~ cp]*2, hh*8"</span>).<span class="k">bank</span>(<span class="s">"tr909"</span>)
+$: <span class="k">note</span>(<span class="s">"&lt;a1 a1 c2 g1&gt;*8"</span>).<span class="k">s</span>(<span class="s">"sawtooth"</span>).<span class="k">lpf</span>(800)
+$: <span class="k">chord</span>(<span class="s">"&lt;Am7 Fmaj7&gt;"</span>).<span class="k">voicing</span>().<span class="k">room</span>(.4)</div>
+          </div>
+        </div>
+        <div class="foot"><span class="btn">▶ Play</span><span class="btn ghost">Update</span><span class="tag">126 cpm · cycle 42 · offline</span><span style="flex:1"></span><span class="btn ghost">Save to crate</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)" style="margin-bottom:28px">
+    <div class="letter">B</div>
+    <div class="content" style="width:100%">
+      <h3>DJ Booth</h3>
+      <p>Two Strudel decks side by side with a crossfader between them, like CDJs. Library is a drawer along the bottom you drag patterns from. Built around the club-set dream: you're always mixing from one pattern into the next.</p>
+      <div class="wf" style="margin-top:10px">
+        <div class="bar"><span>RIP</span><span class="in">youtube.com/watch?v=…</span><span class="in" style="flex:0 0 60px">1:12</span><span class="in" style="flex:0 0 60px">1:28</span><span class="btn">Rip →</span></div>
+        <div style="display:flex">
+          <div class="deck" style="border-right:1px solid #2a2d36">
+            <div class="ttl">Deck A · Daft Punk rip · 126</div>
+            <div class="viz"><span style="left:10%;height:60%"></span><span style="left:30%;height:90%"></span><span style="left:50%;height:40%"></span><span style="left:70%;height:75%"></span><span style="left:90%;height:55%"></span></div>
+            <div class="code" style="margin-top:8px">$: <span class="k">s</span>(<span class="s">"bd*4, hh*8"</span>).<span class="k">bank</span>(<span class="s">"tr909"</span>)
+$: <span class="k">note</span>(<span class="s">"&lt;a1 c2&gt;*8"</span>).<span class="k">s</span>(<span class="s">"sawtooth"</span>)</div>
+          </div>
+          <div class="deck">
+            <div class="ttl">Deck B · mine: acid line · 126</div>
+            <div class="viz"><span style="left:20%;height:30%"></span><span style="left:40%;height:50%"></span><span style="left:60%;height:85%"></span><span style="left:80%;height:45%"></span></div>
+            <div class="code" style="margin-top:8px">$: <span class="k">note</span>(<span class="s">"c2(5,8)"</span>).<span class="k">s</span>(<span class="s">"sawtooth"</span>)
+   .<span class="k">lpf</span>(<span class="k">sine</span>.range(200,3000).slow(8))</div>
+          </div>
+        </div>
+        <div class="foot"><span class="tag">A</span><div class="fader"><i></i></div><span class="tag">B</span><span class="btn ghost">Sync</span><span class="btn">▶</span></div>
+        <div class="pane" style="border-top:1px solid #2a2d36;display:flex;gap:6px;overflow:hidden">
+          <span class="ttl" style="margin:0;align-self:center">Library</span>
+          <span class="row">Around the World 1:12</span><span class="row">Glue 0:40</span><span class="row">So U Kno 2:04</span><span class="row">acid line</span><span class="row">breakbeat 1</span><span class="row">pad warm</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content" style="width:100%">
+      <h3>Set Builder</h3>
+      <p>Library left, a timeline of the set across the top (intro → build → drop → …), and the Strudel editor for the selected section below. Made for preparing a full set and rehearsing it, less for improvising on the night.</p>
+      <div class="wf" style="margin-top:10px">
+        <div class="bar"><span>RIP</span><span class="in">youtube.com/watch?v=…</span><span class="in" style="flex:0 0 60px">1:12</span><span class="in" style="flex:0 0 60px">1:28</span><span class="btn">Rip →</span></div>
+        <div style="display:flex">
+          <div class="pane" style="flex:0 0 200px;border-right:1px solid #2a2d36">
+            <div class="ttl">Library</div>
+            <div class="row"><span>Around the World 1:12</span><span class="tag">126</span></div>
+            <div class="row"><span>Glue 0:40</span><span class="tag">120</span></div>
+            <div class="row"><span>So U Kno 2:04</span><span class="tag">132</span></div>
+            <div class="row"><span>acid line</span><span class="tag">—</span></div>
+            <div class="row"><span>pad warm</span><span class="tag">—</span></div>
+          </div>
+          <div class="pane" style="flex:1">
+            <div class="ttl">Set: Friday v3 · 48 min</div>
+            <div class="tl"><div>intro<br><span class="tag">8c</span></div><div class="on">build<br><span class="tag">16c</span></div><div>drop<br><span class="tag">32c</span></div><div>break<br><span class="tag">16c</span></div><div>drop 2<br><span class="tag">32c</span></div><div>outro<br><span class="tag">8c</span></div></div>
+            <div class="viz" style="margin-top:8px;height:40px"><span style="left:10%;height:60%"></span><span style="left:30%;height:90%"></span><span style="left:50%;height:40%"></span><span style="left:70%;height:75%"></span></div>
+            <div class="code" style="margin-top:8px;min-height:60px"><span class="tag">// build</span>
+$: <span class="k">s</span>(<span class="s">"bd*4, hh*8"</span>).<span class="k">bank</span>(<span class="s">"tr909"</span>).<span class="k">lpf</span>(<span class="k">saw</span>.range(300,5000).slow(16))
+$: <span class="k">note</span>(<span class="s">"&lt;a1 c2&gt;*8"</span>).<span class="k">s</span>(<span class="s">"sawtooth"</span>).<span class="k">mask</span>(<span class="s">"&lt;0 0 1 1&gt;"</span>)</div>
+          </div>
+        </div>
+        <div class="foot"><span class="btn">▶ Rehearse</span><span class="btn ghost">Jump to section</span><span class="tag">cycle 23 / 112</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:20px">Click one to select it, then tell me in the chat what's right and wrong about it. None of these is final; I'd expect to mix ideas.</p>

@@ -1,0 +1,133 @@
+<h2>DJ Booth v2: where does the library tree live?</h2>
+<p class="subtitle">Rip is now a tab behind the booth. Library is a collapsible tree with your own headings. Two ways to place it.</p>
+
+<style>
+  .wf { background:#0e0f13; color:#cfd3dc; border:1px solid #2a2d36; border-radius:8px; font: 11px/1.4 ui-monospace, Menlo, monospace; overflow:hidden; }
+  .wf .tabs { background:#171a22; border-bottom:1px solid #2a2d36; display:flex; gap:2px; padding:4px 8px 0; }
+  .wf .tab { padding:5px 12px; border-radius:5px 5px 0 0; color:#8b90a0; }
+  .wf .tab.on { background:#0e0f13; color:#fff; border:1px solid #2a2d36; border-bottom:none; }
+  .wf .pane { padding:8px 10px; }
+  .wf .ttl { color:#8b90a0; text-transform:uppercase; letter-spacing:.08em; font-size:9px; margin-bottom:6px; }
+  .wf .tree div { padding:2px 4px; border-radius:3px; white-space:nowrap; }
+  .wf .tree .h { color:#ffb86c; }
+  .wf .tree .sel { background:#23304a; }
+  .wf .tree .tag { color:#8b90a0; font-size:9px; }
+  .wf .code { background:#0a0b0e; padding:8px; border-radius:4px; color:#9ad1ff; white-space:pre; min-height:80px; }
+  .wf .code .k { color:#ffb86c; } .wf .code .s { color:#c3e88d; }
+  .wf .viz { background:#0a0b0e; border-radius:4px; height:60px; position:relative; overflow:hidden; }
+  .wf .viz span { position:absolute; bottom:0; width:6px; background:#e94f37; opacity:.8; }
+  .wf .foot { background:#171a22; border-top:1px solid #2a2d36; padding:6px 10px; display:flex; gap:12px; align-items:center; }
+  .wf .fader { flex:1; height:4px; background:#3a3e4a; border-radius:2px; position:relative; }
+  .wf .fader i { position:absolute; left:50%; top:-5px; width:10px; height:14px; background:#cfd3dc; border-radius:2px; }
+  .wf .deck { flex:1; padding:8px 10px; }
+  .wf .btn { background:#e94f37; color:#fff; border-radius:4px; padding:3px 10px; font-weight:bold; }
+  .wf .btn.ghost { background:#2a2d36; color:#cfd3dc; }
+  .wf .tag { color:#8b90a0; font-size:9px; }
+  .wf .in { background:#0a0b0e; border:1px solid #3a3e4a; border-radius:4px; padding:3px 6px; color:#8b90a0; }
+  .wf .knob { width:22px; height:22px; border-radius:50%; background:#2a2d36; border:2px solid #4a4f5e; display:inline-block; }
+</style>
+
+<div class="options" style="display:block">
+
+  <div class="option" data-choice="sidebar" onclick="toggleSelect(this)" style="margin-bottom:28px">
+    <div class="letter">1</div>
+    <div class="content" style="width:100%">
+      <h3>Tree as a collapsible sidebar</h3>
+      <p>Library tree on the left, always visible while you play, with a handle to fold it away for a clean booth on the night. Drag a leaf onto a deck to load it.</p>
+      <div class="wf" style="margin-top:10px">
+        <div class="tabs"><span class="tab on">Booth</span><span class="tab">Rip</span><span class="tab">Settings</span><span style="flex:1"></span><span class="tag" style="padding:5px">offline · 126 cpm</span></div>
+        <div style="display:flex">
+          <div class="pane tree" style="flex:0 0 210px;border-right:1px solid #2a2d36">
+            <div class="ttl">Library <span class="tag">◂ fold</span></div>
+            <div class="h">▾ ripped</div>
+            <div class="h">&nbsp;&nbsp;▾ french house</div>
+            <div class="sel">&nbsp;&nbsp;&nbsp;&nbsp;around the world 1:12 <span class="tag">126</span></div>
+            <div>&nbsp;&nbsp;&nbsp;&nbsp;music sounds better 0:30 <span class="tag">128</span></div>
+            <div class="h">&nbsp;&nbsp;▸ uk garage</div>
+            <div class="h">&nbsp;&nbsp;▸ breaks</div>
+            <div class="h">▾ mine</div>
+            <div class="h">&nbsp;&nbsp;▾ bass</div>
+            <div>&nbsp;&nbsp;&nbsp;&nbsp;acid line</div>
+            <div>&nbsp;&nbsp;&nbsp;&nbsp;sub wobble</div>
+            <div class="h">&nbsp;&nbsp;▸ drums</div>
+            <div class="h">&nbsp;&nbsp;▸ pads</div>
+            <div class="h">▸ sets</div>
+            <div class="tag" style="margin-top:8px">+ heading &nbsp; + pattern</div>
+          </div>
+          <div style="flex:1">
+            <div style="display:flex">
+              <div class="deck" style="border-right:1px solid #2a2d36">
+                <div class="ttl">Deck A · around the world · 126</div>
+                <div class="viz"><span style="left:10%;height:60%"></span><span style="left:30%;height:90%"></span><span style="left:50%;height:40%"></span><span style="left:70%;height:75%"></span><span style="left:90%;height:55%"></span></div>
+                <div class="code" style="margin-top:8px">$: <span class="k">s</span>(<span class="s">"bd*4, hh*8"</span>).<span class="k">bank</span>(<span class="s">"tr909"</span>)
+$: <span class="k">note</span>(<span class="s">"&lt;a1 c2&gt;*8"</span>).<span class="k">s</span>(<span class="s">"sawtooth"</span>)</div>
+              </div>
+              <div class="deck">
+                <div class="ttl">Deck B · acid line · 126</div>
+                <div class="viz"><span style="left:20%;height:30%"></span><span style="left:40%;height:50%"></span><span style="left:60%;height:85%"></span><span style="left:80%;height:45%"></span></div>
+                <div class="code" style="margin-top:8px">$: <span class="k">note</span>(<span class="s">"c2(5,8)"</span>).<span class="k">s</span>(<span class="s">"sawtooth"</span>)
+   .<span class="k">lpf</span>(<span class="k">sine</span>.range(200,3000).slow(8))</div>
+              </div>
+            </div>
+            <div class="foot"><span class="knob"></span><span class="knob"></span><span class="tag">A</span><div class="fader"><i></i></div><span class="tag">B</span><span class="knob"></span><span class="knob"></span><span class="btn ghost">Sync</span><span class="btn">▶</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="drawer" onclick="toggleSelect(this)" style="margin-bottom:28px">
+    <div class="letter">2</div>
+    <div class="content" style="width:100%">
+      <h3>Booth full-width, tree in its own tab</h3>
+      <p>Booth takes the whole screen. The library is a Library tab (same tree) and a quick-search popup you summon with a key while playing, so you load without leaving the decks.</p>
+      <div class="wf" style="margin-top:10px">
+        <div class="tabs"><span class="tab on">Booth</span><span class="tab">Library</span><span class="tab">Rip</span><span class="tab">Settings</span><span style="flex:1"></span><span class="tag" style="padding:5px">offline · 126 cpm</span></div>
+        <div style="display:flex;position:relative">
+          <div class="deck" style="border-right:1px solid #2a2d36">
+            <div class="ttl">Deck A · around the world · 126</div>
+            <div class="viz" style="height:80px"><span style="left:10%;height:60%"></span><span style="left:30%;height:90%"></span><span style="left:50%;height:40%"></span><span style="left:70%;height:75%"></span><span style="left:90%;height:55%"></span></div>
+            <div class="code" style="margin-top:8px;min-height:100px">$: <span class="k">s</span>(<span class="s">"bd*4, hh*8"</span>).<span class="k">bank</span>(<span class="s">"tr909"</span>)
+$: <span class="k">note</span>(<span class="s">"&lt;a1 c2&gt;*8"</span>).<span class="k">s</span>(<span class="s">"sawtooth"</span>)
+$: <span class="k">chord</span>(<span class="s">"&lt;Am7 Fmaj7&gt;"</span>).<span class="k">voicing</span>()</div>
+          </div>
+          <div class="deck">
+            <div class="ttl">Deck B · acid line · 126</div>
+            <div class="viz" style="height:80px"><span style="left:20%;height:30%"></span><span style="left:40%;height:50%"></span><span style="left:60%;height:85%"></span><span style="left:80%;height:45%"></span></div>
+            <div class="code" style="margin-top:8px;min-height:100px">$: <span class="k">note</span>(<span class="s">"c2(5,8)"</span>).<span class="k">s</span>(<span class="s">"sawtooth"</span>)
+   .<span class="k">lpf</span>(<span class="k">sine</span>.range(200,3000).slow(8))</div>
+          </div>
+          <div style="position:absolute;left:50%;top:30px;transform:translateX(-50%);background:#171a22;border:1px solid #4a4f5e;border-radius:6px;padding:8px;width:260px;box-shadow:0 8px 30px #000">
+            <div class="in">⌘K &nbsp; load to deck B: "gar|"</div>
+            <div class="tree" style="margin-top:6px"><div class="h">ripped / uk garage</div><div class="sel">&nbsp;&nbsp;flowers 1:05 <span class="tag">134</span></div><div>&nbsp;&nbsp;ripe 0:48 <span class="tag">132</span></div></div>
+          </div>
+        </div>
+        <div class="foot"><span class="knob"></span><span class="knob"></span><span class="tag">A</span><div class="fader"><i></i></div><span class="tag">B</span><span class="knob"></span><span class="knob"></span><span class="btn ghost">Sync</span><span class="btn">▶</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<h3 style="margin-top:10px">And the Rip tab, now behind the booth</h3>
+<div class="wf" style="margin-top:10px;max-width:760px">
+  <div class="tabs"><span class="tab">Booth</span><span class="tab on">Rip</span><span class="tab">Settings</span></div>
+  <div class="pane" style="display:flex;gap:8px;align-items:center"><span class="in" style="flex:1">youtube.com/watch?v=…</span><span class="in">1:12</span><span class="in">1:28</span><span class="btn">Analyse</span></div>
+  <div class="pane" style="display:flex;gap:10px">
+    <div style="flex:1">
+      <div class="ttl">Stems &amp; analysis</div>
+      <div class="tag">tempo 126 · key A minor · 4/4 · 8 bars</div>
+      <div class="viz" style="margin-top:6px;height:40px"><span style="left:5%;height:70%"></span><span style="left:25%;height:70%"></span><span style="left:45%;height:70%"></span><span style="left:65%;height:70%"></span><span style="left:85%;height:70%"></span></div>
+      <div class="tag" style="margin-top:4px">drums ▶ &nbsp; bass ▶ &nbsp; other ▶ &nbsp; vocals ▶ &nbsp; (compare original vs strudel)</div>
+    </div>
+    <div style="flex:1">
+      <div class="ttl">Strudel result</div>
+      <div class="code"><span class="k">setcpm</span>(126/4)
+$: <span class="k">s</span>(<span class="s">"bd*4, [~ cp]*2, hh*8"</span>).<span class="k">bank</span>(<span class="s">"tr909"</span>)
+$: <span class="k">note</span>(<span class="s">"&lt;a1 a1 c2 g1&gt;*8"</span>).<span class="k">s</span>(<span class="s">"sawtooth"</span>).<span class="k">lpf</span>(800)</div>
+      <div style="margin-top:6px;display:flex;gap:6px"><span class="btn ghost">▶ A/B</span><span class="btn ghost">Save to library ▾ ripped / french house</span><span class="btn">Load to deck A</span></div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:20px">Pick 1 or 2, and tell me what you'd change about the Rip tab.</p>
