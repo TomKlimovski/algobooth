@@ -46,6 +46,9 @@ body {
 
 .booth-knobs { display: flex; gap: 8px; }
 
+.booth-message { color: #ffb86c; white-space: nowrap; }
+.booth-message:empty { display: none; }
+
 .knob-wrap {
   display: flex;
   flex-direction: column;

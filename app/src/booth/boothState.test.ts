@@ -9,3 +9,12 @@ test('setKnob clamps to [0,1]', () => {
   b.setKnob('B', 'lpf', 1.7);
   expect(b.state.knobs.B.lpf).toBe(1);
 });
+test('sync starts released with no message', () => {
+  const b = createBoothState();
+  expect(b.state.sync).toBe(false);
+  expect(b.state.message).toBeNull();
+  b.setSync(true);
+  b.setMessage('Start deck A first');
+  expect(b.state.sync).toBe(true);
+  expect(b.state.message).toBe('Start deck A first');
+});

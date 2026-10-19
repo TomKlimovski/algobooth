@@ -1,15 +1,17 @@
-import { createEffect, createSignal, For, onMount, Show } from 'solid-js';
+import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
 import { initEngine } from '../engine/strudel';
 import { installMixer, type DeckMixer, type Knob as KnobName } from '../engine/mixer';
+import { SyncController } from '../engine/sync';
 import { Crossfader } from './Crossfader';
 import { Deck } from './Deck';
 import { createBoothState, DEFAULT_KNOBS } from './boothState';
-import { createDeckState, type DeckId } from './deckState';
+import { cpmFromCps, createDeckState, type DeckId } from './deckState';
 import { Knob } from './Knob';
 import './booth.css';
 
 const DECK_IDS: DeckId[] = ['A', 'B'];
 const KNOBS: KnobName[] = ['lpf', 'gain', 'reverb'];
+const MESSAGE_MS = 3000;
 
 export function Booth() {
   const booth = createBoothState();
@@ -34,6 +36,33 @@ export function Booth() {
       });
     }
   }
+
+  const sync = new SyncController(
+    () => booth.state.decks.A,
+    () => booth.state.decks.B,
+    setTimeout,
+    { onTempoChange: (id, cps) => decks[id].setCpm(cpmFromCps(cps)) },
+  );
+  let messageTimer: ReturnType<typeof setTimeout> | undefined;
+  const flash = (message: string) => {
+    clearTimeout(messageTimer);
+    booth.setMessage(message);
+    messageTimer = setTimeout(() => booth.setMessage(null), MESSAGE_MS);
+  };
+  const toggleSync = () => {
+    if (sync.engaged) {
+      sync.release();
+      booth.setSync(false);
+      return;
+    }
+    const result = sync.engage();
+    if (result.ok) booth.setSync(true);
+    else flash(result.reason);
+  };
+  onCleanup(() => {
+    clearTimeout(messageTimer);
+    sync.release();
+  });
 
   const masterPlay = () => Promise.all(DECK_IDS.map((id) => booth.state.decks[id]?.evaluate(true)));
 
@@ -68,7 +97,17 @@ export function Booth() {
           {deckKnobs('A')}
           <Crossfader value={booth.state.fader} onChange={booth.setFader} />
           {deckKnobs('B')}
-          <button class="deck-btn ghost" disabled title="Sync arrives in a later build">Sync</button>
+          <span class="booth-message" role="status">{booth.state.message}</span>
+          <button
+            class="deck-btn ghost"
+            classList={{ on: booth.state.sync }}
+            disabled={!ready()}
+            onClick={toggleSync}
+            aria-pressed={booth.state.sync}
+            title="Deck B follows deck A's tempo and bar line"
+          >
+            Sync
+          </button>
           <button class="deck-btn" disabled={!ready()} onClick={masterPlay} aria-label="play both decks">▶</button>
         </footer>
       </main>
