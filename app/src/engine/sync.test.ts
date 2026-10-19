@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import type { DeckApi } from '../booth/Deck';
+import { StartCancelled } from './evalLock';
 import { secondsToNextBoundary, SyncController } from './sync';
 
 type Clock = { duration?: number; minLatency?: number };
@@ -239,4 +240,33 @@ test('dispose unhooks without touching B (review: unmount after decks are torn d
   timers[0][0]();
   await flush();
   expect(b.scheduler.started).toBe(false);
+});
+test('a dropped held start settles: stop, a second Play and dispose reject it as cancelled', async () => {
+  const { timers, setTimer } = recordTimers();
+  const a = fakeDeck({ started: true, cps: 0.5, now: 3.25 }); const b = fakeDeck({ started: false });
+  const s = new SyncController(() => a, () => b, setTimer);
+  s.engage();
+  const first = b.scheduler.start();
+  const second = b.scheduler.start(); // a second Play replaces the first
+  await expect(first).rejects.toBeInstanceOf(StartCancelled);
+  b.scheduler.stop(); // Stop before the bar line
+  await expect(second).rejects.toBeInstanceOf(StartCancelled);
+  const third = b.scheduler.start();
+  await flush();
+  s.dispose();
+  await expect(third).rejects.toBeInstanceOf(StartCancelled);
+  timers.forEach(([f]) => f());
+  await flush();
+  expect(b.scheduler.started).toBe(false);
+});
+test('release lets a held start through instead of cancelling it', async () => {
+  const { setTimer } = recordTimers();
+  const a = fakeDeck({ started: true, cps: 0.5, now: 3.25 }); const b = fakeDeck({ started: false });
+  const s = new SyncController(() => a, () => b, setTimer);
+  s.engage();
+  const playing = b.scheduler.start();
+  await flush();
+  s.release();
+  await expect(playing).resolves.toBeUndefined();
+  expect(b.scheduler.started).toBe(true);
 });

@@ -1,5 +1,6 @@
 import type { DeckApi } from '../booth/Deck';
 import type { DeckId } from '../booth/deckState';
+import { StartCancelled } from './evalLock';
 
 /**
  * Seconds until the scheduler reaches its next whole cycle. Exactly on a
@@ -25,6 +26,7 @@ export interface SyncOptions {
 /** A start of B held back until A's next bar line. */
 interface Wait {
   resolve: () => void;
+  reject: (reason: StartCancelled) => void;
   handle: TimerHandle | null;
 }
 
@@ -81,7 +83,7 @@ export class SyncController {
   /** Turns sync off and re-evaluates B so its own `setcpm` takes effect again. */
   release(): void {
     if (!this.on) return;
-    const held = this.wait;
+    const held = this.takeWait();
     this.dispose();
     held?.resolve(); // B was waiting for the bar line: let it play now
     void this.getB()?.evaluate();
@@ -106,8 +108,8 @@ export class SyncController {
     if (!this.getA()?.scheduler.started) return; // nothing to lock to yet
     this.applyTempo();
     this.dropWait(); // a second Play replaces the first
-    return new Promise<void>((resolve) => {
-      this.wait = { resolve, handle: null };
+    return new Promise<void>((resolve, reject) => {
+      this.wait = { resolve, reject, handle: null };
       this.arm();
     });
   };
@@ -137,10 +139,20 @@ export class SyncController {
     }, startDelay(a, b) * 1000);
   }
 
-  /** Forgets a held start. Its promise never settles, so that Cyclist.start() never starts the clock. */
-  private dropWait(): void {
-    if (this.wait?.handle != null) (this.opts.clearTimer ?? clearTimeout)(this.wait.handle);
+  /** Takes the held start (if any) and cancels its timer, leaving the caller to settle it. */
+  private takeWait(): Wait | null {
+    const w = this.wait;
+    if (w?.handle != null) (this.opts.clearTimer ?? clearTimeout)(w.handle);
     this.wait = null;
+    return w;
+  }
+
+  /**
+   * Cancels a held start: its promise rejects with `StartCancelled`, so Cyclist.start() never starts the
+   * clock and nothing waiting on that start is left pending.
+   */
+  private dropWait(): void {
+    this.takeWait()?.reject(new StartCancelled());
   }
 
   private applyTempo(): void {

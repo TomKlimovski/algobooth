@@ -5,6 +5,7 @@ import { getAudioContext, webaudioOutput } from '@strudel/webaudio';
 import type { Pattern } from '../library/api';
 import { parentOf, PATTERN_MIME, type LibraryStore } from '../library/store';
 import { settings } from '../settings/settings';
+import { evaluateExclusive } from '../engine/evalLock';
 import { initEngine } from '../engine/strudel';
 import { isDirty, newPatternDecision, onDiskChange, patternFromDeck, sameCode } from './deckFile';
 import { cpmFromCps, ORBIT, type DeckId, type DeckState } from './deckState';
@@ -49,7 +50,7 @@ export const DEFAULT_CODE: Record<DeckId, string> = {
 };
 
 // Browsers keep the AudioContext suspended until a user gesture; every
-// transport click resumes it (initAudio's own resume() never fires).
+// evaluation resumes it (initAudio's own resume() never fires).
 const resumeAudio = () => getAudioContext().resume();
 
 export function Deck(props: {
@@ -108,12 +109,23 @@ export function Deck(props: {
   };
   const clearCanvas = () => canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
 
+  /**
+   * Replaces StrudelMirror's `evaluate`, so every path takes the booth-wide eval lock: Play and Update,
+   * Ctrl+Enter, the document-wide `repl-evaluate` event (Vim :w), sync's release and master play.
+   * Never rejects; a failure shows in the deck's error line.
+   */
+  const lockedEvaluate = async (autostart = true): Promise<void> => {
+    const resumed = resumeAudio().catch(() => {});
+    mirror.flash();
+    try {
+      await evaluateExclusive(mirror.repl, mirror.code, autostart, () => resumed);
+    } catch (e) {
+      deck.setError(String(e));
+    }
+  };
   // Re-evaluate without changing whether the deck is playing.
   const update = () => mirror.evaluate(mirror.repl.scheduler.started);
-  const play = async () => {
-    await resumeAudio();
-    await mirror.evaluate(true);
-  };
+  const play = () => mirror.evaluate(true);
   const evaluate = (autostart?: boolean) => (autostart ? play() : update());
   const stop = () => mirror.stop();
 
@@ -226,6 +238,7 @@ export function Deck(props: {
       // The repl's state carries the editor text on every edit; dirty tracking follows it.
       onUpdateState: (s: { code: string }) => setEditorCode(s.code),
     });
+    mirror.evaluate = lockedEvaluate;
 
     props.onReady?.({
       id,

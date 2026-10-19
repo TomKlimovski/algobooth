@@ -75,7 +75,11 @@ export function Booth(props: {
   // A failed load already shows in the library sidebar's error line.
   const loadDropped = (path: string, id: DeckId) => void props.library.load(path, id).catch(() => {});
 
-  const masterPlay = () => Promise.all(DECK_IDS.map((id) => booth.state.decks[id]?.evaluate(true)));
+  // Each deck evaluates under the eval lock in turn; a failure shows in the footer.
+  const masterPlay = () =>
+    void Promise.all(DECK_IDS.map((id) => booth.state.decks[id]?.evaluate(true))).catch((e) =>
+      flash(`Play failed: ${e instanceof Error ? e.message : String(e)}`),
+    );
 
   const deckKnobs = (id: DeckId) => (
     <div class="booth-knobs" data-deck={id}>
