@@ -8,7 +8,7 @@ import { Crossfader } from './Crossfader';
 import { Deck, type DeckApi } from './Deck';
 import { createBoothState, DEFAULT_KNOBS } from './boothState';
 import { cpmFromCps, createDeckState, type DeckId } from './deckState';
-import { Knob } from './Knob';
+import { Fader } from './Fader';
 import './booth.css';
 
 const DECK_IDS: DeckId[] = ['A', 'B'];
@@ -93,7 +93,7 @@ export function Booth(props: {
     <div class="booth-knobs" data-deck={id}>
       <For each={KNOBS}>
         {(knob) => (
-          <Knob
+          <Fader
             label={knob}
             value={booth.state.knobs[id][knob]}
             default={DEFAULT_KNOBS[knob]}
