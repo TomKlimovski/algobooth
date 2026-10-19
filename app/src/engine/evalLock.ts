@@ -31,19 +31,22 @@ export interface ExclusiveRepl {
 /**
  * Evaluates `code` under the lock without starting, then starts the deck if `autostart` asks and it is
  * stopped. The start runs after the lock is released: sync may hold it until deck A's bar line, and the
- * other deck must be able to evaluate meanwhile. A cancelled start is not an error. Resolves to whether
- * the code evaluated.
+ * other deck must be able to evaluate meanwhile. A cancelled start is not an error. `stillWanted` is
+ * asked right before the start: a Stop pressed while the evaluation was queued or running must win, not
+ * be undone a moment later by the start. Resolves to whether the code evaluated.
  */
 export async function evaluateExclusive(
   repl: ExclusiveRepl,
   code: string,
   autostart: boolean,
   beforeAutostart?: () => Promise<unknown>,
+  stillWanted: () => boolean = () => true,
 ): Promise<boolean> {
   const pattern = await withEvalLock(() => repl.evaluate(code, false));
   if (pattern === undefined) return false;
-  if (autostart && !repl.scheduler.started) {
+  if (autostart && !repl.scheduler.started && stillWanted()) {
     await beforeAutostart?.();
+    if (!stillWanted()) return true;
     try {
       await repl.scheduler.start();
     } catch (e) {

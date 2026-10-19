@@ -76,3 +76,19 @@ test('a cancelled start resolves quietly', async () => {
   };
   await expect(evaluateExclusive(r, 'x', true)).resolves.toBe(true);
 });
+
+test('a stop requested while the evaluation is queued wins: the deck does not start afterwards', async () => {
+  const repl = makeRepl();
+  let stopped = 0;
+  const stillWanted = () => stopped === 0;
+  // Hold the lock so the Play evaluation queues behind it, then "press Stop" while it waits.
+  let release!: () => void;
+  const gate = new Promise<void>((r) => (release = r));
+  const held = withEvalLock(() => gate);
+  const play = evaluateExclusive(repl, 's("bd")', true, undefined, stillWanted);
+  stopped++;
+  release();
+  await held;
+  await expect(play).resolves.toBe(true);
+  expect(repl.scheduler.started).toBe(false);
+});

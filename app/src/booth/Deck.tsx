@@ -123,11 +123,14 @@ export function Deck(props: {
    * Ctrl+Enter, the document-wide `repl-evaluate` event (Vim :w), sync's release and master play.
    * Never rejects; a failure shows in the deck's error line.
    */
+  // Bumped by every Stop, so a start queued behind the eval lock cannot undo a Stop pressed meanwhile.
+  let stopGeneration = 0;
   const lockedEvaluate = async (autostart = true): Promise<void> => {
     const resumed = resumeAudio().catch(() => {});
+    const generation = stopGeneration;
     mirror.flash();
     try {
-      await evaluateExclusive(mirror.repl, mirror.code, autostart, () => resumed);
+      await evaluateExclusive(mirror.repl, mirror.code, autostart, () => resumed, () => generation === stopGeneration);
     } catch (e) {
       deck.setError(String(e));
     }
@@ -136,7 +139,10 @@ export function Deck(props: {
   const update = () => mirror.evaluate(mirror.repl.scheduler.started);
   const play = () => mirror.evaluate(true);
   const evaluate = (autostart?: boolean) => (autostart ? play() : update());
-  const stop = () => mirror.stop();
+  const stop = () => {
+    stopGeneration++;
+    mirror.stop();
+  };
 
   /** A failed save, shown under the header for a few seconds (the sidebar may be folded away). */
   const [saveError, setSaveError] = createSignal<string | null>(null);
