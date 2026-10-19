@@ -1,0 +1,14 @@
+{
+  "name": "Four on the floor",
+  "cpm": 120,
+  "key": "",
+  "tags": [
+    "drums",
+    "house"
+  ],
+  "source": {
+    "kind": "mine"
+  },
+  "notes": "Classic 909 kick, offbeat open hats, clap on 2 and 4.",
+  "code": "setcpm(120/4)\n\n$: s(\"bd*4\").bank(\"tr909\")\n$: s(\"~ oh ~ oh ~ oh ~ oh\").bank(\"tr909\").gain(0.5)\n$: s(\"hh*16\").bank(\"tr909\").gain(0.3)\n$: s(\"~ cp ~ cp\").bank(\"tr909\").gain(0.8)"
+}

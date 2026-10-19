@@ -316,9 +316,26 @@ pub fn delete_entry(root: &Path, path: &str) -> Result<(), String> {
   trash::delete(resolve_entry(root, path)?).map_err(|e| e.to_string())
 }
 
-/// Creates the library folder if missing and checks it is writable.
+/// Example patterns from `library-example/`, written into a brand-new library.
+const SEED_PATTERNS: [(&str, &str); 3] = [
+  ("mine/drums/four-on-the-floor.json", include_str!("../../library-example/mine/drums/four-on-the-floor.json")),
+  ("mine/bass/acid-line.json", include_str!("../../library-example/mine/bass/acid-line.json")),
+  ("mine/pads/warm-pad.json", include_str!("../../library-example/mine/pads/warm-pad.json")),
+];
+
+/// Creates the library folder if missing, seeding examples when it does, and checks it is writable.
 pub fn ensure_library(root: &Path) -> Result<(), String> {
+  let creating = !root.exists();
   fs::create_dir_all(root).map_err(|e| e.to_string())?;
+  if creating {
+    for (rel, json) in SEED_PATTERNS {
+      let path = root.join(rel);
+      if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+      }
+      fs::write(&path, json).map_err(|e| e.to_string())?;
+    }
+  }
   let probe = root.join(".algobooth-write-check");
   fs::write(&probe, b"").map_err(|e| e.to_string())?;
   fs::remove_file(&probe).map_err(|e| e.to_string())
@@ -521,6 +538,23 @@ mod tests {
     fs::set_permissions(&locked, fs::Permissions::from_mode(0o700)).unwrap();
     assert!(under.is_err(), "creating under a read-only dir must fail");
     assert!(itself.is_err(), "an existing read-only dir must fail");
+  }
+
+  #[test]
+  fn ensure_library_seeds_examples_only_when_creating() {
+    let dir = tempfile::tempdir().unwrap();
+    let fresh = dir.path().join("fresh");
+    ensure_library(&fresh).unwrap();
+    for rel in ["mine/drums/four-on-the-floor.json", "mine/bass/acid-line.json", "mine/pads/warm-pad.json"] {
+      let p = read_pattern(&fresh, rel).unwrap();
+      assert!(p.code.starts_with("setcpm("), "{rel} should start with setcpm");
+    }
+    assert_eq!(read_pattern(&fresh, "mine/bass/acid-line.json").unwrap().cpm, 126.0);
+
+    let empty = dir.path().join("empty");
+    fs::create_dir(&empty).unwrap();
+    ensure_library(&empty).unwrap();
+    assert_eq!(fs::read_dir(&empty).unwrap().count(), 0, "an existing empty folder stays empty");
   }
 
   #[test]

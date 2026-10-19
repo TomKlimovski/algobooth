@@ -1,0 +1,14 @@
+{
+  "name": "Warm pad",
+  "cpm": 120,
+  "key": "A minor",
+  "tags": [
+    "pad",
+    "chords"
+  ],
+  "source": {
+    "kind": "mine"
+  },
+  "notes": "Slow Am7 to Fmaj7 pad with a long attack and plenty of room.",
+  "code": "setcpm(120/4)\n\n$: chord(\"<Am7 Fmaj7>\").voicing().s(\"triangle\").attack(0.8).release(1.5).lpf(1800).room(0.8).gain(0.5)"
+}
