@@ -2,13 +2,31 @@ import { vi } from 'vitest';
 import type { DeckApi } from '../booth/Deck';
 import { secondsToNextBoundary, SyncController } from './sync';
 
-function fakeDeck(opts: { id?: 'A' | 'B'; started?: boolean; cps?: number; now?: number } = {}) {
+type Clock = { duration?: number; minLatency?: number };
+
+/**
+ * A DeckApi whose scheduler behaves like Cyclist where sync relies on it:
+ * start() awaits beforeStart before it starts, and both start and stop fire onToggle.
+ * The clock defaults to zero lead so the plan's cycle math reads directly;
+ * `clock: null` drops it to exercise the fallback.
+ */
+function fakeDeck(opts: { id?: 'A' | 'B'; started?: boolean; cps?: number; now?: number; clock?: Clock | null } = {}) {
+  const onToggle = new Set<(started: boolean) => void>();
   const scheduler = {
     cps: opts.cps ?? 0.5,
     started: opts.started ?? false,
     now: vi.fn(() => opts.now ?? 0),
-    start: vi.fn(async () => {}),
-    stop: vi.fn(),
+    clock: opts.clock === null ? undefined : (opts.clock ?? { duration: 0, minLatency: 0 }),
+    beforeStart: undefined as undefined | (() => unknown),
+    start: vi.fn(async () => {
+      await scheduler.beforeStart?.();
+      scheduler.started = true;
+      onToggle.forEach((f) => f(true));
+    }),
+    stop: vi.fn(() => {
+      scheduler.started = false;
+      onToggle.forEach((f) => f(false));
+    }),
   };
   const deck = {
     id: opts.id ?? 'A',
@@ -21,9 +39,18 @@ function fakeDeck(opts: { id?: 'A' | 'B'; started?: boolean; cps?: number; now?:
     scheduler,
     setCps: vi.fn((cps: number) => { scheduler.cps = cps; }),
     afterEval: new Set<() => void>(),
+    onToggle,
   } satisfies DeckApi;
   return deck;
 }
+
+type Timer = [() => void, number];
+const recordTimers = () => {
+  const timers: Timer[] = [];
+  const setTimer = (f: () => void, ms: number) => { timers.push([f, ms]); return timers.length as any; };
+  return { timers, setTimer };
+};
+const flush = () => new Promise((r) => setTimeout(r, 0));
 
 test('seconds to the next cycle boundary', () => {
   expect(secondsToNextBoundary(3.25, 0.5)).toBeCloseTo(1.5);
@@ -74,19 +101,26 @@ test('release unhooks and re-evaluates B so its own setcpm applies again', () =>
   expect(b.evaluate).toHaveBeenCalledWith();
   expect(a.afterEval.size).toBe(0);
   expect(b.afterEval.size).toBe(0);
+  expect(a.onToggle.size).toBe(0);
+  expect(b.onToggle.size).toBe(0);
+  expect(b.scheduler.beforeStart).toBeUndefined();
   b.setCps.mockClear();
   a.scheduler.cps = 0.7; a.afterEval.forEach(f => f());
   expect(b.setCps).not.toHaveBeenCalled();
 });
-test('release before the boundary cancels the pending B restart', () => {
-  const timers: Array<() => void> = [];
+test('release before the boundary starts B at once and re-evaluates it', async () => {
   const cancel = vi.fn();
+  const { timers, setTimer } = recordTimers();
   const a = fakeDeck({ started: true, cps: 0.5, now: 1.5 }); const b = fakeDeck({ started: true });
-  const s = new SyncController(() => a, () => b, (f) => { timers.push(f); return 7 as any; }, { clearTimer: cancel });
+  const s = new SyncController(() => a, () => b, setTimer, { clearTimer: cancel });
   s.engage();
   s.release();
-  expect(cancel).toHaveBeenCalledWith(7);
-  expect(b.evaluate).toHaveBeenCalledWith(true); // B was playing before engage, so it plays again
+  expect(cancel).toHaveBeenCalledWith(1);
+  await flush();
+  expect(b.scheduler.started).toBe(true); // B was playing before engage, so it plays again
+  expect(b.evaluate).toHaveBeenCalledWith();
+  timers[0][0](); // a stale timer is harmless
+  expect(b.scheduler.start).toHaveBeenCalledTimes(1);
 });
 test('engage on a stopped B matches tempo without starting it', () => {
   const timers: Array<() => void> = [];
@@ -109,4 +143,97 @@ test('calls the timer unbound, as window.setTimeout requires', () => {
   const s = new SyncController(() => a, () => b, strictTimer);
   expect(s.engage()).toEqual({ ok: true });
   expect(calls).toEqual([1000]);
+});
+test('engage compensates for the Cyclist clock lead (review: 60 ms lag)', () => {
+  // now() reports the cycle at t - duration, and B's cycle 0 lands minLatency after start().
+  const { timers, setTimer } = recordTimers();
+  const clock = { duration: 0.05, minLatency: 0.01 };
+  const a = fakeDeck({ started: true, cps: 0.5, now: 3.25, clock }); const b = fakeDeck({ started: true, clock });
+  new SyncController(() => a, () => b, setTimer).engage();
+  expect(timers[0][1]).toBeCloseTo(1500 - 60);
+});
+test('a lead past the boundary waits for the following one', () => {
+  const { timers, setTimer } = recordTimers();
+  const clock = { duration: 0.05, minLatency: 0.01 };
+  const a = fakeDeck({ started: true, cps: 0.5, now: 3.99, clock }); const b = fakeDeck({ started: true, clock });
+  new SyncController(() => a, () => b, setTimer).engage();
+  expect(timers[0][1]).toBeCloseTo(20 - 60 + 2000);
+});
+test('without clock details the lead falls back to 0.05 s plus 0.01 s', () => {
+  const { timers, setTimer } = recordTimers();
+  const a = fakeDeck({ started: true, cps: 0.5, now: 3.25, clock: null }); const b = fakeDeck({ started: true, clock: null });
+  new SyncController(() => a, () => b, setTimer).engage();
+  expect(timers[0][1]).toBeCloseTo(1440);
+});
+test('B started while engaged waits for A\'s next boundary at A\'s tempo', async () => {
+  const { timers, setTimer } = recordTimers();
+  const a = fakeDeck({ started: true, cps: 0.5, now: 3.25 }); const b = fakeDeck({ started: false, cps: 0.4 });
+  const s = new SyncController(() => a, () => b, setTimer);
+  s.engage();
+  b.setCps.mockClear();
+  const playing = b.scheduler.start(); // the user presses Play on B
+  expect(b.setCps).toHaveBeenCalledWith(0.5);
+  expect(timers).toHaveLength(1);
+  expect(timers[0][1]).toBeCloseTo(1500);
+  await flush();
+  expect(b.scheduler.started).toBe(false);
+  timers[0][0]();
+  await playing;
+  expect(b.scheduler.started).toBe(true);
+});
+test('A restarting while engaged realigns a playing B', async () => {
+  const { timers, setTimer } = recordTimers();
+  const a = fakeDeck({ started: true, cps: 0.5, now: 3.25 }); const b = fakeDeck({ started: true });
+  const s = new SyncController(() => a, () => b, setTimer);
+  s.engage();
+  timers[0][0]();
+  await flush();
+  expect(b.scheduler.started).toBe(true);
+  a.scheduler.stop();
+  await a.scheduler.start(); // A re-anchors to cycle 0
+  expect(b.scheduler.stop).toHaveBeenCalledTimes(2);
+  expect(b.scheduler.started).toBe(false);
+  expect(timers).toHaveLength(2);
+  timers[1][0]();
+  await flush();
+  expect(b.scheduler.started).toBe(true);
+});
+test('A restarting while B waits re-arms the wait on A\'s new timeline', async () => {
+  const cancel = vi.fn();
+  const { timers, setTimer } = recordTimers();
+  const a = fakeDeck({ started: true, cps: 0.5, now: 3.25 }); const b = fakeDeck({ started: true });
+  new SyncController(() => a, () => b, setTimer, { clearTimer: cancel }).engage();
+  a.scheduler.now.mockReturnValue(0.5);
+  a.scheduler.stop(); await a.scheduler.start();
+  expect(cancel).toHaveBeenCalledWith(1);
+  expect(timers[1][1]).toBeCloseTo(1000);
+});
+test('stopping B during the wait cancels its start', async () => {
+  const cancel = vi.fn();
+  const { timers, setTimer } = recordTimers();
+  const a = fakeDeck({ started: true, cps: 0.5, now: 3.25 }); const b = fakeDeck({ started: true });
+  const s = new SyncController(() => a, () => b, setTimer, { clearTimer: cancel });
+  s.engage();
+  b.scheduler.stop(); // the user presses Stop before the bar line
+  expect(cancel).toHaveBeenCalledWith(1);
+  timers[0][0]();
+  await flush();
+  expect(b.scheduler.started).toBe(false);
+  expect(s.engaged).toBe(true);
+});
+test('dispose unhooks without touching B (review: unmount after decks are torn down)', async () => {
+  const cancel = vi.fn();
+  const { timers, setTimer } = recordTimers();
+  const a = fakeDeck({ started: true, cps: 0.5, now: 3.25 }); const b = fakeDeck({ started: true });
+  const s = new SyncController(() => a, () => b, setTimer, { clearTimer: cancel });
+  s.engage();
+  s.dispose();
+  expect(s.engaged).toBe(false);
+  expect(cancel).toHaveBeenCalledWith(1);
+  expect(b.evaluate).not.toHaveBeenCalled();
+  expect(b.scheduler.beforeStart).toBeUndefined();
+  expect(a.afterEval.size + b.afterEval.size + a.onToggle.size + b.onToggle.size).toBe(0);
+  timers[0][0]();
+  await flush();
+  expect(b.scheduler.started).toBe(false);
 });

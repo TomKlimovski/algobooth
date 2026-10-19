@@ -61,7 +61,8 @@ export function Booth() {
   };
   onCleanup(() => {
     clearTimeout(messageTimer);
-    sync.release();
+    // Decks clean up first (children before parents), so leave them alone here.
+    sync.dispose();
   });
 
   const masterPlay = () => Promise.all(DECK_IDS.map((id) => booth.state.decks[id]?.evaluate(true)));

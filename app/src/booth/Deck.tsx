@@ -15,9 +15,20 @@ export interface DeckApi {
   getCode(): string;
   setName(name: string): void;
   setFile(filePath: string | null, savedCode: string | null): void;
-  scheduler: { cps: number; now(): number; started: boolean; start(): Promise<void>; stop(): void };
+  /** The mirror's Cyclist. `beforeStart` runs (and is awaited) before its clock starts; `clock` is its zyklus clock. */
+  scheduler: {
+    cps: number;
+    now(): number;
+    started: boolean;
+    start(): Promise<void>;
+    stop(): void;
+    beforeStart?: () => unknown;
+    clock?: { duration?: number; minLatency?: number };
+  };
   setCps(cps: number): void;
   afterEval: Set<() => void>;
+  /** Called after the deck starts or stops, however that happened. */
+  onToggle: Set<(started: boolean) => void>;
 }
 
 export const DEFAULT_CODE: Record<DeckId, string> = {
@@ -36,6 +47,7 @@ export function Deck(props: { state: DeckState; onReady?: (api: DeckApi) => void
   let canvas!: HTMLCanvasElement;
   let mirror: any;
   const afterEval = new Set<() => void>();
+  const onToggle = new Set<(started: boolean) => void>();
 
   const fitCanvas = () => {
     const dpr = window.devicePixelRatio || 1;
@@ -77,6 +89,7 @@ export function Deck(props: { state: DeckState; onReady?: (api: DeckApi) => void
       onToggle: (started: boolean) => {
         deck.setPlaying(started);
         if (!started) clearCanvas();
+        onToggle.forEach((f) => f(started));
       },
       onEvalError: (e: unknown) => deck.setError(String(e)),
       afterEval: () => {
@@ -99,6 +112,7 @@ export function Deck(props: { state: DeckState; onReady?: (api: DeckApi) => void
       scheduler: mirror.repl.scheduler,
       setCps: (cps) => mirror.repl.setCps(cps),
       afterEval,
+      onToggle,
     });
 
     onCleanup(() => {
