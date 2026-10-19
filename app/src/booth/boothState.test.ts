@@ -18,3 +18,11 @@ test('sync starts released with no message', () => {
   expect(b.state.sync).toBe(true);
   expect(b.state.message).toBe('Start deck A first');
 });
+test('master defaults: filters open, unity gain, dry; setMaster clamps', () => {
+  const b = createBoothState();
+  expect(b.state.master).toEqual({ hpf: 0, lpf: 1, gain: 0.83, reverb: 0 });
+  b.setMaster('hpf', -2);
+  b.setMaster('reverb', 1.5);
+  expect(b.state.master.hpf).toBe(0);
+  expect(b.state.master.reverb).toBe(1);
+});

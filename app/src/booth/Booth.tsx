@@ -9,6 +9,9 @@ import { Deck, type DeckApi } from './Deck';
 import { createBoothState, DEFAULT_KNOBS } from './boothState';
 import { cpmFromCps, createDeckState, type DeckId } from './deckState';
 import { Fader } from './Fader';
+import { MasterStrip } from './MasterStrip';
+import { isTransportKey, transportAction } from './spaceToggle';
+import type { MasterControl } from '../engine/controlMap';
 import './booth.css';
 
 const DECK_IDS: DeckId[] = ['A', 'B'];
@@ -44,6 +47,11 @@ export function Booth(props: {
   createEffect(() => {
     if (ready()) mixer!.setFader(booth.state.fader);
   });
+  for (const control of ['hpf', 'lpf', 'gain', 'reverb'] as MasterControl[]) {
+    createEffect(() => {
+      if (ready()) mixer!.setMaster(control, booth.state.master[control]);
+    });
+  }
   for (const id of DECK_IDS) {
     for (const knob of KNOBS) {
       createEffect(() => {
@@ -88,6 +96,17 @@ export function Booth(props: {
     void Promise.all(DECK_IDS.map((id) => booth.state.decks[id]?.evaluate(true))).catch((e) =>
       flash(`Play failed: ${e instanceof Error ? e.message : String(e)}`),
     );
+
+  const stopAll = () => DECK_IDS.forEach((id) => booth.state.decks[id]?.stop());
+  const anyStarted = () => DECK_IDS.some((id) => booth.state.decks[id]?.scheduler.started);
+  const onKey = (e: KeyboardEvent) => {
+    if (!ready() || !isTransportKey(e)) return;
+    e.preventDefault();
+    if (transportAction(anyStarted()) === 'stop') stopAll();
+    else masterPlay();
+  };
+  onMount(() => window.addEventListener('keydown', onKey));
+  onCleanup(() => window.removeEventListener('keydown', onKey));
 
   const deckKnobs = (id: DeckId) => (
     <div class="booth-knobs" data-deck={id}>
@@ -141,6 +160,13 @@ export function Booth(props: {
           {deckKnobs('A')}
           <Crossfader value={booth.state.fader} onChange={booth.setFader} />
           {deckKnobs('B')}
+          <MasterStrip
+            values={booth.state.master}
+            onChange={booth.setMaster}
+            onStartAll={masterPlay}
+            onStopAll={stopAll}
+            disabled={!ready()}
+          />
           <span class="booth-message" role="status">{booth.state.message}</span>
           <button
             class="deck-btn ghost"
@@ -152,7 +178,6 @@ export function Booth(props: {
           >
             Sync
           </button>
-          <button class="deck-btn" disabled={!ready()} onClick={masterPlay} aria-label="play both decks">▶</button>
         </footer>
       </main>
     </div>

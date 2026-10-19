@@ -47,6 +47,22 @@ body {
 
 .booth-knobs { display: flex; gap: 10px; align-items: flex-end; }
 
+.master-strip {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  padding-left: 12px;
+  border-left: 1px solid #2a2d36;
+}
+.master-label {
+  align-self: center;
+  color: #8b90a0;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.master-transport { display: flex; flex-direction: column; gap: 4px; align-self: center; }
+
 .booth-message { color: #ffb86c; white-space: nowrap; }
 .booth-message:empty { display: none; }
 
