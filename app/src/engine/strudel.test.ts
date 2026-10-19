@@ -5,6 +5,7 @@ const webaudio = vi.hoisted(() => ({
   registerSynthSounds: vi.fn(),
   samples: vi.fn(async () => {}),
   aliasBank: vi.fn(async () => {}),
+  getAudioContext: () => ({ close: vi.fn(async () => {}) }),
 }));
 vi.mock('@strudel/webaudio', () => webaudio);
 vi.mock('@strudel/core', () => ({ evalScope: vi.fn(async () => {}) }));

@@ -32,8 +32,17 @@ async function sampleManifest(): Promise<unknown> {
 /** Everything pattern code can reach by name. Mirrors what Strudel's own REPL scopes. */
 export const SCOPE_MODULES: object[] = [core, mini, tonal, webaudio, draw, codemirror];
 
+/**
+ * Release the output device when the page goes away. A reload (Vite forces one when an engine module
+ * changes) otherwise leaves the old context holding the device while the new page's context runs silently.
+ */
+function closeAudioOnPageHide(): void {
+  window.addEventListener('pagehide', () => void webaudio.getAudioContext().close().catch(() => {}), { once: true });
+}
+
 async function boot(): Promise<void> {
   await webaudio.initAudio();
+  closeAudioOnPageHide();
   await core.evalScope(...SCOPE_MODULES);
   webaudio.registerSynthSounds();
   await webaudio.samples(await sampleManifest(), asset('/samples/tidal-drum-machines/'), {
