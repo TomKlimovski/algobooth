@@ -49,13 +49,7 @@ struct Tracker {
 
 impl Tracker {
   fn new(root: PathBuf) -> Self {
-    let folders = WalkDir::new(&root)
-      .min_depth(1)
-      .into_iter()
-      .filter_map(Result::ok)
-      .filter(|e| e.file_type().is_dir())
-      .map(|e| e.into_path())
-      .collect();
+    let folders = folders_under(&root).filter(|f| *f != root).collect();
     Tracker { root, folders }
   }
 
@@ -64,11 +58,17 @@ impl Tracker {
     let mut out = BTreeSet::new();
     for path in paths {
       let Ok(rel) = path.strip_prefix(&self.root) else { continue };
-      if rel.as_os_str().is_empty() || rel.components().any(is_hidden) {
+      if rel.as_os_str().is_empty() {
+        // The root itself changed (e.g. it was deleted or renamed): report it as "" so the UI refreshes.
+        out.insert(String::new());
+        continue;
+      }
+      if rel.components().any(is_hidden) {
         continue;
       }
       let folder = if path.is_dir() {
-        self.folders.insert(path.clone());
+        // A tree moved in may be reported only by its top folder, so learn its subfolders too.
+        self.folders.extend(folders_under(&path));
         true
       } else if self.folders.remove(&path) {
         self.folders.retain(|f| !f.starts_with(&path));
@@ -82,6 +82,16 @@ impl Tracker {
     }
     out.into_iter().collect()
   }
+}
+
+/// `dir` and every non-hidden folder below it.
+fn folders_under(dir: &Path) -> impl Iterator<Item = PathBuf> {
+  WalkDir::new(dir)
+    .into_iter()
+    .filter_entry(|e| e.depth() == 0 || !e.file_name().to_string_lossy().starts_with('.'))
+    .filter_map(Result::ok)
+    .filter(|e| e.file_type().is_dir())
+    .map(|e| e.into_path())
 }
 
 fn is_hidden(part: Component) -> bool {
@@ -197,6 +207,22 @@ mod tests {
       root.clone(),
       PathBuf::from("/elsewhere/y.json"),
     ]);
-    assert_eq!(changed, ["gone.json", "old", "old/inner"]);
+    assert_eq!(changed, ["", "gone.json", "old", "old/inner"]);
+  }
+
+  #[test]
+  fn tracker_reports_removal_of_nested_folder_that_arrived_by_move() {
+    let outside = tempfile::tempdir().unwrap();
+    fs::create_dir_all(outside.path().join("moved/inner")).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().canonicalize().unwrap();
+    let mut tracker = Tracker::new(root.clone());
+
+    // The backend may report only the top of a tree that is moved in.
+    fs::rename(outside.path().join("moved"), root.join("moved")).unwrap();
+    assert_eq!(tracker.changed([root.join("moved")]), ["moved"]);
+
+    fs::remove_dir(root.join("moved/inner")).unwrap();
+    assert_eq!(tracker.changed([root.join("moved/inner")]), ["moved/inner"]);
   }
 }
