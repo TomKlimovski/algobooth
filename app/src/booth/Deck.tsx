@@ -8,7 +8,8 @@ import './deck.css';
 
 export interface DeckApi {
   id: DeckId;
-  evaluate(): Promise<void>;
+  /** Evaluates the code; `autostart` starts the deck, otherwise it keeps playing or stopped as it was. */
+  evaluate(autostart?: boolean): Promise<void>;
   stop(): void;
   setCode(code: string): void;
   getCode(): string;
@@ -49,6 +50,7 @@ export function Deck(props: { state: DeckState; onReady?: (api: DeckApi) => void
     await resumeAudio();
     await mirror.evaluate(true);
   };
+  const evaluate = (autostart?: boolean) => (autostart ? play() : update());
   const stop = () => mirror.stop();
 
   onMount(() => {
@@ -88,7 +90,7 @@ export function Deck(props: { state: DeckState; onReady?: (api: DeckApi) => void
 
     props.onReady?.({
       id,
-      evaluate: update,
+      evaluate,
       stop,
       setCode: (code) => mirror.setCode(code),
       getCode: () => mirror.code,
