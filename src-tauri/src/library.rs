@@ -99,7 +99,7 @@ fn resolve_entry(root: &Path, rel: &str) -> Result<PathBuf, String> {
   Ok(path)
 }
 
-fn relative(root: &Path, path: &Path) -> String {
+pub(crate) fn relative(root: &Path, path: &Path) -> String {
   path
     .strip_prefix(root)
     .unwrap_or(path)
