@@ -105,10 +105,14 @@ export function createLibraryStore(
       if (state.selected !== null && !findNode(root, state.selected)) set('selected', null);
     });
 
-  /** After an entry moves from `from` to `to`, keep it selected and keep folds under it. */
+  /** After an entry moves from `from` to `to`, keep it selected, keep folds under it, and keep decks on their files. */
   const followEntry = (from: string, to: string) => {
     set('folded', new Set([...state.folded].map((p) => reroot(p, from, to))));
     if (state.selected !== null) set('selected', reroot(state.selected, from, to));
+    for (const deck of Object.values(decks())) {
+      const file = deck?.filePath() ?? null;
+      if (file !== null && reroot(file, from, to) !== file) deck!.moveFile(reroot(file, from, to));
+    }
   };
 
   const load = (path: string, deckId: DeckId) =>
@@ -121,7 +125,7 @@ export function createLibraryStore(
       const pattern = await api.read_pattern(dir(), path);
       deck.setCode(pattern.code);
       deck.setName(pattern.name);
-      deck.setFile(path, pattern.code);
+      deck.setFile(path, pattern.code, pattern);
     });
 
   return {
@@ -146,6 +150,8 @@ export function createLibraryStore(
     rename: (path: string, name: string) =>
       attempt(async () => {
         const next = await api.rename_entry(dir(), path, name);
+        // Renaming a pattern also renames it inside the file, so a deck showing it follows the new name.
+        for (const deck of Object.values(decks())) if (deck?.filePath() === path) deck.setName(name);
         followEntry(path, next);
         await refresh();
         return next;
@@ -172,6 +178,17 @@ export function createLibraryStore(
     newPattern: (heading: string) =>
       attempt(async () => {
         const path = await api.write_pattern(dir(), heading, NEW_PATTERN);
+        await refresh();
+        return path;
+      }),
+    /** Reads one pattern (a deck reconciling with a change on disk). */
+    readPattern: (path: string) => attempt(() => api.read_pattern(dir(), path)),
+    /** Overwrites the pattern at `path` (a deck's Save). */
+    savePattern: (path: string, pattern: Pattern) => attempt(() => api.save_pattern(dir(), path, pattern)),
+    /** Writes `pattern` as a new file in `heading` (a deck's Save as); resolves to its path. */
+    writePattern: (heading: string, pattern: Pattern) =>
+      attempt(async () => {
+        const path = await api.write_pattern(dir(), heading, pattern);
         await refresh();
         return path;
       }),

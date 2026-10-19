@@ -18,6 +18,11 @@ export function App() {
   let boothDecks: () => Record<DeckId, DeckApi | null> = () => ({ A: null, B: null });
   const library = createLibraryStore(tauriApi, () => boothDecks(), () => settings().library_dir);
   const refresh = () => void library.refresh().catch(() => {});
+  /** The watcher's batch: refresh the tree, and let each deck reconcile its open file. */
+  const onLibraryChanged = (paths: string[]) => {
+    refresh();
+    for (const deck of Object.values(boothDecks())) deck?.diskChanged(paths);
+  };
 
   // Settings load here, before anything reads `library_dir` (they used to load in SettingsTab's onMount).
   onMount(async () => {
@@ -53,7 +58,7 @@ export function App() {
     setLibraryError(null);
     try {
       await tauriApi.watch_library(dir);
-      const off = await tauriApi.onLibraryChanged(refresh);
+      const off = await tauriApi.onLibraryChanged(onLibraryChanged);
       if (gen !== generation) return off();
       unlisten = off;
       library.setWatchWarning(null);

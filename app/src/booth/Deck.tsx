@@ -1,11 +1,14 @@
-import { createSignal, onCleanup, onMount } from 'solid-js';
+import { createMemo, createSignal, onCleanup, onMount, Show } from 'solid-js';
 import { StrudelMirror } from '@strudel/codemirror';
 import { transpiler } from '@strudel/transpiler';
 import { getAudioContext, webaudioOutput } from '@strudel/webaudio';
-import { PATTERN_MIME } from '../library/store';
+import type { Pattern } from '../library/api';
+import { parentOf, PATTERN_MIME, type LibraryStore } from '../library/store';
 import { settings } from '../settings/settings';
 import { initEngine } from '../engine/strudel';
+import { isDirty, newPatternDecision, onDiskChange, patternFromDeck, sameCode } from './deckFile';
 import { cpmFromCps, ORBIT, type DeckId, type DeckState } from './deckState';
+import { SaveDialog, type SaveTarget } from './SaveDialog';
 import './deck.css';
 
 export interface DeckApi {
@@ -16,7 +19,14 @@ export interface DeckApi {
   setCode(code: string): void;
   getCode(): string;
   setName(name: string): void;
-  setFile(filePath: string | null, savedCode: string | null): void;
+  /** Points the deck at a library file (null: none) whose content is `savedCode`; `pattern` is that file. */
+  setFile(filePath: string | null, savedCode: string | null, pattern?: Pattern | null): void;
+  /** Library-relative path of the deck's file; null when it has none. */
+  filePath(): string | null;
+  /** The deck's file was renamed or moved to `path` by the library. */
+  moveFile(path: string): void;
+  /** The watcher reported `paths` changed: reload the deck's file, or flag it if the deck has edits. */
+  diskChanged(paths: string[]): void;
   /** The mirror's Cyclist. `beforeStart` runs (and is awaited) before its clock starts; `clock` is its zyklus clock. */
   scheduler: {
     cps: number;
@@ -49,6 +59,8 @@ export function Deck(props: {
   onDropPattern?: (path: string) => void;
   /** Checked during dragover, so the deck refuses (no drop cursor) entries it cannot load. */
   canDropPattern?: () => boolean;
+  /** Where Save, Save as and disk reconciliation read and write; without it those buttons are disabled. */
+  library?: LibraryStore;
 }) {
   const deck = props.state;
   const id = deck.state.id;
@@ -58,6 +70,16 @@ export function Deck(props: {
   const afterEval = new Set<() => void>();
   const onToggle = new Set<(started: boolean) => void>();
   const [dragOver, setDragOver] = createSignal(false);
+  /** The live editor text (`deck.state.code` only follows evaluations). */
+  const [editorCode, setEditorCode] = createSignal('');
+  const dirty = createMemo(() => isDirty(editorCode(), deck.state.savedCode, DEFAULT_CODE[id]));
+  /** The open Save as dialog's answer; resolves null on cancel. */
+  const [asking, setAsking] = createSignal<((target: SaveTarget | null) => void) | null>(null);
+  const askTarget = () => new Promise<SaveTarget | null>((resolve) => setAsking(() => resolve));
+  const answer = (target: SaveTarget | null) => {
+    asking()?.(target);
+    setAsking(null);
+  };
   const accepts = (e: DragEvent) =>
     !!props.onDropPattern &&
     (e.dataTransfer?.types.includes(PATTERN_MIME) ?? false) &&
@@ -95,6 +117,72 @@ export function Deck(props: {
   const evaluate = (autostart?: boolean) => (autostart ? play() : update());
   const stop = () => mirror.stop();
 
+  // Library errors already show in the sidebar's error line; these only report whether they worked.
+  const succeeded = (p: Promise<unknown>) => p.then(() => true, () => false);
+
+  const current = (name: string): Pattern =>
+    patternFromDeck({ name, code: mirror.code, cpm: deck.state.cpm }, deck.state.pattern ?? undefined);
+
+  /** Asks for a name and heading, writes a new file, and points the deck at it. Resolves false if cancelled. */
+  const saveAs = async (): Promise<boolean> => {
+    const lib = props.library;
+    if (!lib || asking()) return false;
+    const target = await askTarget();
+    if (!target) return false;
+    const pattern = current(target.name);
+    return succeeded(
+      lib.writePattern(target.heading, pattern).then((written) => {
+        deck.setName(target.name);
+        deck.setFile(written, pattern.code, pattern);
+      }),
+    );
+  };
+  const save = async (): Promise<boolean> => {
+    const lib = props.library;
+    const path = deck.state.filePath;
+    if (!lib) return false;
+    if (path === null) return saveAs();
+    const pattern = current(deck.state.name);
+    return succeeded(lib.savePattern(path, pattern).then(() => deck.setFile(path, pattern.code, pattern)));
+  };
+  const newPattern = async () => {
+    const confirmed =
+      dirty() && window.confirm('Save changes before starting a new pattern? OK saves first, Cancel keeps editing.');
+    const decision = newPatternDecision(dirty(), confirmed);
+    if (decision === 'abort') return;
+    if (decision === 'save-then-start' && !(await save())) return;
+    mirror.setCode(DEFAULT_CODE[id]);
+    deck.setName('untitled');
+    deck.setFile(null, null);
+  };
+
+  /** Replaces the editor with the file on disk, without evaluating it. */
+  const applyDisk = (path: string, pattern: Pattern) => {
+    if (mirror.code !== pattern.code) mirror.setCode(pattern.code);
+    deck.setName(pattern.name);
+    deck.setFile(path, pattern.code, pattern);
+  };
+  const reload = async () => {
+    const path = deck.state.filePath;
+    if (!props.library || path === null) return;
+    const pattern = await props.library.readPattern(path).catch(() => null);
+    if (pattern && deck.state.filePath === path) applyDisk(path, pattern);
+  };
+  const diskChanged = async (paths: string[]) => {
+    const path = deck.state.filePath;
+    if (!props.library || path === null) return;
+    if (onDiskChange({ filePath: path, dirty: dirty() }, paths) === 'ignore') return;
+    const pattern = await props.library.readPattern(path).catch(() => null);
+    // The deck moved on while the file was read, or the file is unreadable (the sidebar says so).
+    if (!pattern || deck.state.filePath !== path) return;
+    // Our own save echoing back, or an edit that left the code alone: nothing to reconcile.
+    const saved = deck.state.savedCode;
+    if (saved !== null && sameCode(pattern.code, saved)) return deck.setPattern(pattern);
+    // Decide again: the editor may have changed while the file was read.
+    if (onDiskChange({ filePath: path, dirty: dirty() }, paths) === 'reload') applyDisk(path, pattern);
+    else deck.setDiskChanged(true);
+  };
+
   onMount(() => {
     fitCanvas();
     const resize = new ResizeObserver(fitCanvas);
@@ -102,6 +190,7 @@ export function Deck(props: {
 
     const initialCode = deck.state.code || DEFAULT_CODE[id];
     deck.setCode(initialCode);
+    setEditorCode(initialCode);
     mirror = new StrudelMirror({
       root,
       id: 'deck-' + id,
@@ -134,7 +223,8 @@ export function Deck(props: {
         deck.setCpm(cpmFromCps(mirror.repl.scheduler.cps));
         afterEval.forEach((f) => f());
       },
-      onUpdateState: () => {},
+      // The repl's state carries the editor text on every edit; dirty tracking follows it.
+      onUpdateState: (s: { code: string }) => setEditorCode(s.code),
     });
 
     props.onReady?.({
@@ -144,7 +234,10 @@ export function Deck(props: {
       setCode: (code) => mirror.setCode(code),
       getCode: () => mirror.code,
       setName: deck.setName,
-      setFile: () => {},
+      setFile: deck.setFile,
+      filePath: () => deck.state.filePath,
+      moveFile: deck.setFilePath,
+      diskChanged: (paths) => void diskChanged(paths),
       scheduler: mirror.repl.scheduler,
       setCps: (cps) => mirror.repl.setCps(cps),
       afterEval,
@@ -169,9 +262,22 @@ export function Deck(props: {
     >
       <header class="deck-header">
         <span class="deck-letter">{id}</span>
-        <span class="deck-name">{deck.state.name}</span>
+        <span class="deck-name">
+          {deck.state.name}
+          <Show when={dirty()}>
+            <span class="deck-dirty" title="Unsaved changes" aria-label="unsaved changes">●</span>
+          </Show>
+        </span>
         <span class="deck-cpm">{deck.state.cpm} cpm</span>
       </header>
+      <Show when={deck.state.diskChanged}>
+        <div class="deck-disk" role="alert">
+          <span>Changed on disk.</span>
+          <button class="deck-btn ghost" onClick={() => void reload()}>Reload</button>
+          <span>or</span>
+          <button class="deck-btn ghost" onClick={() => deck.setDiskChanged(false)}>Keep mine</button>
+        </div>
+      </Show>
       <canvas class="deck-viz" ref={canvas} />
       <div class="deck-editor" ref={root} />
       <div class="deck-error" role="alert">{deck.state.error}</div>
@@ -179,7 +285,21 @@ export function Deck(props: {
         <button class="deck-btn" classList={{ on: deck.state.playing }} onClick={play}>Play</button>
         <button class="deck-btn ghost" onClick={stop}>Stop</button>
         <button class="deck-btn ghost" onClick={update}>Update</button>
+        <span class="deck-transport-gap" />
+        <button class="deck-btn ghost" disabled={!props.library} onClick={() => void newPattern()}>New</button>
+        <button class="deck-btn ghost" disabled={!props.library} onClick={() => void save()}>Save</button>
+        <button class="deck-btn ghost" disabled={!props.library} onClick={() => void saveAs()}>Save as</button>
       </div>
+      <Show when={asking()}>
+        <SaveDialog
+          deckId={id}
+          tree={props.library?.state.root ?? null}
+          name={deck.state.name}
+          heading={deck.state.filePath === null ? 'mine' : parentOf(deck.state.filePath)}
+          onSave={answer}
+          onCancel={() => answer(null)}
+        />
+      </Show>
     </section>
   );
 }

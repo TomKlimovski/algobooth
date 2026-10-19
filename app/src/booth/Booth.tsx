@@ -107,6 +107,7 @@ export function Booth(props: {
                   onReady={(api) => booth.registerDeck(id, api)}
                   onDropPattern={(path) => loadDropped(path, id)}
                   canDropPattern={() => props.library.canDrop({ deck: true })}
+                  library={props.library}
                 />
               )}
             </For>

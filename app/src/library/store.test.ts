@@ -50,7 +50,15 @@ function fakeDeck(id: DeckId) {
   const state = createDeckState(id);
   const setCode = vi.fn();
   const setFile = vi.fn();
-  const api = { id, setCode, setName: state.setName, setFile, scheduler: { started: false } } as unknown as DeckApi;
+  const api = {
+    id,
+    setCode,
+    setName: state.setName,
+    setFile,
+    filePath: () => state.state.filePath,
+    moveFile: state.setFilePath,
+    scheduler: { started: false },
+  } as unknown as DeckApi;
   return { state, api, setCode, setFile };
 }
 
@@ -90,7 +98,7 @@ test('load sets deck code and name', async () => {
   expect(api.read_pattern).toHaveBeenCalledWith('/lib', 'mine/x.json');
   expect(b.setCode).toHaveBeenCalledWith('y');
   expect(b.state.state.name).toBe('x');
-  expect(b.setFile).toHaveBeenCalledWith('mine/x.json', 'y');
+  expect(b.setFile).toHaveBeenCalledWith('mine/x.json', 'y', expect.objectContaining({ code: 'y' }));
 });
 
 test('unreadable leaves are shown but cannot be loaded', async () => {
@@ -206,4 +214,35 @@ test('drops are refused during drag for headings on decks and headings into thei
   expect(lib.canDrop({ heading: 'mine/bass' })).toBe(false);
   expect(lib.canDrop({ heading: 'mine' })).toBe(true);
   expect(lib.canDrop({ heading: 'sets' })).toBe(true);
+});
+
+test('deck saves go to the library root: save overwrites in place, save as writes and refreshes', async () => {
+  const api = fakeApi(heading('', [heading('mine')]));
+  const lib = createLibraryStore(api, () => ({ A: null, B: null }), () => '/lib');
+  await lib.savePattern('mine/x.json', pattern({ code: 'z' }));
+  expect(api.save_pattern).toHaveBeenCalledWith('/lib', 'mine/x.json', pattern({ code: 'z' }));
+  expect(api.list_tree).not.toHaveBeenCalled();
+  expect(await lib.writePattern('mine', pattern())).toBe('mine/untitled.json');
+  expect(api.write_pattern).toHaveBeenCalledWith('/lib', 'mine', pattern());
+  expect(api.list_tree).toHaveBeenCalledTimes(1);
+});
+
+test('renaming or moving a deck\'s open file keeps the deck on it', async () => {
+  const api = fakeApi(heading('', [heading('mine', [leaf('mine/x.json')]), heading('live')]));
+  const a = fakeDeck('A');
+  const b = fakeDeck('B');
+  a.state.setFile('mine/x.json', 'y');
+  b.state.setFile('live/other.json', 'z');
+  const lib = createLibraryStore(api, () => ({ A: a.api, B: b.api }), () => '/lib');
+  await lib.refresh();
+
+  api.rename_entry.mockResolvedValueOnce('mine/renamed.json');
+  await lib.rename('mine/x.json', 'renamed');
+  expect(a.state.state).toMatchObject({ filePath: 'mine/renamed.json', savedCode: 'y', name: 'renamed' });
+  expect(b.state.state).toMatchObject({ filePath: 'live/other.json', name: 'untitled' });
+
+  api.move_entry.mockResolvedValueOnce('live/mine');
+  await lib.move('mine', 'live');
+  expect(a.state.state.filePath).toBe('live/mine/renamed.json');
+  expect(b.state.state.filePath).toBe('live/other.json');
 });

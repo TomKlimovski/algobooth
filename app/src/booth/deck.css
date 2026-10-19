@@ -51,3 +51,50 @@
 }
 .deck-btn.ghost { background: #2a2d36; color: #cfd3dc; }
 .deck-btn.on { box-shadow: 0 0 0 2px #ffb86c; }
+
+.deck-dirty { margin-left: 6px; color: #ffb86c; font-size: 0.8em; }
+
+.deck-disk {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #3a2a14;
+  color: #ffb86c;
+}
+
+.deck-transport-gap { flex: 1; }
+
+.save-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+}
+.save-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 280px;
+  padding: 14px;
+  background: #0e0f13;
+  border: 1px solid #2a2d36;
+  border-radius: 8px;
+  color: #cfd3dc;
+}
+.save-dialog label { display: flex; flex-direction: column; gap: 4px; color: #8b90a0; }
+.save-dialog input,
+.save-dialog select {
+  font: inherit;
+  padding: 4px 6px;
+  border: 1px solid #2a2d36;
+  border-radius: 4px;
+  background: #0a0b0e;
+  color: #cfd3dc;
+}
+.save-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.save-actions .deck-btn:disabled { opacity: 0.4; cursor: default; }
