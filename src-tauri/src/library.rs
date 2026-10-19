@@ -12,10 +12,14 @@ use walkdir::WalkDir;
 
 use crate::slug::slugify;
 
+/// A pattern file. Only `code` is required, so a hand-written `{"code": ...}` file is readable: `name`
+/// falls back to the file stem (see `parse_pattern`), `cpm` to 120, and the rest to empty.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Pattern {
+  #[serde(default)]
   pub name: String,
   pub code: String,
+  #[serde(default = "default_cpm")]
   pub cpm: f64,
   #[serde(default)]
   pub key: String,
@@ -25,6 +29,10 @@ pub struct Pattern {
   pub source: Source,
   #[serde(default)]
   pub notes: String,
+}
+
+fn default_cpm() -> f64 {
+  120.0
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -124,9 +132,14 @@ fn same_file(a: &Path, b: &Path) -> bool {
   }
 }
 
+/// Reads a pattern file; a missing or empty `name` becomes the file stem.
 fn parse_pattern(path: &Path) -> Result<Pattern, String> {
   let text = fs::read_to_string(path).map_err(|e| e.to_string())?;
-  serde_json::from_str(&text).map_err(|e| format!("not a valid pattern: {e}"))
+  let mut pattern: Pattern = serde_json::from_str(&text).map_err(|e| format!("not a valid pattern: {e}"))?;
+  if pattern.name.is_empty() {
+    pattern.name = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+  }
+  Ok(pattern)
 }
 
 /// Writes JSON via a hidden temp file in the same folder, then renames it into place.
@@ -453,6 +466,7 @@ mod tests {
     )
     .unwrap();
     fs::write(root.join("mine/b.json"), "not json {").unwrap();
+    // Only invalid JSON or a missing `code` makes a file unreadable.
     fs::write(root.join("mine/c.json"), r#"{"name":"c","cpm":120}"#).unwrap();
     fs::write(root.join("mine/.hidden.json"), "{}").unwrap();
     fs::write(root.join(".DS_Store"), "x").unwrap();
@@ -507,6 +521,22 @@ mod tests {
       serde_json::to_value(rip).unwrap(),
       serde_json::json!({ "kind": "rip", "url": "u", "start": 1.0, "end": 2.0, "rippedAt": "t" })
     );
+  }
+
+  #[test]
+  fn hand_written_files_need_only_code() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    fs::write(root.join("named.json"), r#"{"name":"Hand Made","code":"s(\"bd\")"}"#).unwrap();
+    fs::write(root.join("bare-bones.json"), r#"{"code":"s(\"hh\")"}"#).unwrap();
+    let named = read_pattern(root, "named.json").unwrap();
+    assert_eq!((named.name.as_str(), named.cpm), ("Hand Made", 120.0));
+    assert_eq!(named.source, Source::Mine);
+    let bare = read_pattern(root, "bare-bones.json").unwrap();
+    assert_eq!((bare.name.as_str(), bare.code.as_str(), bare.cpm), ("bare-bones", "s(\"hh\")", 120.0));
+    let tree = list_tree(root).unwrap();
+    assert!(tree.children.iter().all(|c| c.kind == NodeKind::Pattern && c.cpm == Some(120.0)));
+    assert!(tree.children.iter().any(|c| c.name == "bare-bones"));
   }
 
   #[test]
