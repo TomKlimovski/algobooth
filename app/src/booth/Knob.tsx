@@ -1,24 +1,37 @@
-/** Pixels of vertical drag that sweep the knob across its whole [0, 1] range. */
-const DRAG_RANGE_PX = 150;
+import { onCleanup } from 'solid-js';
+import { dragValue } from './knobDrag';
+
 /** Knob indicator sweep in degrees, centred on twelve o'clock. */
 const SWEEP_DEG = 270;
 
-const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
-
-/** A labelled knob: drag up to raise, down to lower; double-click resets to `default`. */
+/**
+ * A labelled knob: drag up to raise, down to lower; double-click resets to `default`.
+ *
+ * The drag listens on `window` rather than relying on pointer capture: WebKit starts a
+ * native text selection on mousedown and cancels the capture once the pointer leaves
+ * the dial, so `preventDefault` on pointerdown stops the selection and the window
+ * listeners keep the drag alive wherever the pointer goes.
+ */
 export function Knob(props: { label: string; value: number; default: number; onChange: (v: number) => void }) {
   let startY = 0;
   let startValue = 0;
 
+  const onMove = (e: PointerEvent) => props.onChange(dragValue(startValue, startY, e.clientY));
+  const endDrag = () => {
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', endDrag);
+    window.removeEventListener('pointercancel', endDrag);
+  };
   const onPointerDown = (e: PointerEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
     startY = e.clientY;
     startValue = props.value;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', endDrag);
+    window.addEventListener('pointercancel', endDrag);
   };
-  const onPointerMove = (e: PointerEvent) => {
-    if (!(e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) return;
-    props.onChange(clamp01(startValue + (startY - e.clientY) / DRAG_RANGE_PX));
-  };
+  onCleanup(endDrag);
 
   return (
     <div class="knob-wrap" title={`${props.label} ${Math.round(props.value * 100)}%`}>
@@ -30,7 +43,6 @@ export function Knob(props: { label: string; value: number; default: number; onC
         aria-valuemax={1}
         aria-valuenow={props.value}
         onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
         onDblClick={() => props.onChange(props.default)}
         style={{ transform: `rotate(${(props.value - 0.5) * SWEEP_DEG}deg)` }}
       />

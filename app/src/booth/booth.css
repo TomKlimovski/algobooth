@@ -65,6 +65,8 @@ body {
   border: 2px solid #4a4f5e;
   cursor: ns-resize;
   touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 .knob::after {
   content: '';
