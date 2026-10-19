@@ -36,10 +36,7 @@ pub fn default_settings() -> Settings {
 
 /// Reads settings from `path`; a missing or unreadable file yields the defaults.
 pub fn read_settings(path: &Path) -> Settings {
-  fs::read_to_string(path)
-    .ok()
-    .and_then(|text| serde_json::from_str(&text).ok())
-    .unwrap_or_else(default_settings)
+  fs::read_to_string(path).ok().and_then(|text| serde_json::from_str(&text).ok()).unwrap_or_else(default_settings)
 }
 
 /// Writes settings atomically: a temp file in the same directory, then a rename.
