@@ -26,12 +26,20 @@ export function Booth(props: {
   let mixer: DeckMixer | undefined;
   // Decks mount only once the mixer is installed, so no orbit is created before it reroutes them.
   const [ready, setReady] = createSignal(false);
+  /** Why the engine failed to boot; the booth shows it with a Retry button. */
+  const [engineError, setEngineError] = createSignal<string | null>(null);
 
-  onMount(async () => {
-    await initEngine();
-    mixer = installMixer();
-    setReady(true);
-  });
+  const startEngine = async () => {
+    setEngineError(null);
+    try {
+      await initEngine();
+      mixer = installMixer();
+      setReady(true);
+    } catch (e) {
+      setEngineError(e instanceof Error ? e.message : String(e));
+    }
+  };
+  onMount(() => void startEngine());
 
   createEffect(() => {
     if (ready()) mixer!.setFader(booth.state.fader);
@@ -102,7 +110,19 @@ export function Booth(props: {
         <LibraryTree store={props.library} />
       </aside>
       <main class="booth-main">
-        <Show when={ready()} fallback={<div class="booth-loading">loading engine…</div>}>
+        <Show
+          when={ready()}
+          fallback={
+            <Show when={engineError()} fallback={<div class="booth-loading">loading engine…</div>}>
+              {(err) => (
+                <div class="booth-loading booth-engine-error" role="alert">
+                  <p>The audio engine failed to start: {err()}</p>
+                  <button class="deck-btn" onClick={() => void startEngine()}>Retry</button>
+                </div>
+              )}
+            </Show>
+          }
+        >
           <div class="booth-decks">
             <For each={DECK_IDS}>
               {(id) => (

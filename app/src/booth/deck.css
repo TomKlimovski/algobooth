@@ -64,6 +64,18 @@
   color: #ffb86c;
 }
 
+.deck-save-error {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #2a1a1a;
+  color: #e94f37;
+  word-break: break-word;
+}
+.deck-save-error span { flex: 1; }
+
 .deck-transport-gap { flex: 1; }
 
 .save-backdrop {

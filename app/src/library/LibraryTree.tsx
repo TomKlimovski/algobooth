@@ -264,6 +264,11 @@ export function LibraryTree(props: { store: LibraryStore }) {
         >
           {store.state.collapsed ? '▸' : '◂'}
         </button>
+        <Show when={store.state.collapsed && store.state.error}>
+          {(err) => (
+            <span class="lib-error-glyph" role="img" aria-label={err()} title={err()}>●</span>
+          )}
+        </Show>
         <Show when={store.state.collapsed && store.state.watchWarning}>
           {(w) => (
             <span class="lib-watch-glyph" role="img" aria-label={w()} title={w()}>⚠</span>

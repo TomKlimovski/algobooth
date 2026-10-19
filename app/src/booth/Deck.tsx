@@ -59,6 +59,9 @@ export const DEFAULT_CODE: Record<DeckId, string> = {
 // evaluation resumes it (initAudio's own resume() never fires).
 const resumeAudio = () => getAudioContext().resume();
 
+/** How long a failed save's message stays under the deck header. */
+const SAVE_ERROR_MS = 5000;
+
 export function Deck(props: {
   state: DeckState;
   onReady?: (api: DeckApi) => void;
@@ -135,8 +138,24 @@ export function Deck(props: {
   const evaluate = (autostart?: boolean) => (autostart ? play() : update());
   const stop = () => mirror.stop();
 
-  // Library errors already show in the sidebar's error line; these only report whether they worked.
-  const succeeded = (p: Promise<unknown>) => p.then(() => true, () => false);
+  /** A failed save, shown under the header for a few seconds (the sidebar may be folded away). */
+  const [saveError, setSaveError] = createSignal<string | null>(null);
+  let saveErrorTimer: ReturnType<typeof setTimeout> | undefined;
+  const showSaveError = (e: unknown) => {
+    clearTimeout(saveErrorTimer);
+    setSaveError(`Save failed: ${e instanceof Error ? e.message : String(e)}`);
+    saveErrorTimer = setTimeout(() => setSaveError(null), SAVE_ERROR_MS);
+  };
+  onCleanup(() => clearTimeout(saveErrorTimer));
+  /** Resolves whether a save worked; a failure also shows on the deck (and in the sidebar's error line). */
+  const succeeded = (p: Promise<unknown>) =>
+    p.then(
+      () => true,
+      (e) => {
+        showSaveError(e);
+        return false;
+      },
+    );
 
   const current = (name: string): Pattern =>
     patternFromDeck({ name, code: mirror.code, codeCpm: deck.state.codeCpm }, deck.state.pattern ?? undefined);
@@ -295,6 +314,14 @@ export function Deck(props: {
         </span>
         <span class="deck-cpm">{deck.state.cpm} cpm</span>
       </header>
+      <Show when={saveError()}>
+        {(message) => (
+          <div class="deck-save-error" role="alert">
+            <span>{message()}</span>
+            <button class="deck-btn ghost" aria-label="dismiss" onClick={() => setSaveError(null)}>×</button>
+          </div>
+        )}
+      </Show>
       <Show when={deck.state.diskChanged}>
         <div class="deck-disk" role="alert">
           <span>Changed on disk.</span>

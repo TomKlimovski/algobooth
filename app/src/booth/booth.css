@@ -33,6 +33,7 @@ body {
 .booth-decks .deck { flex: 1; min-width: 0; }
 
 .booth-loading { flex: 1; padding: 16px; color: #8b90a0; }
+.booth-engine-error p { margin: 0 0 8px; color: #e94f37; white-space: pre-wrap; }
 
 .booth-footer {
   display: flex;
