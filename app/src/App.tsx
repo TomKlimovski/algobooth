@@ -1,5 +1,11 @@
-import { APP_NAME } from './version';
+import { Deck } from './booth/Deck';
+import { createDeckState } from './booth/deckState';
 
 export function App() {
-  return <h1>{APP_NAME}</h1>;
+  const deckA = createDeckState('A');
+  return (
+    <main style={{ padding: '16px', 'max-width': '720px' }}>
+      <Deck state={deckA} />
+    </main>
+  );
 }
