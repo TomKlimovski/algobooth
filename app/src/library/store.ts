@@ -67,11 +67,7 @@ const reroot = (p: string, from: string, to: string): string =>
 
 export type LibraryStore = ReturnType<typeof createLibraryStore>;
 
-export function createLibraryStore(
-  api: LibraryApi,
-  decks: () => Record<DeckId, DeckApi | null>,
-  dir: () => string,
-) {
+export function createLibraryStore(api: LibraryApi, decks: () => Record<DeckId, DeckApi | null>) {
   const [state, set] = createStore<LibraryFields>({
     root: null,
     folded: new Set(),
@@ -97,7 +93,7 @@ export function createLibraryStore(
 
   const refresh = () =>
     attempt(async () => {
-      const root = await api.list_tree(dir());
+      const root = await api.list_tree();
       const headings = collectHeadings(root, new Set());
       // Keyed by path, so rows that survive a refresh keep their DOM (and an in-progress rename).
       set('root', reconcile(root, { key: 'path' }));
@@ -122,7 +118,7 @@ export function createLibraryStore(
       if (node?.kind === 'heading') throw new Error('Only patterns can be loaded onto a deck');
       const deck = decks()[deckId];
       if (!deck) throw new Error(`Deck ${deckId} is not ready yet`);
-      const pattern = await api.read_pattern(dir(), path);
+      const pattern = await api.read_pattern(path);
       deck.setCode(pattern.code);
       deck.setName(pattern.name);
       deck.setFile(path, pattern.code, pattern);
@@ -149,7 +145,7 @@ export function createLibraryStore(
     },
     rename: (path: string, name: string) =>
       attempt(async () => {
-        const next = await api.rename_entry(dir(), path, name);
+        const next = await api.rename_entry(path, name);
         // Renaming a pattern also renames it inside the file, so a deck showing it follows the new name.
         for (const deck of Object.values(decks())) if (deck?.filePath() === path) deck.setName(name);
         followEntry(path, next);
@@ -158,45 +154,45 @@ export function createLibraryStore(
       }),
     move: (path: string, parent: string) =>
       attempt(async () => {
-        const next = await api.move_entry(dir(), path, parent);
+        const next = await api.move_entry(path, parent);
         followEntry(path, next);
         await refresh();
         return next;
       }),
     remove: (path: string) =>
       attempt(async () => {
-        await api.delete_entry(dir(), path);
+        await api.delete_entry(path);
         await refresh();
       }),
     createHeading: (parent: string, name: string) =>
       attempt(async () => {
-        const path = await api.create_heading(dir(), parent, name);
+        const path = await api.create_heading(parent, name);
         await refresh();
         return path;
       }),
     /** Writes the "untitled" starter pattern into `heading`. */
     newPattern: (heading: string) =>
       attempt(async () => {
-        const path = await api.write_pattern(dir(), heading, NEW_PATTERN);
+        const path = await api.write_pattern(heading, NEW_PATTERN);
         await refresh();
         return path;
       }),
     /** Reads one pattern (a deck reconciling with a change on disk). */
-    readPattern: (path: string) => attempt(() => api.read_pattern(dir(), path)),
+    readPattern: (path: string) => attempt(() => api.read_pattern(path)),
     /** Overwrites the pattern at `path` (a deck's Save). */
-    savePattern: (path: string, pattern: Pattern) => attempt(() => api.save_pattern(dir(), path, pattern)),
+    savePattern: (path: string, pattern: Pattern) => attempt(() => api.save_pattern(path, pattern)),
     /** Writes `pattern` as a new file in `heading` (a deck's Save as); resolves to its path. */
     writePattern: (heading: string, pattern: Pattern) =>
       attempt(async () => {
-        const path = await api.write_pattern(dir(), heading, pattern);
+        const path = await api.write_pattern(heading, pattern);
         await refresh();
         return path;
       }),
     /** Copies a pattern next to itself as "<name> copy". */
     duplicate: (path: string) =>
       attempt(async () => {
-        const pattern = await api.read_pattern(dir(), path);
-        const copy = await api.write_pattern(dir(), parentOf(path), { ...pattern, name: `${pattern.name} copy` });
+        const pattern = await api.read_pattern(path);
+        const copy = await api.write_pattern(parentOf(path), { ...pattern, name: `${pattern.name} copy` });
         await refresh();
         return copy;
       }),

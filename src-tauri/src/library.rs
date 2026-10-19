@@ -341,55 +341,80 @@ pub fn ensure_library(root: &Path) -> Result<(), String> {
   fs::remove_file(&probe).map_err(|e| e.to_string())
 }
 
-/// Thin Tauri wrappers; each takes the library root as a string first.
+/// Thin Tauri wrappers. The library root is Rust's own (`LibraryRoot`), never the webview's: pattern
+/// code runs with full IPC access, so the webview may only name paths inside the library.
 pub mod commands {
-  use std::path::Path;
+  use std::path::PathBuf;
+  use std::sync::Mutex;
+
+  use tauri::State;
 
   use super::{Pattern, TreeNode};
 
+  /// The library folder every library and watcher command works in. Read from the settings store at
+  /// startup and replaced whenever `set_settings` saves a new `library_dir`.
+  pub struct LibraryRoot(Mutex<PathBuf>);
+
+  impl LibraryRoot {
+    pub fn new(root: impl Into<PathBuf>) -> Self {
+      LibraryRoot(Mutex::new(root.into()))
+    }
+
+    pub fn get(&self) -> Result<PathBuf, String> {
+      self.0.lock().map(|root| root.clone()).map_err(|e| e.to_string())
+    }
+
+    pub fn set(&self, root: impl Into<PathBuf>) -> Result<(), String> {
+      *self.0.lock().map_err(|e| e.to_string())? = root.into();
+      Ok(())
+    }
+  }
+
+  type Root<'a> = State<'a, LibraryRoot>;
+
   #[tauri::command]
-  pub fn list_tree(root: String) -> Result<TreeNode, String> {
-    super::list_tree(Path::new(&root))
+  pub fn list_tree(root: Root<'_>) -> Result<TreeNode, String> {
+    super::list_tree(&root.get()?)
   }
 
   #[tauri::command]
-  pub fn read_pattern(root: String, path: String) -> Result<Pattern, String> {
-    super::read_pattern(Path::new(&root), &path)
+  pub fn read_pattern(root: Root<'_>, path: String) -> Result<Pattern, String> {
+    super::read_pattern(&root.get()?, &path)
   }
 
   #[tauri::command]
-  pub fn write_pattern(root: String, heading_path: String, pattern: Pattern) -> Result<String, String> {
-    super::write_pattern(Path::new(&root), &heading_path, &pattern)
+  pub fn write_pattern(root: Root<'_>, heading_path: String, pattern: Pattern) -> Result<String, String> {
+    super::write_pattern(&root.get()?, &heading_path, &pattern)
   }
 
   #[tauri::command]
-  pub fn save_pattern(root: String, path: String, pattern: Pattern) -> Result<(), String> {
-    super::save_pattern(Path::new(&root), &path, &pattern)
+  pub fn save_pattern(root: Root<'_>, path: String, pattern: Pattern) -> Result<(), String> {
+    super::save_pattern(&root.get()?, &path, &pattern)
   }
 
   #[tauri::command]
-  pub fn create_heading(root: String, parent_path: String, name: String) -> Result<String, String> {
-    super::create_heading(Path::new(&root), &parent_path, &name)
+  pub fn create_heading(root: Root<'_>, parent_path: String, name: String) -> Result<String, String> {
+    super::create_heading(&root.get()?, &parent_path, &name)
   }
 
   #[tauri::command]
-  pub fn rename_entry(root: String, path: String, new_name: String) -> Result<String, String> {
-    super::rename_entry(Path::new(&root), &path, &new_name)
+  pub fn rename_entry(root: Root<'_>, path: String, new_name: String) -> Result<String, String> {
+    super::rename_entry(&root.get()?, &path, &new_name)
   }
 
   #[tauri::command]
-  pub fn move_entry(root: String, path: String, new_parent_path: String) -> Result<String, String> {
-    super::move_entry(Path::new(&root), &path, &new_parent_path)
+  pub fn move_entry(root: Root<'_>, path: String, new_parent_path: String) -> Result<String, String> {
+    super::move_entry(&root.get()?, &path, &new_parent_path)
   }
 
   #[tauri::command]
-  pub fn delete_entry(root: String, path: String) -> Result<(), String> {
-    super::delete_entry(Path::new(&root), &path)
+  pub fn delete_entry(root: Root<'_>, path: String) -> Result<(), String> {
+    super::delete_entry(&root.get()?, &path)
   }
 
   #[tauri::command]
-  pub fn ensure_library(root: String) -> Result<(), String> {
-    super::ensure_library(Path::new(&root))
+  pub fn ensure_library(root: Root<'_>) -> Result<(), String> {
+    super::ensure_library(&root.get()?)
   }
 }
 
@@ -398,10 +423,6 @@ mod tests {
   use super::*;
   use std::fs;
   use std::path::Path;
-
-  fn root_str(dir: &Path) -> String {
-    dir.to_string_lossy().into_owned()
-  }
 
   fn pattern(name: &str, code: &str) -> Pattern {
     Pattern {
@@ -674,12 +695,10 @@ mod tests {
   }
 
   #[test]
-  fn commands_take_the_root_as_a_string() {
-    let dir = tempfile::tempdir().unwrap();
-    let root = root_str(&dir.path().join("lib"));
-    commands::ensure_library(root.clone()).unwrap();
-    let rel = commands::write_pattern(root.clone(), "mine".into(), pattern("x", "c")).unwrap();
-    assert_eq!(commands::read_pattern(root.clone(), rel).unwrap().code, "c");
-    assert_eq!(commands::list_tree(root).unwrap().kind, NodeKind::Heading);
+  fn library_root_is_replaced_when_settings_change() {
+    let root = commands::LibraryRoot::new("/first/library");
+    assert_eq!(root.get().unwrap(), Path::new("/first/library"));
+    root.set("/second/library").unwrap();
+    assert_eq!(root.get().unwrap(), Path::new("/second/library"));
   }
 }

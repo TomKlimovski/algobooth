@@ -31,8 +31,8 @@ const pattern = (over: Partial<Pattern> = {}): Pattern => ({
 function fakeApi(tree: TreeNode) {
   const api = {
     tree,
-    list_tree: vi.fn(async (_root: string) => api.tree),
-    read_pattern: vi.fn(async (_root: string, _path: string) => pattern()),
+    list_tree: vi.fn(async () => api.tree),
+    read_pattern: vi.fn(async (_path: string) => pattern()),
     write_pattern: vi.fn(async () => 'mine/untitled.json'),
     save_pattern: vi.fn(async () => {}),
     create_heading: vi.fn(async () => 'mine/new'),
@@ -64,9 +64,9 @@ function fakeDeck(id: DeckId) {
 
 test('refresh loads the tree and keeps fold state for surviving paths', async () => {
   const api = fakeApi(heading('', [heading('mine', [leaf('mine/a.json')]), heading('ripped')]));
-  const lib = createLibraryStore(api, () => ({ A: null, B: null }), () => '/lib');
+  const lib = createLibraryStore(api, () => ({ A: null, B: null }));
   await lib.refresh();
-  expect(api.list_tree).toHaveBeenCalledWith('/lib');
+  expect(api.list_tree).toHaveBeenCalledWith();
   expect(lib.state.root?.children.map((c) => c.path)).toEqual(['mine', 'ripped']);
 
   lib.toggleFold('mine');
@@ -92,10 +92,10 @@ test('double-click loads into the deck that is not playing', () => {
 test('load sets deck code and name', async () => {
   const api = fakeApi(heading('', [heading('mine', [leaf('mine/x.json')])]));
   const b = fakeDeck('B');
-  const lib = createLibraryStore(api, () => ({ A: null, B: b.api }), () => '/lib');
+  const lib = createLibraryStore(api, () => ({ A: null, B: b.api }));
   await lib.refresh();
   await lib.load('mine/x.json', 'B');
-  expect(api.read_pattern).toHaveBeenCalledWith('/lib', 'mine/x.json');
+  expect(api.read_pattern).toHaveBeenCalledWith('mine/x.json');
   expect(b.setCode).toHaveBeenCalledWith('y');
   expect(b.state.state.name).toBe('x');
   expect(b.setFile).toHaveBeenCalledWith('mine/x.json', 'y', expect.objectContaining({ code: 'y' }));
@@ -104,7 +104,7 @@ test('load sets deck code and name', async () => {
 test('unreadable leaves are shown but cannot be loaded', async () => {
   const api = fakeApi(heading('', [leaf('broken.json', 'unreadable')]));
   const a = fakeDeck('A');
-  const lib = createLibraryStore(api, () => ({ A: a.api, B: null }), () => '/lib');
+  const lib = createLibraryStore(api, () => ({ A: a.api, B: null }));
   await lib.refresh();
   expect(lib.state.root?.children[0].kind).toBe('unreadable');
   await expect(lib.load('broken.json', 'A')).rejects.toThrow('This file is not a valid pattern');
@@ -114,7 +114,7 @@ test('unreadable leaves are shown but cannot be loaded', async () => {
 
 test('rename and move keep the entry selected and its folds, then refresh', async () => {
   const api = fakeApi(heading('', [heading('mine', [heading('mine/bass')]), heading('sets')]));
-  const lib = createLibraryStore(api, () => ({ A: null, B: null }), () => '/lib');
+  const lib = createLibraryStore(api, () => ({ A: null, B: null }));
   await lib.refresh();
   lib.toggleFold('mine/bass');
   lib.select('mine/bass');
@@ -122,7 +122,7 @@ test('rename and move keep the entry selected and its folds, then refresh', asyn
   api.move_entry.mockResolvedValueOnce('sets/bass');
   api.tree = heading('', [heading('mine'), heading('sets', [heading('sets/bass')])]);
   await expect(lib.move('mine/bass', 'sets')).resolves.toBe('sets/bass');
-  expect(api.move_entry).toHaveBeenCalledWith('/lib', 'mine/bass', 'sets');
+  expect(api.move_entry).toHaveBeenCalledWith('mine/bass', 'sets');
   expect(lib.state.selected).toBe('sets/bass');
   expect([...lib.state.folded]).toEqual(['sets/bass']);
   expect(api.list_tree).toHaveBeenCalledTimes(2);
@@ -130,14 +130,14 @@ test('rename and move keep the entry selected and its folds, then refresh', asyn
   api.rename_entry.mockResolvedValueOnce('sets/low end');
   api.tree = heading('', [heading('mine'), heading('sets', [heading('sets/low end')])]);
   await lib.rename('sets/bass', 'low end');
-  expect(api.rename_entry).toHaveBeenCalledWith('/lib', 'sets/bass', 'low end');
+  expect(api.rename_entry).toHaveBeenCalledWith('sets/bass', 'low end');
   expect(lib.state.selected).toBe('sets/low end');
   expect([...lib.state.folded]).toEqual(['sets/low end']);
 });
 
 test('a failed action rejects and records its error until the next success', async () => {
   const api = fakeApi(heading('', [heading('mine')]));
-  const lib = createLibraryStore(api, () => ({ A: null, B: null }), () => '/lib');
+  const lib = createLibraryStore(api, () => ({ A: null, B: null }));
   api.create_heading.mockRejectedValueOnce('mine already exists');
   await expect(lib.createHeading('', 'mine')).rejects.toThrow('mine already exists');
   expect(lib.state.error).toBe('mine already exists');
@@ -147,9 +147,9 @@ test('a failed action rejects and records its error until the next success', asy
 
 test('new pattern writes the untitled starter and duplicate copies next to the original', async () => {
   const api = fakeApi(heading('', [heading('mine', [leaf('mine/x.json')])]));
-  const lib = createLibraryStore(api, () => ({ A: null, B: null }), () => '/lib');
+  const lib = createLibraryStore(api, () => ({ A: null, B: null }));
   await lib.newPattern('mine');
-  expect(api.write_pattern).toHaveBeenCalledWith('/lib', 'mine', {
+  expect(api.write_pattern).toHaveBeenCalledWith('mine', {
     name: 'untitled',
     code: 'setcpm(120/4)',
     cpm: 120,
@@ -159,17 +159,17 @@ test('new pattern writes the untitled starter and duplicate copies next to the o
     notes: '',
   });
   await lib.duplicate('mine/x.json');
-  expect(api.write_pattern).toHaveBeenLastCalledWith('/lib', 'mine', pattern({ name: 'x copy' }));
+  expect(api.write_pattern).toHaveBeenLastCalledWith('mine', pattern({ name: 'x copy' }));
 });
 
 test('remove sends the entry to the trash and drops a stale selection', async () => {
   const api = fakeApi(heading('', [leaf('a.json')]));
-  const lib = createLibraryStore(api, () => ({ A: null, B: null }), () => '/lib');
+  const lib = createLibraryStore(api, () => ({ A: null, B: null }));
   await lib.refresh();
   lib.select('a.json');
   api.tree = heading('');
   await lib.remove('a.json');
-  expect(api.delete_entry).toHaveBeenCalledWith('/lib', 'a.json');
+  expect(api.delete_entry).toHaveBeenCalledWith('a.json');
   expect(lib.state.selected).toBeNull();
 });
 
@@ -178,7 +178,7 @@ test('loadToIdleDeck loads into the deck that is not playing', async () => {
   const a = fakeDeck('A');
   const b = fakeDeck('B');
   (b.api.scheduler as { started: boolean }).started = true;
-  const lib = createLibraryStore(api, () => ({ A: a.api, B: b.api }), () => '/lib');
+  const lib = createLibraryStore(api, () => ({ A: a.api, B: b.api }));
   await lib.refresh();
   await expect(lib.loadToIdleDeck('x.json')).resolves.toBe('A');
   expect(a.setCode).toHaveBeenCalledWith('y');
@@ -187,7 +187,7 @@ test('loadToIdleDeck loads into the deck that is not playing', async () => {
 
 test('a watch warning survives a successful refresh', async () => {
   const api = fakeApi(heading('', [heading('mine')]));
-  const lib = createLibraryStore(api, () => ({ A: null, B: null }), () => '/lib');
+  const lib = createLibraryStore(api, () => ({ A: null, B: null }));
   lib.setWatchWarning('Live refresh is off: no backend');
   await lib.refresh();
   expect(lib.state.error).toBeNull();
@@ -198,7 +198,7 @@ test('a watch warning survives a successful refresh', async () => {
 
 test('drops are refused during drag for headings on decks and headings into their own subtree', async () => {
   const api = fakeApi(heading('', [heading('mine', [heading('mine/bass', [leaf('mine/bass/x.json')])]), heading('sets')]));
-  const lib = createLibraryStore(api, () => ({ A: null, B: null }), () => '/lib');
+  const lib = createLibraryStore(api, () => ({ A: null, B: null }));
   await lib.refresh();
   expect(lib.canDrop({ deck: true })).toBe(false); // nothing dragged
 
@@ -218,12 +218,12 @@ test('drops are refused during drag for headings on decks and headings into thei
 
 test('deck saves go to the library root: save overwrites in place, save as writes and refreshes', async () => {
   const api = fakeApi(heading('', [heading('mine')]));
-  const lib = createLibraryStore(api, () => ({ A: null, B: null }), () => '/lib');
+  const lib = createLibraryStore(api, () => ({ A: null, B: null }));
   await lib.savePattern('mine/x.json', pattern({ code: 'z' }));
-  expect(api.save_pattern).toHaveBeenCalledWith('/lib', 'mine/x.json', pattern({ code: 'z' }));
+  expect(api.save_pattern).toHaveBeenCalledWith('mine/x.json', pattern({ code: 'z' }));
   expect(api.list_tree).not.toHaveBeenCalled();
   expect(await lib.writePattern('mine', pattern())).toBe('mine/untitled.json');
-  expect(api.write_pattern).toHaveBeenCalledWith('/lib', 'mine', pattern());
+  expect(api.write_pattern).toHaveBeenCalledWith('mine', pattern());
   expect(api.list_tree).toHaveBeenCalledTimes(1);
 });
 
@@ -233,7 +233,7 @@ test('renaming or moving a deck\'s open file keeps the deck on it', async () => 
   const b = fakeDeck('B');
   a.state.setFile('mine/x.json', 'y');
   b.state.setFile('live/other.json', 'z');
-  const lib = createLibraryStore(api, () => ({ A: a.api, B: b.api }), () => '/lib');
+  const lib = createLibraryStore(api, () => ({ A: a.api, B: b.api }));
   await lib.refresh();
 
   api.rename_entry.mockResolvedValueOnce('mine/renamed.json');

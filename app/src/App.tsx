@@ -16,7 +16,7 @@ export function App() {
   const [libraryError, setLibraryError] = createSignal<string | null>(null);
 
   let boothDecks: () => Record<DeckId, DeckApi | null> = () => ({ A: null, B: null });
-  const library = createLibraryStore(tauriApi, () => boothDecks(), () => settings().library_dir);
+  const library = createLibraryStore(tauriApi, () => boothDecks());
   const refresh = () => void library.refresh().catch(() => {});
   /** The watcher's batch: refresh the tree, and let each deck reconcile its open file. */
   const onLibraryChanged = (paths: string[]) => {
@@ -38,7 +38,8 @@ export function App() {
     unlisten?.();
     unlisten = undefined;
   };
-  const connect = async (dir: string) => {
+  /** Rust already follows the saved `library_dir`; this re-checks the folder and restarts the watch. */
+  const connect = async () => {
     disconnect();
     const gen = generation;
     if (!hasTauriRuntime()) {
@@ -46,7 +47,7 @@ export function App() {
       return;
     }
     try {
-      await tauriApi.ensure_library(dir);
+      await tauriApi.ensure_library();
     } catch (e) {
       if (gen === generation) {
         setLibraryError(String(e));
@@ -57,7 +58,7 @@ export function App() {
     if (gen !== generation) return;
     setLibraryError(null);
     try {
-      await tauriApi.watch_library(dir);
+      await tauriApi.watch_library();
       const off = await tauriApi.onLibraryChanged(onLibraryChanged);
       if (gen !== generation) return off();
       unlisten = off;
@@ -70,7 +71,7 @@ export function App() {
   };
   // A memo, so saving an unrelated setting (the visualiser) does not reconnect.
   const libraryDir = createMemo(() => (settingsLoaded() ? settings().library_dir : null));
-  createEffect(on(libraryDir, (dir) => dir !== null && void connect(dir)));
+  createEffect(on(libraryDir, (dir) => dir !== null && void connect()));
   onCleanup(disconnect);
 
   return (

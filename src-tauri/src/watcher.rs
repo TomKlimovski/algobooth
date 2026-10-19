@@ -99,13 +99,13 @@ fn is_hidden(part: Component) -> bool {
 }
 
 pub mod commands {
-  use std::path::Path;
   use std::sync::Mutex;
 
   use serde::Serialize;
   use tauri::{AppHandle, Emitter, State};
 
   use super::LibraryWatcher;
+  use crate::library::commands::LibraryRoot;
 
   /// Holds the one active watcher; replacing it drops (and so stops) the previous one.
   #[derive(Default)]
@@ -116,8 +116,14 @@ pub mod commands {
     paths: Vec<String>,
   }
 
+  /// Watches the library folder Rust holds (`LibraryRoot`), replacing any earlier watch.
   #[tauri::command]
-  pub fn watch_library(app: AppHandle, state: State<'_, WatcherState>, root: String) -> Result<(), String> {
+  pub fn watch_library(
+    app: AppHandle,
+    state: State<'_, WatcherState>,
+    root: State<'_, LibraryRoot>,
+  ) -> Result<(), String> {
+    let root = root.get()?;
     let mut slot = state.0.lock().map_err(|e| e.to_string())?;
     *slot = None;
     let sink = Box::new(move |paths| {
@@ -125,7 +131,7 @@ pub mod commands {
         log::warn!("library watcher: {e}");
       }
     });
-    *slot = Some(super::start(Path::new(&root), sink)?);
+    *slot = Some(super::start(&root, sink)?);
     Ok(())
   }
 }

@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
 
+use crate::library::commands::LibraryRoot;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Visualiser {
@@ -54,17 +56,28 @@ fn settings_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
   Ok(dir.join("settings.json"))
 }
 
-#[tauri::command]
-pub fn get_settings(app: tauri::AppHandle) -> Settings {
-  match settings_path(&app) {
+/// The stored settings, or the defaults when the config dir or file cannot be read.
+pub fn load(app: &tauri::AppHandle) -> Settings {
+  match settings_path(app) {
     Ok(path) => read_settings(&path),
     Err(_) => default_settings(),
   }
 }
 
 #[tauri::command]
-pub fn set_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), String> {
-  write_settings(&settings_path(&app)?, &settings)
+pub fn get_settings(app: tauri::AppHandle) -> Settings {
+  load(&app)
+}
+
+/// Saves the settings and points the library commands at the new `library_dir`.
+#[tauri::command]
+pub fn set_settings(
+  app: tauri::AppHandle,
+  root: tauri::State<'_, LibraryRoot>,
+  settings: Settings,
+) -> Result<(), String> {
+  write_settings(&settings_path(&app)?, &settings)?;
+  root.set(&settings.library_dir)
 }
 
 #[cfg(test)]

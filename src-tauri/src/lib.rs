@@ -3,6 +3,10 @@ mod settings;
 mod slug;
 mod watcher;
 
+use tauri::Manager;
+
+// TODO(packaging milestone): tauri.conf.json sets `app.security.csp` to null because the Strudel editor
+// needs `eval` and inline scripts. Write a real CSP when the app is packaged (spec milestone 6).
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -23,6 +27,9 @@ pub fn run() {
       watcher::commands::watch_library,
     ])
     .setup(|app| {
+      // Rust owns the library root: commands never take it from the webview.
+      let library_dir = settings::load(app.handle()).library_dir;
+      app.manage(library::commands::LibraryRoot::new(library_dir));
       if cfg!(debug_assertions) {
         app.handle().plugin(tauri_plugin_log::Builder::default().level(log::LevelFilter::Info).build())?;
       }
