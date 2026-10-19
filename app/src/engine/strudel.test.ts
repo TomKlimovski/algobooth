@@ -8,11 +8,12 @@ const webaudio = vi.hoisted(() => ({
 }));
 vi.mock('@strudel/webaudio', () => webaudio);
 vi.mock('@strudel/core', () => ({ evalScope: vi.fn(async () => {}) }));
+vi.mock('@strudel/codemirror', () => ({ sliderWithID: () => 0 }));
 vi.mock('@strudel/mini', () => ({}));
 vi.mock('@strudel/tonal', () => ({}));
 vi.mock('@strudel/draw', () => ({}));
 
-const { initEngine, SAMPLES_HINT } = await import('./strudel');
+const { initEngine, SAMPLES_HINT, SCOPE_MODULES } = await import('./strudel');
 
 const respond = (status: number, body: string) => new Response(body, { status });
 
@@ -32,6 +33,10 @@ test('a failed boot is not cached: the next call boots again', async () => {
   });
   await initEngine();
   expect(fetch).toHaveBeenCalledTimes(2); // a successful boot is cached
+});
+
+test('the editor package is in the eval scope, so `slider(...)` resolves to sliderWithID', () => {
+  expect(SCOPE_MODULES.some((m) => 'sliderWithID' in m)).toBe(true);
 });
 
 test('a manifest that is not JSON (a dev-server fallback page) also gets the hint', async () => {

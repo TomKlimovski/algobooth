@@ -3,6 +3,8 @@ import * as mini from '@strudel/mini';
 import * as tonal from '@strudel/tonal';
 import * as draw from '@strudel/draw';
 import * as webaudio from '@strudel/webaudio';
+// The editor package provides the `slider(...)` widget (transpiled to `sliderWithID`) and `markcss`.
+import * as codemirror from '@strudel/codemirror';
 
 let enginePromise: Promise<void> | undefined;
 
@@ -27,9 +29,12 @@ async function sampleManifest(): Promise<unknown> {
   }
 }
 
+/** Everything pattern code can reach by name. Mirrors what Strudel's own REPL scopes. */
+export const SCOPE_MODULES: object[] = [core, mini, tonal, webaudio, draw, codemirror];
+
 async function boot(): Promise<void> {
   await webaudio.initAudio();
-  await core.evalScope(core, mini, tonal, webaudio, draw);
+  await core.evalScope(...SCOPE_MODULES);
   webaudio.registerSynthSounds();
   await webaudio.samples(await sampleManifest(), asset('/samples/tidal-drum-machines/'), {
     prebake: true,
