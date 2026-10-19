@@ -28,6 +28,10 @@ export interface DeckApi {
   moveFile(path: string): void;
   /** The watcher reported `paths` changed: reload the deck's file, or flag it if the deck has edits. */
   diskChanged(paths: string[]): void;
+  /** Whether the editor holds unsaved edits. */
+  isDirty(): boolean;
+  /** The deck's Save (Save as when it has no file); resolves false if cancelled or failed. */
+  save(): Promise<boolean>;
   /** The mirror's Cyclist. `beforeStart` runs (and is awaited) before its clock starts; `clock` is its zyklus clock. */
   scheduler: {
     cps: number;
@@ -254,6 +258,8 @@ export function Deck(props: {
       filePath: () => deck.state.filePath,
       moveFile: deck.setFilePath,
       diskChanged: (paths) => void diskChanged(paths),
+      isDirty: dirty,
+      save,
       scheduler: mirror.repl.scheduler,
       setCps: (cps) => mirror.repl.setCps(cps),
       afterEval,

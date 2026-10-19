@@ -40,6 +40,8 @@ function fakeDeck(opts: { id?: 'A' | 'B'; started?: boolean; cps?: number; now?:
     diskChanged: vi.fn(),
     filePath: vi.fn(() => null),
     moveFile: vi.fn(),
+    isDirty: vi.fn(() => false),
+    save: vi.fn(async () => true),
     scheduler,
     setCps: vi.fn((cps: number) => { scheduler.cps = cps; }),
     afterEval: new Set<() => void>(),
