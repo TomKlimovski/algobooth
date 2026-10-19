@@ -12,6 +12,7 @@ pub fn run() {
       library::commands::list_tree,
       library::commands::read_pattern,
       library::commands::write_pattern,
+      library::commands::save_pattern,
       library::commands::create_heading,
       library::commands::rename_entry,
       library::commands::move_entry,

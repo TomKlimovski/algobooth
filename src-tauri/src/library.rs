@@ -238,6 +238,19 @@ pub fn write_pattern(root: &Path, heading_path: &str, pattern: &Pattern) -> Resu
   Ok(relative(root, &target))
 }
 
+/// Overwrites the existing pattern file at `path` in place. The file name never changes,
+/// even when `pattern.name` does.
+pub fn save_pattern(root: &Path, path: &str, pattern: &Pattern) -> Result<(), String> {
+  let file = resolve(root, path)?;
+  if file.extension().is_none_or(|x| x != "json") {
+    return Err(format!("not a pattern file: {path}"));
+  }
+  if !file.is_file() {
+    return Err(format!("not found: {path}"));
+  }
+  write_json(&file, pattern)
+}
+
 pub fn create_heading(root: &Path, parent_path: &str, name: &str) -> Result<String, String> {
   let parent = resolve(root, parent_path)?;
   let dir = parent.join(check_heading_name(name)?);
@@ -330,6 +343,11 @@ pub mod commands {
   #[tauri::command]
   pub fn write_pattern(root: String, heading_path: String, pattern: Pattern) -> Result<String, String> {
     super::write_pattern(Path::new(&root), &heading_path, &pattern)
+  }
+
+  #[tauri::command]
+  pub fn save_pattern(root: String, path: String, pattern: Pattern) -> Result<(), String> {
+    super::save_pattern(Path::new(&root), &path, &pattern)
   }
 
   #[tauri::command]
@@ -568,6 +586,7 @@ mod tests {
       assert!(move_entry(&root, bad, "").is_err(), "move src {bad}");
       assert!(move_entry(&root, &rel, bad).is_err(), "move dest {bad}");
       assert!(delete_entry(&root, bad).is_err(), "delete {bad}");
+      assert!(save_pattern(&root, bad, &p).is_err(), "save {bad}");
     }
     assert!(delete_entry(&root, "").is_err(), "the root itself cannot be deleted");
     assert!(rename_entry(&root, "", "y").is_err(), "the root itself cannot be renamed");
@@ -587,6 +606,37 @@ mod tests {
     assert!(!dir.path().join("elsewhere/new").exists());
     assert!(!dir.path().join("elsewhere/x.json").exists());
     assert!(list_tree(&root).unwrap().children.is_empty(), "symlinks are not followed");
+  }
+
+  #[test]
+  fn save_overwrites_in_place_and_keeps_the_filename() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    let rel = write_pattern(root, "mine", &pattern("x", "old")).unwrap();
+    let mut edited = pattern("Renamed Elsewhere", "new");
+    edited.cpm = 126.0;
+    save_pattern(root, &rel, &edited).unwrap();
+    assert_eq!(read_pattern(root, &rel).unwrap(), edited);
+    let names: Vec<_> = fs::read_dir(root.join("mine")).unwrap().map(|e| e.unwrap().file_name()).collect();
+    assert_eq!(names, ["x.json"]);
+  }
+
+  #[test]
+  fn save_rejects_missing_non_json_and_escaping_paths() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("lib");
+    fs::create_dir_all(root.join("mine")).unwrap();
+    fs::write(root.join("mine/notes.txt"), "x").unwrap();
+    fs::write(dir.path().join("outside.json"), r#"{"name":"o","code":"c","cpm":1}"#).unwrap();
+    let p = pattern("x", "c");
+    assert!(save_pattern(&root, "mine/missing.json", &p).is_err());
+    assert!(!root.join("mine/missing.json").exists());
+    assert!(save_pattern(&root, "mine", &p).is_err(), "a heading is not a file");
+    assert!(save_pattern(&root, "mine/notes.txt", &p).is_err());
+    assert!(save_pattern(&root, "../outside.json", &p).is_err());
+    let abs = dir.path().join("outside.json").to_string_lossy().into_owned();
+    assert!(save_pattern(&root, &abs, &p).is_err());
+    assert_eq!(read_pattern(dir.path(), "outside.json").unwrap().code, "c");
   }
 
   #[test]
