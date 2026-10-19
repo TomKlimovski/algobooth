@@ -42,12 +42,15 @@ export function newPatternDecision(dirty: boolean, confirmed: boolean): NewPatte
   return confirmed ? 'save-then-start' : 'abort';
 }
 
-/** The pattern file for a deck; `existing` (the loaded pattern) keeps its key, tags, notes and source. */
-export function patternFromDeck(deck: Pick<DeckFields, 'name' | 'code' | 'cpm'>, existing?: Pattern): Pattern {
+/**
+ * The pattern file for a deck; `existing` (the loaded pattern) keeps its key, tags, notes and source.
+ * The tempo is the code's own (`codeCpm`), never the header's effective tempo, which sync may have set.
+ */
+export function patternFromDeck(deck: Pick<DeckFields, 'name' | 'code' | 'codeCpm'>, existing?: Pattern): Pattern {
   return {
     name: deck.name,
     code: deck.code,
-    cpm: deck.cpm,
+    cpm: deck.codeCpm,
     key: existing?.key ?? '',
     tags: existing?.tags ?? [],
     source: existing?.source ?? { kind: 'mine' },

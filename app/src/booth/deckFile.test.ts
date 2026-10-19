@@ -1,7 +1,7 @@
-import type { DeckFields } from './deckState';
+import { createDeckState, type DeckFields } from './deckState';
 import { isDirty, newPatternDecision, onDiskChange, patternFromDeck } from './deckFile';
 
-const deck = (fields: Pick<DeckFields, 'name' | 'code' | 'cpm'>) => fields;
+const deck = ({ cpm, ...rest }: Pick<DeckFields, 'name' | 'code'> & { cpm: number }) => ({ ...rest, codeCpm: cpm });
 
 test('dirty rules', () => {
   expect(isDirty('a', 'a')).toBe(false);
@@ -40,4 +40,12 @@ test('patternFromDeck keeps rip source and fills mine defaults', () => {
   expect(patternFromDeck(deck({ name: 'n', code: 'c', cpm: 120 }))).toEqual({
     name: 'n', code: 'c', cpm: 120, key: '', tags: [], source: { kind: 'mine' }, notes: '',
   });
+});
+test('a synced deck saves its own code tempo, not the effective tempo the header shows', () => {
+  const b = createDeckState('B');
+  b.setCpm(100); // afterEval: B's own setcpm(100/4)...
+  b.setCodeCpm(100);
+  b.setCpm(126); // ...then sync pulls B to A's tempo
+  expect(b.state.cpm).toBe(126);
+  expect(patternFromDeck({ ...b.state, name: 'n', code: 'c' }).cpm).toBe(100);
 });

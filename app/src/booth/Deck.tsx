@@ -133,7 +133,7 @@ export function Deck(props: {
   const succeeded = (p: Promise<unknown>) => p.then(() => true, () => false);
 
   const current = (name: string): Pattern =>
-    patternFromDeck({ name, code: mirror.code, cpm: deck.state.cpm }, deck.state.pattern ?? undefined);
+    patternFromDeck({ name, code: mirror.code, codeCpm: deck.state.codeCpm }, deck.state.pattern ?? undefined);
 
   /** Asks for a name and heading, writes a new file, and points the deck at it. Resolves false if cancelled. */
   const saveAs = async (): Promise<boolean> => {
@@ -232,7 +232,10 @@ export function Deck(props: {
       afterEval: () => {
         deck.setError(null);
         deck.setCode(mirror.code);
-        deck.setCpm(cpmFromCps(mirror.repl.scheduler.cps));
+        // The code's own tempo, recorded before the sync follower (in afterEval) pulls B to A's.
+        const cpm = cpmFromCps(mirror.repl.scheduler.cps);
+        deck.setCpm(cpm);
+        deck.setCodeCpm(cpm);
         afterEval.forEach((f) => f());
       },
       // The repl's state carries the editor text on every edit; dirty tracking follows it.

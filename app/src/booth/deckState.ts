@@ -20,7 +20,10 @@ export interface DeckFields {
   code: string;
   playing: boolean;
   error: string | null;
+  /** The tempo the header shows: the deck's effective tempo, which is deck A's while sync is on. */
   cpm: number;
+  /** The tempo the deck's own code set at its last evaluation, before sync; what Save writes. */
+  codeCpm: number;
   /** Library-relative path of the file this deck saves to; null for a deck never saved. */
   filePath: string | null;
   /** The code as last loaded or saved; dirty tracking compares the live editor text against it. */
@@ -41,6 +44,7 @@ export function createDeckState(id: DeckId) {
     playing: false,
     error: null,
     cpm: 120,
+    codeCpm: 120,
     filePath: null,
     savedCode: null,
     pattern: null,
@@ -52,6 +56,7 @@ export function createDeckState(id: DeckId) {
     setPlaying: (playing: boolean) => set('playing', playing),
     setError: (error: string | null) => set('error', error),
     setCpm: (cpm: number) => set('cpm', cpm),
+    setCodeCpm: (codeCpm: number) => set('codeCpm', codeCpm),
     setName: (name: string) => set('name', name),
     /** Points the deck at a file (or none) and records what is on disk; clears any pending disk change. */
     setFile: (filePath: string | null, savedCode: string | null, pattern: Pattern | null = null) =>
