@@ -2,6 +2,7 @@ import { onCleanup, onMount } from 'solid-js';
 import { StrudelMirror } from '@strudel/codemirror';
 import { transpiler } from '@strudel/transpiler';
 import { getAudioContext, webaudioOutput } from '@strudel/webaudio';
+import { settings } from '../settings/settings';
 import { initEngine } from '../engine/strudel';
 import { cpmFromCps, ORBIT, type DeckId, type DeckState } from './deckState';
 import './deck.css';
@@ -85,7 +86,13 @@ export function Deck(props: { state: DeckState; onReady?: (api: DeckApi) => void
       getTime: () => getAudioContext().currentTime,
       // punchcard is @strudel/draw's onPaint pianoroll: it paints into this
       // mirror's drawContext. Pattern.pianoroll() would draw to a global canvas.
-      editPattern: (pat: any) => pat.orbit(ORBIT[id]).punchcard({ fold: 1 }),
+      // scope takes its own ctx; its draw id starts with the mirror id so stop() cancels it.
+      editPattern: (pat: any) => {
+        const routed = pat.orbit(ORBIT[id]);
+        return settings().visualiser === 'scope'
+          ? routed.scope({ ctx: canvas.getContext('2d'), id: 'deck-' + id })
+          : routed.punchcard({ fold: 1 });
+      },
       onToggle: (started: boolean) => {
         deck.setPlaying(started);
         if (!started) clearCanvas();

@@ -1,0 +1,45 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.shell-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 4px 8px 0;
+  background: #171a22;
+  border-bottom: 1px solid #2a2d36;
+}
+
+.shell-tab {
+  padding: 5px 12px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 5px 5px 0 0;
+  background: none;
+  color: #8b90a0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.shell-tab.on {
+  background: #0e0f13;
+  color: #fff;
+  border-color: #2a2d36;
+}
+
+.shell-pane {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.shell-pane[hidden] {
+  display: none;
+}
+
+.rip-placeholder,
+.settings {
+  padding: 16px;
+}

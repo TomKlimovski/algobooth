@@ -1,0 +1,7 @@
+.settings { display: flex; flex-direction: column; gap: 16px; max-width: 720px; }
+.settings-row { display: flex; align-items: center; gap: 12px; border: none; margin: 0; padding: 0; }
+.settings-label { width: 120px; color: #8b90a0; text-transform: uppercase; letter-spacing: .08em; font-size: 10px; padding: 0; }
+.settings-input { flex: 1; background: #0a0b0e; border: 1px solid #3a3e4a; border-radius: 4px; padding: 4px 8px; color: #cfd3dc; font: inherit; }
+.settings-hint, .settings-disabled { color: #8b90a0; }
+.settings-notice { color: #ffb86c; margin: 0; }
+.settings-error { color: #e94f37; margin: 0; }
