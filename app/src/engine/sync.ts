@@ -177,3 +177,7 @@ function startDelay(a: DeckApi, b: DeckApi): number {
   const wait = secondsToNextBoundary(a.scheduler.now(), cps) - lead;
   return wait > 0 ? wait : wait + 1 / cps;
 }
+
+// The audio graph and the Strudel scope are module singletons: a hot update would leave the
+// old ones wired in while the UI drives new ones, so a change here reloads the whole page.
+if (import.meta.hot) import.meta.hot.accept(() => import.meta.hot?.invalidate());

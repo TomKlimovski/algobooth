@@ -55,3 +55,7 @@ export function initEngine(): Promise<void> {
   });
   return enginePromise;
 }
+
+// The audio graph and the Strudel scope are module singletons: a hot update would leave the
+// old ones wired in while the UI drives new ones, so a change here reloads the whole page.
+if (import.meta.hot) import.meta.hot.accept(() => import.meta.hot?.invalidate());
