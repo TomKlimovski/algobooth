@@ -34,15 +34,17 @@ interface DeckChain {
   knobGain: GainNode;
   reverbSend: GainNode;
   convolver: ConvolverNode;
+  /** The channel fader, after the trim and effects, before the crossfader. */
+  volume: GainNode;
   faderGain: GainNode;
 }
 
-/** The summed deck mix: input -> hpf -> lpf -> gain -> destination, with gain -> reverb send -> convolver -> destination. */
+/** The summed deck mix: input -> hpf -> lpf -> volume -> destination, with volume -> reverb send -> convolver -> destination. */
 interface MasterChain {
   input: GainNode;
   hpf: BiquadFilterNode;
   lpf: BiquadFilterNode;
-  gain: GainNode;
+  volume: GainNode;
   reverbSend: GainNode;
   convolver: ConvolverNode;
 }
@@ -112,7 +114,7 @@ function defineDeckMixer(Base: ControllerClass) {
     private masterParam(control: MasterControl): AudioParam | undefined {
       const m = this.master;
       if (!m) return undefined;
-      return { hpf: m.hpf.frequency, lpf: m.lpf.frequency, gain: m.gain.gain, reverb: m.reverbSend.gain }[control];
+      return { hpf: m.hpf.frequency, lpf: m.lpf.frequency, volume: m.volume.gain, reverb: m.reverbSend.gain }[control];
     }
 
     private masterChain(channels?: number[]): MasterChain {
@@ -122,15 +124,15 @@ function defineDeckMixer(Base: ControllerClass) {
       const input = new GainNode(ac);
       const hpf = new BiquadFilterNode(ac, { type: 'highpass', frequency: MASTER_CONTROL.hpf(v.hpf) });
       const lpf = new BiquadFilterNode(ac, { type: 'lowpass', frequency: MASTER_CONTROL.lpf(v.lpf) });
-      const gain = new GainNode(ac, { gain: MASTER_CONTROL.gain(v.gain) });
+      const volume = new GainNode(ac, { gain: MASTER_CONTROL.volume(v.volume) });
       const reverbSend = new GainNode(ac, { gain: MASTER_CONTROL.reverb(v.reverb) });
       this.impulse ??= noiseImpulse(ac);
       const convolver = new ConvolverNode(ac, { buffer: this.impulse });
-      input.connect(hpf).connect(lpf).connect(gain);
-      gain.connect(reverbSend).connect(convolver);
-      this.output.connectToDestination(gain, channels);
+      input.connect(hpf).connect(lpf).connect(volume);
+      volume.connect(reverbSend).connect(convolver);
+      this.output.connectToDestination(volume, channels);
       this.output.connectToDestination(convolver, channels);
-      this.master = { input, hpf, lpf, gain, reverbSend, convolver };
+      this.master = { input, hpf, lpf, volume, reverbSend, convolver };
       return this.master;
     }
 
@@ -150,14 +152,14 @@ function defineDeckMixer(Base: ControllerClass) {
     private knobParam(deck: DeckId, knob: Knob): AudioParam | undefined {
       const chain = this.chains[deck];
       if (!chain) return undefined;
-      return { lpf: chain.lpf.frequency, gain: chain.knobGain.gain, reverb: chain.reverbSend.gain }[knob];
+      return { lpf: chain.lpf.frequency, gain: chain.knobGain.gain, reverb: chain.reverbSend.gain, volume: chain.volume.gain }[knob];
     }
 
     private ramp(param: AudioParam | undefined, value: number): void {
       param?.setTargetAtTime(value, this.audioContext.currentTime, SMOOTHING);
     }
 
-    /** orbit -> lowpass -> knob gain -> fader gain, with knob gain -> reverb send -> convolver -> fader gain. */
+    /** orbit -> lowpass -> trim -> volume -> crossfader gain, with trim -> reverb send -> convolver -> volume. */
     private buildChain(deck: DeckId, input: AudioNode): GainNode {
       const ac = this.audioContext;
       const knobs = this.knobs[deck];
@@ -166,10 +168,11 @@ function defineDeckMixer(Base: ControllerClass) {
       const reverbSend = new GainNode(ac, { gain: DECK_CONTROL.reverb(knobs.reverb) });
       this.impulse ??= noiseImpulse(ac);
       const convolver = new ConvolverNode(ac, { buffer: this.impulse });
+      const volume = new GainNode(ac, { gain: DECK_CONTROL.volume(knobs.volume) });
       const faderGain = new GainNode(ac, { gain: crossfadeGains(this.fader)[DECKS.indexOf(deck)] });
-      input.connect(lpf).connect(knobGain).connect(faderGain);
-      knobGain.connect(reverbSend).connect(convolver).connect(faderGain);
-      this.chains[deck] = { lpf, knobGain, reverbSend, convolver, faderGain };
+      input.connect(lpf).connect(knobGain).connect(volume).connect(faderGain);
+      knobGain.connect(reverbSend).connect(convolver).connect(volume);
+      this.chains[deck] = { lpf, knobGain, reverbSend, convolver, volume, faderGain };
       return faderGain;
     }
   };

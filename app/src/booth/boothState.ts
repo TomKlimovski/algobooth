@@ -1,6 +1,6 @@
 import { createStore } from 'solid-js/store';
 import type { Knob } from '../engine/mixer';
-import { DEFAULT_MASTER_CONTROLS, type MasterControl } from '../engine/controlMap';
+import { DEFAULT_DECK_CONTROLS, DEFAULT_MASTER_CONTROLS, type MasterControl } from '../engine/controlMap';
 import type { DeckApi } from './Deck';
 import type { DeckId } from './deckState';
 
@@ -20,8 +20,7 @@ export interface BoothFields {
   message: string | null;
 }
 
-/** Filter open, unity gain (0.83 of the mixer's [0, 1.2] gain range), dry. */
-export const DEFAULT_KNOBS: KnobValues = { lpf: 1, gain: 0.83, reverb: 0 };
+export const DEFAULT_KNOBS: KnobValues = DEFAULT_DECK_CONTROLS;
 
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
 

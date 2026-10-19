@@ -4,9 +4,16 @@
  * Being native, it also takes the keyboard: focus it and the arrow keys nudge it.
  * Double-click resets to `default`.
  */
-export function Fader(props: { label: string; value: number; default: number; onChange: (v: number) => void }) {
+export function Fader(props: {
+  label: string;
+  value: number;
+  default: number;
+  onChange: (v: number) => void;
+  /** A channel-style fader: taller, for the control you ride during a mix. */
+  tall?: boolean;
+}) {
   return (
-    <label class="fader-wrap" title={`${props.label} ${Math.round(props.value * 100)}%`}>
+    <label class="fader-wrap" classList={{ tall: props.tall }} title={`${props.label} ${Math.round(props.value * 100)}%`}>
       <input
         class="fader"
         type="range"

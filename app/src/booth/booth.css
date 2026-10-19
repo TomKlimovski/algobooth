@@ -84,6 +84,7 @@ body {
   accent-color: #e94f37;
   cursor: ns-resize;
 }
+.fader-wrap.tall .fader { height: 96px; width: 22px; }
 .fader-label { color: #8b90a0; font-size: 9px; }
 
 .crossfader {

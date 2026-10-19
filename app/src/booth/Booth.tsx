@@ -11,10 +11,11 @@ import { cpmFromCps, createDeckState, type DeckId } from './deckState';
 import { Fader } from './Fader';
 import { MasterStrip } from './MasterStrip';
 import { isTransportKey, transportAction } from './spaceToggle';
-import type { MasterControl } from '../engine/controlMap';
+import { DECK_CONTROLS, MASTER_CONTROLS } from '../engine/controlMap';
 import './booth.css';
 
 const DECK_IDS: DeckId[] = ['A', 'B'];
+/** The small trim-style sliders; volume gets its own tall fader. */
 const KNOBS: KnobName[] = ['lpf', 'gain', 'reverb'];
 const MESSAGE_MS = 3000;
 
@@ -39,7 +40,11 @@ export function Booth(props: {
       mixer = installMixer();
       setReady(true);
     } catch (e) {
-      setEngineError(e instanceof Error ? e.message : String(e));
+      const message = e instanceof Error ? e.message : String(e);
+      // An effect that throws while `ready` flips lands here too; by then the decks are showing,
+      // so the fallback would never render it. Flash it in the footer instead of swallowing it.
+      if (ready()) flash(`Booth error: ${message}`);
+      else setEngineError(message);
     }
   };
   onMount(() => void startEngine());
@@ -47,13 +52,13 @@ export function Booth(props: {
   createEffect(() => {
     if (ready()) mixer!.setFader(booth.state.fader);
   });
-  for (const control of ['hpf', 'lpf', 'gain', 'reverb'] as MasterControl[]) {
+  for (const control of MASTER_CONTROLS) {
     createEffect(() => {
       if (ready()) mixer!.setMaster(control, booth.state.master[control]);
     });
   }
   for (const id of DECK_IDS) {
-    for (const knob of KNOBS) {
+    for (const knob of DECK_CONTROLS) {
       createEffect(() => {
         if (ready()) mixer!.setKnob(id, knob, booth.state.knobs[id][knob]);
       });
@@ -123,6 +128,16 @@ export function Booth(props: {
     </div>
   );
 
+  const deckVolume = (id: DeckId) => (
+    <Fader
+      label={`vol ${id}`}
+      tall
+      value={booth.state.knobs[id].volume}
+      default={DEFAULT_KNOBS.volume}
+      onChange={(v) => booth.setKnob(id, 'volume', v)}
+    />
+  );
+
   return (
     <div class="booth">
       <aside class="booth-library" classList={{ collapsed: props.library.state.collapsed }}>
@@ -169,7 +184,9 @@ export function Booth(props: {
           </div>
           <div class="booth-row booth-row-decks">
             {deckKnobs('A')}
+            {deckVolume('A')}
             <Crossfader value={booth.state.fader} onChange={booth.setFader} />
+            {deckVolume('B')}
             {deckKnobs('B')}
             <button
               class="deck-btn ghost"

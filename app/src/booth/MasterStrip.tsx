@@ -2,7 +2,7 @@ import { For } from 'solid-js';
 import { DEFAULT_MASTER_CONTROLS, type MasterControl } from '../engine/controlMap';
 import { Fader } from './Fader';
 
-const CONTROLS: MasterControl[] = ['hpf', 'lpf', 'gain', 'reverb'];
+const CONTROLS: MasterControl[] = ['hpf', 'lpf', 'reverb'];
 
 /** Master section over the whole mix: filters, gain, reverb, and start/stop for both decks. */
 export function MasterStrip(props: {
@@ -25,6 +25,13 @@ export function MasterStrip(props: {
           />
         )}
       </For>
+      <Fader
+        label="volume"
+        tall
+        value={props.values.volume}
+        default={DEFAULT_MASTER_CONTROLS.volume}
+        onChange={(v) => props.onChange('volume', v)}
+      />
       <div class="master-transport">
         <button class="deck-btn" disabled={props.disabled} onClick={props.onStartAll} title="Start both decks (Space)">
           ▶ all
