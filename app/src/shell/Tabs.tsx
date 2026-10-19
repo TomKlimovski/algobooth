@@ -1,4 +1,4 @@
-import { createSignal, For, type JSX } from 'solid-js';
+import { For, type JSX } from 'solid-js';
 import './tabs.css';
 
 export interface TabDef {
@@ -8,8 +8,9 @@ export interface TabDef {
 }
 
 // Every tab stays mounted (hidden when inactive) so the booth keeps playing while you visit Settings.
-export function Tabs(props: { tabs: TabDef[]; initial?: string }) {
-  const [active, setActive] = createSignal(props.initial ?? props.tabs[0].id);
+// The owner holds the active tab, so other UI (the library banner) can switch tabs too.
+export function Tabs(props: { tabs: TabDef[]; active: string; onSelect: (id: string) => void }) {
+  const active = () => props.active;
   return (
     <div class="shell">
       <nav class="shell-tabs" role="tablist">
@@ -20,7 +21,7 @@ export function Tabs(props: { tabs: TabDef[]; initial?: string }) {
               classList={{ on: active() === tab.id }}
               role="tab"
               aria-selected={active() === tab.id}
-              onClick={() => setActive(tab.id)}
+              onClick={() => props.onSelect(tab.id)}
             >
               {tab.label}
             </button>

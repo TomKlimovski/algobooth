@@ -1,9 +1,11 @@
 import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
 import { initEngine } from '../engine/strudel';
+import { LibraryTree } from '../library/LibraryTree';
+import type { LibraryStore } from '../library/store';
 import { installMixer, type DeckMixer, type Knob as KnobName } from '../engine/mixer';
 import { SyncController } from '../engine/sync';
 import { Crossfader } from './Crossfader';
-import { Deck } from './Deck';
+import { Deck, type DeckApi } from './Deck';
 import { createBoothState, DEFAULT_KNOBS } from './boothState';
 import { cpmFromCps, createDeckState, type DeckId } from './deckState';
 import { Knob } from './Knob';
@@ -13,8 +15,13 @@ const DECK_IDS: DeckId[] = ['A', 'B'];
 const KNOBS: KnobName[] = ['lpf', 'gain', 'reverb'];
 const MESSAGE_MS = 3000;
 
-export function Booth() {
+export function Booth(props: {
+  library: LibraryStore;
+  /** Hands the owner a getter for the mounted decks, so the library can load into them. */
+  onDecks?: (decks: () => Record<DeckId, DeckApi | null>) => void;
+}) {
   const booth = createBoothState();
+  props.onDecks?.(() => booth.state.decks);
   const decks = { A: createDeckState('A'), B: createDeckState('B') };
   let mixer: DeckMixer | undefined;
   // Decks mount only once the mixer is installed, so no orbit is created before it reroutes them.
@@ -65,6 +72,9 @@ export function Booth() {
     sync.dispose();
   });
 
+  // A failed load already shows in the library sidebar's error line.
+  const loadDropped = (path: string, id: DeckId) => void props.library.load(path, id).catch(() => {});
+
   const masterPlay = () => Promise.all(DECK_IDS.map((id) => booth.state.decks[id]?.evaluate(true)));
 
   const deckKnobs = (id: DeckId) => (
@@ -84,13 +94,20 @@ export function Booth() {
 
   return (
     <div class="booth">
-      {/* Library sidebar slot, filled in Task 10. */}
-      <aside class="booth-library" />
+      <aside class="booth-library" classList={{ collapsed: props.library.state.collapsed }}>
+        <LibraryTree store={props.library} />
+      </aside>
       <main class="booth-main">
         <Show when={ready()} fallback={<div class="booth-loading">loading engine…</div>}>
           <div class="booth-decks">
             <For each={DECK_IDS}>
-              {(id) => <Deck state={decks[id]} onReady={(api) => booth.registerDeck(id, api)} />}
+              {(id) => (
+                <Deck
+                  state={decks[id]}
+                  onReady={(api) => booth.registerDeck(id, api)}
+                  onDropPattern={(path) => loadDropped(path, id)}
+                />
+              )}
             </For>
           </div>
         </Show>

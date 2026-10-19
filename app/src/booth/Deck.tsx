@@ -1,7 +1,8 @@
-import { onCleanup, onMount } from 'solid-js';
+import { createSignal, onCleanup, onMount } from 'solid-js';
 import { StrudelMirror } from '@strudel/codemirror';
 import { transpiler } from '@strudel/transpiler';
 import { getAudioContext, webaudioOutput } from '@strudel/webaudio';
+import { PATTERN_MIME } from '../library/store';
 import { settings } from '../settings/settings';
 import { initEngine } from '../engine/strudel';
 import { cpmFromCps, ORBIT, type DeckId, type DeckState } from './deckState';
@@ -41,7 +42,12 @@ export const DEFAULT_CODE: Record<DeckId, string> = {
 // transport click resumes it (initAudio's own resume() never fires).
 const resumeAudio = () => getAudioContext().resume();
 
-export function Deck(props: { state: DeckState; onReady?: (api: DeckApi) => void }) {
+export function Deck(props: {
+  state: DeckState;
+  onReady?: (api: DeckApi) => void;
+  /** A library entry (relative path) was dropped on this deck. */
+  onDropPattern?: (path: string) => void;
+}) {
   const deck = props.state;
   const id = deck.state.id;
   let root!: HTMLDivElement;
@@ -49,6 +55,24 @@ export function Deck(props: { state: DeckState; onReady?: (api: DeckApi) => void
   let mirror: any;
   const afterEval = new Set<() => void>();
   const onToggle = new Set<(started: boolean) => void>();
+  const [dragOver, setDragOver] = createSignal(false);
+  const accepts = (e: DragEvent) => !!props.onDropPattern && (e.dataTransfer?.types.includes(PATTERN_MIME) ?? false);
+  const onDragOver = (e: DragEvent) => {
+    if (!accepts(e)) return;
+    e.preventDefault();
+    e.dataTransfer!.dropEffect = 'copy';
+    setDragOver(true);
+  };
+  // Listened for in the capture phase, so the deck sees the drop before the editor inside it does.
+  const onDrop = (e: DragEvent) => {
+    setDragOver(false);
+    const path = e.dataTransfer?.getData(PATTERN_MIME);
+    if (!path || !props.onDropPattern) return;
+    // Keep CodeMirror from also inserting the dragged text.
+    e.preventDefault();
+    e.stopPropagation();
+    props.onDropPattern(path);
+  };
 
   const fitCanvas = () => {
     const dpr = window.devicePixelRatio || 1;
@@ -130,7 +154,14 @@ export function Deck(props: { state: DeckState; onReady?: (api: DeckApi) => void
   });
 
   return (
-    <section class="deck" data-deck={id}>
+    <section
+      class="deck"
+      classList={{ 'drop-target': dragOver() }}
+      data-deck={id}
+      onDragOver={onDragOver}
+      onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDragOver(false)}
+      on:drop={{ handleEvent: onDrop, capture: true }}
+    >
       <header class="deck-header">
         <span class="deck-letter">{id}</span>
         <span class="deck-name">{deck.state.name}</span>

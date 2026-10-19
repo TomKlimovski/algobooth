@@ -1,11 +1,10 @@
 import { open } from '@tauri-apps/plugin-dialog';
-import { createSignal, onMount, Show } from 'solid-js';
-import { initSettings, settings, settingsNotice, updateSettings, type Settings as SettingsValue } from './settings';
+import { createSignal, Show } from 'solid-js';
+import { settings, settingsNotice, updateSettings, type Settings as SettingsValue } from './settings';
 import './settings.css';
 
 export function SettingsTab() {
   const [error, setError] = createSignal<string | null>(null);
-  onMount(initSettings);
 
   const save = async (patch: Partial<SettingsValue>) => {
     try {
