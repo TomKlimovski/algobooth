@@ -47,6 +47,8 @@ export function Deck(props: {
   onReady?: (api: DeckApi) => void;
   /** A library entry (relative path) was dropped on this deck. */
   onDropPattern?: (path: string) => void;
+  /** Checked during dragover, so the deck refuses (no drop cursor) entries it cannot load. */
+  canDropPattern?: () => boolean;
 }) {
   const deck = props.state;
   const id = deck.state.id;
@@ -56,7 +58,10 @@ export function Deck(props: {
   const afterEval = new Set<() => void>();
   const onToggle = new Set<(started: boolean) => void>();
   const [dragOver, setDragOver] = createSignal(false);
-  const accepts = (e: DragEvent) => !!props.onDropPattern && (e.dataTransfer?.types.includes(PATTERN_MIME) ?? false);
+  const accepts = (e: DragEvent) =>
+    !!props.onDropPattern &&
+    (e.dataTransfer?.types.includes(PATTERN_MIME) ?? false) &&
+    (props.canDropPattern?.() ?? true);
   const onDragOver = (e: DragEvent) => {
     if (!accepts(e)) return;
     e.preventDefault();
@@ -67,11 +72,11 @@ export function Deck(props: {
   const onDrop = (e: DragEvent) => {
     setDragOver(false);
     const path = e.dataTransfer?.getData(PATTERN_MIME);
-    if (!path || !props.onDropPattern) return;
-    // Keep CodeMirror from also inserting the dragged text.
+    if (!path) return;
+    // A library entry never reaches CodeMirror, even a refused one (a heading).
     e.preventDefault();
     e.stopPropagation();
-    props.onDropPattern(path);
+    if (accepts(e)) props.onDropPattern?.(path);
   };
 
   const fitCanvas = () => {

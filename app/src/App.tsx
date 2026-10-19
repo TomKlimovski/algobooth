@@ -43,7 +43,10 @@ export function App() {
     try {
       await tauriApi.ensure_library(dir);
     } catch (e) {
-      if (gen === generation) setLibraryError(String(e));
+      if (gen === generation) {
+        setLibraryError(String(e));
+        library.setError('Library unavailable: see the banner above.');
+      }
       return;
     }
     if (gen !== generation) return;
@@ -53,8 +56,10 @@ export function App() {
       const off = await tauriApi.onLibraryChanged(refresh);
       if (gen !== generation) return off();
       unlisten = off;
+      library.setWatchWarning(null);
     } catch (e) {
-      if (gen === generation) library.setError(`Live refresh is off: ${e}`);
+      // Its own field: the refresh below (and later actions) must not clear it.
+      if (gen === generation) library.setWatchWarning(`Live refresh is off: ${e}`);
     }
     if (gen === generation) refresh();
   };

@@ -130,8 +130,13 @@ export function LibraryTree(props: { store: LibraryStore }) {
   const dropOnto = (target: () => string) => ({
     onDragOver: (e: DragEvent) => {
       if (!isDraggingEntry(e)) return;
-      e.preventDefault();
+      // Swallow it either way, so a refused heading does not fall through to the root below it.
       e.stopPropagation();
+      if (!store.canDrop({ heading: target() })) {
+        setDropTarget(null);
+        return;
+      }
+      e.preventDefault();
       e.dataTransfer!.dropEffect = 'move';
       setDropTarget(target());
     },
@@ -143,7 +148,7 @@ export function LibraryTree(props: { store: LibraryStore }) {
       if (!path) return;
       e.preventDefault();
       e.stopPropagation();
-      if (path !== heading && parentOf(path) !== heading) quietly(store.move(path, heading));
+      if (store.canDrop({ heading })) quietly(store.move(path, heading));
     },
   });
 
@@ -202,8 +207,12 @@ export function LibraryTree(props: { store: LibraryStore }) {
           onDragStart={(e) => {
             e.dataTransfer!.setData(PATTERN_MIME, path());
             e.dataTransfer!.effectAllowed = 'copyMove';
+            store.setDragging(path());
           }}
-          onDragEnd={() => setDropTarget(null)}
+          onDragEnd={() => {
+            store.setDragging(null);
+            setDropTarget(null);
+          }}
           onClick={() => store.select(path())}
           onDblClick={() => (isHeading() ? store.toggleFold(path()) : quietly(store.loadToIdleDeck(path())))}
           onContextMenu={(e) => openMenu(e, p.node)}
@@ -255,7 +264,15 @@ export function LibraryTree(props: { store: LibraryStore }) {
         >
           {store.state.collapsed ? '▸' : '◂'}
         </button>
+        <Show when={store.state.collapsed && store.state.watchWarning}>
+          {(w) => (
+            <span class="lib-watch-glyph" role="img" aria-label={w()} title={w()}>⚠</span>
+          )}
+        </Show>
       </header>
+      <Show when={!store.state.collapsed && store.state.watchWarning}>
+        {(w) => <div class="lib-watch" role="status">⚠ {w()}</div>}
+      </Show>
       <Show when={!store.state.collapsed}>
         <Show when={store.state.error}>
           {(err) => (

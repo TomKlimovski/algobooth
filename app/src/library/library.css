@@ -131,3 +131,7 @@
   color: #ffb86c;
 }
 .app-banner span { flex: 1; }
+
+.lib.collapsed .lib-header { flex-direction: column; }
+.lib-watch-glyph { color: #ffb86c; cursor: help; }
+.lib-watch { margin: 4px; padding: 4px 6px; border-radius: 3px; background: #2a2416; color: #ffb86c; word-break: break-word; }

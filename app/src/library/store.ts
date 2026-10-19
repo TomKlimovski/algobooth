@@ -15,7 +15,14 @@ export interface LibraryFields {
   collapsed: boolean;
   /** Last failed library action, shown in the sidebar; cleared by the next success. */
   error: string | null;
+  /** Why live refresh is off (watcher or listener failed); only a reconnect clears it, never a library action. */
+  watchWarning: string | null;
+  /** Path of the entry being dragged from the tree, so drop targets can refuse it during dragover. */
+  dragging: string | null;
 }
+
+/** Where a dragged entry could land: a deck, or a heading (`""` is the root). */
+export type DropTarget = { deck: true } | { heading: string };
 
 export const NEW_PATTERN: Pattern = {
   name: 'untitled',
@@ -71,6 +78,8 @@ export function createLibraryStore(
     selected: null,
     collapsed: false,
     error: null,
+    watchWarning: null,
+    dragging: null,
   });
 
   /** Runs a library call, recording its failure in `state.error` and rethrowing it. */
@@ -176,5 +185,18 @@ export function createLibraryStore(
       }),
     /** Shows `message` (or clears it) without running a library call, e.g. when there is no Tauri runtime. */
     setError: (message: string | null) => set('error', message),
+    setWatchWarning: (message: string | null) => set('watchWarning', message),
+    setDragging: (path: string | null) => set('dragging', path),
+    /**
+     * Whether the entry being dragged may drop on `target`: only patterns load onto a deck, and an entry
+     * cannot move onto itself, into its own subtree, or into the heading it is already in.
+     */
+    canDrop: (target: DropTarget): boolean => {
+      const dragged = state.dragging;
+      if (dragged === null) return false;
+      if ('deck' in target) return findNode(state.root, dragged)?.kind === 'pattern';
+      const h = target.heading;
+      return h !== dragged && !h.startsWith(dragged + '/') && parentOf(dragged) !== h;
+    },
   };
 }

@@ -106,6 +106,7 @@ export function Booth(props: {
                   state={decks[id]}
                   onReady={(api) => booth.registerDeck(id, api)}
                   onDropPattern={(path) => loadDropped(path, id)}
+                  canDropPattern={() => props.library.canDrop({ deck: true })}
                 />
               )}
             </For>

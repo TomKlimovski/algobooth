@@ -176,3 +176,34 @@ test('loadToIdleDeck loads into the deck that is not playing', async () => {
   expect(a.setCode).toHaveBeenCalledWith('y');
   expect(b.setCode).not.toHaveBeenCalled();
 });
+
+test('a watch warning survives a successful refresh', async () => {
+  const api = fakeApi(heading('', [heading('mine')]));
+  const lib = createLibraryStore(api, () => ({ A: null, B: null }), () => '/lib');
+  lib.setWatchWarning('Live refresh is off: no backend');
+  await lib.refresh();
+  expect(lib.state.error).toBeNull();
+  expect(lib.state.watchWarning).toBe('Live refresh is off: no backend');
+  lib.setWatchWarning(null);
+  expect(lib.state.watchWarning).toBeNull();
+});
+
+test('drops are refused during drag for headings on decks and headings into their own subtree', async () => {
+  const api = fakeApi(heading('', [heading('mine', [heading('mine/bass', [leaf('mine/bass/x.json')])]), heading('sets')]));
+  const lib = createLibraryStore(api, () => ({ A: null, B: null }), () => '/lib');
+  await lib.refresh();
+  expect(lib.canDrop({ deck: true })).toBe(false); // nothing dragged
+
+  lib.setDragging('mine');
+  expect(lib.canDrop({ deck: true })).toBe(false);
+  expect(lib.canDrop({ heading: 'mine' })).toBe(false);
+  expect(lib.canDrop({ heading: 'mine/bass' })).toBe(false);
+  expect(lib.canDrop({ heading: '' })).toBe(false); // already at the root
+  expect(lib.canDrop({ heading: 'sets' })).toBe(true);
+
+  lib.setDragging('mine/bass/x.json');
+  expect(lib.canDrop({ deck: true })).toBe(true);
+  expect(lib.canDrop({ heading: 'mine/bass' })).toBe(false);
+  expect(lib.canDrop({ heading: 'mine' })).toBe(true);
+  expect(lib.canDrop({ heading: 'sets' })).toBe(true);
+});
