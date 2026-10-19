@@ -1,6 +1,7 @@
 import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show } from 'solid-js';
 import { Booth } from './booth/Booth';
 import type { DeckApi } from './booth/Deck';
+import { unpointsDecks } from './booth/deckFile';
 import type { DeckId } from './booth/deckState';
 import { hasTauriRuntime, tauriApi } from './library/api';
 import { createLibraryStore } from './library/store';
@@ -71,7 +72,14 @@ export function App() {
   };
   // A memo, so saving an unrelated setting (the visualiser) does not reconnect.
   const libraryDir = createMemo(() => (settingsLoaded() ? settings().library_dir : null));
-  createEffect(on(libraryDir, (dir) => dir !== null && void connect()));
+  createEffect(
+    on(libraryDir, (dir, prev) => {
+      if (dir === null) return;
+      // The decks' files are paths into the old folder: keep their code, but Save must ask where.
+      if (unpointsDecks(prev, dir)) for (const deck of Object.values(boothDecks())) deck?.unpointFile();
+      void connect();
+    }),
+  );
   onCleanup(disconnect);
 
   return (

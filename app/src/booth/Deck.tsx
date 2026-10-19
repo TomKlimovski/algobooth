@@ -26,6 +26,8 @@ export interface DeckApi {
   filePath(): string | null;
   /** The deck's file was renamed or moved to `path` by the library. */
   moveFile(path: string): void;
+  /** Forgets the deck's file but keeps its code (now unsaved), so Save opens Save as. */
+  unpointFile(): void;
   /** The watcher reported `paths` changed: reload the deck's file, or flag it if the deck has edits. */
   diskChanged(paths: string[]): void;
   /** Whether the editor holds unsaved edits. */
@@ -257,6 +259,7 @@ export function Deck(props: {
       setFile: deck.setFile,
       filePath: () => deck.state.filePath,
       moveFile: deck.setFilePath,
+      unpointFile: () => deck.setFile(null, null),
       diskChanged: (paths) => void diskChanged(paths),
       isDirty: dirty,
       save,

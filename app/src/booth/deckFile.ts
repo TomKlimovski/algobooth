@@ -57,3 +57,12 @@ export function patternFromDeck(deck: Pick<DeckFields, 'name' | 'code' | 'codeCp
     notes: existing?.notes ?? '',
   };
 }
+
+/**
+ * Whether a library folder change (`prev` to `next`) must unpoint the decks: their file paths are relative
+ * to the old folder, and Save would otherwise write into the new folder's same-named file. The first
+ * folder (settings just loaded) points nothing anywhere yet.
+ */
+export function unpointsDecks(prev: string | null | undefined, next: string | null): boolean {
+  return prev != null && next !== null && prev !== next;
+}

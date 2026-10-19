@@ -1,5 +1,5 @@
 import { createDeckState, type DeckFields } from './deckState';
-import { isDirty, newPatternDecision, onDiskChange, patternFromDeck } from './deckFile';
+import { isDirty, newPatternDecision, onDiskChange, patternFromDeck, unpointsDecks } from './deckFile';
 
 const deck = ({ cpm, ...rest }: Pick<DeckFields, 'name' | 'code'> & { cpm: number }) => ({ ...rest, codeCpm: cpm });
 
@@ -48,4 +48,10 @@ test('a synced deck saves its own code tempo, not the effective tempo the header
   b.setCpm(126); // ...then sync pulls B to A's tempo
   expect(b.state.cpm).toBe(126);
   expect(patternFromDeck({ ...b.state, name: 'n', code: 'c' }).cpm).toBe(100);
+});
+test('changing the library folder unpoints the decks; loading the first folder does not', () => {
+  expect(unpointsDecks(undefined, '/lib')).toBe(false); // settings just loaded
+  expect(unpointsDecks(null, '/lib')).toBe(false);
+  expect(unpointsDecks('/lib', '/other')).toBe(true);
+  expect(unpointsDecks('/lib', '/lib')).toBe(false);
 });
