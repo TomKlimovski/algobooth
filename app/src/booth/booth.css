@@ -37,12 +37,17 @@ body {
 
 .booth-footer {
   display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 6px 10px;
+  flex-direction: column;
   background: #171a22;
   border-top: 1px solid #2a2d36;
 }
+.booth-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 6px 10px;
+}
+.booth-row-master { border-bottom: 1px solid #2a2d36; }
 .booth-footer .deck-btn:disabled { opacity: 0.4; cursor: default; }
 
 .booth-knobs { display: flex; gap: 10px; align-items: flex-end; }
@@ -51,8 +56,6 @@ body {
   display: flex;
   gap: 10px;
   align-items: flex-end;
-  padding-left: 12px;
-  border-left: 1px solid #2a2d36;
 }
 .master-label {
   align-self: center;
@@ -61,7 +64,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
-.master-transport { display: flex; flex-direction: column; gap: 4px; align-self: center; }
+.master-transport { display: flex; gap: 6px; align-self: center; margin-left: 6px; }
 
 .booth-message { color: #ffb86c; white-space: nowrap; }
 .booth-message:empty { display: none; }

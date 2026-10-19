@@ -157,27 +157,31 @@ export function Booth(props: {
           </div>
         </Show>
         <footer class="booth-footer">
-          {deckKnobs('A')}
-          <Crossfader value={booth.state.fader} onChange={booth.setFader} />
-          {deckKnobs('B')}
-          <MasterStrip
-            values={booth.state.master}
-            onChange={booth.setMaster}
-            onStartAll={masterPlay}
-            onStopAll={stopAll}
-            disabled={!ready()}
-          />
-          <span class="booth-message" role="status">{booth.state.message}</span>
-          <button
-            class="deck-btn ghost"
-            classList={{ on: booth.state.sync }}
-            disabled={!ready()}
-            onClick={toggleSync}
-            aria-pressed={booth.state.sync}
-            title="Deck B follows deck A's tempo and bar line"
-          >
-            Sync
-          </button>
+          <div class="booth-row booth-row-master">
+            <MasterStrip
+              values={booth.state.master}
+              onChange={booth.setMaster}
+              onStartAll={masterPlay}
+              onStopAll={stopAll}
+              disabled={!ready()}
+            />
+            <span class="booth-message" role="status">{booth.state.message}</span>
+          </div>
+          <div class="booth-row booth-row-decks">
+            {deckKnobs('A')}
+            <Crossfader value={booth.state.fader} onChange={booth.setFader} />
+            {deckKnobs('B')}
+            <button
+              class="deck-btn ghost"
+              classList={{ on: booth.state.sync }}
+              disabled={!ready()}
+              onClick={toggleSync}
+              aria-pressed={booth.state.sync}
+              title="Deck B follows deck A's tempo and bar line"
+            >
+              Sync
+            </button>
+          </div>
         </footer>
       </main>
     </div>
