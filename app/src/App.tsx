@@ -5,7 +5,7 @@ import { unpointsDecks } from './booth/deckFile';
 import type { DeckId } from './booth/deckState';
 import { hasTauriRuntime, tauriApi } from './library/api';
 import { createLibraryStore } from './library/store';
-import { RipPlaceholder } from './rip/RipPlaceholder';
+import { RipTab } from './rip/RipTab';
 import { initSettings, settings } from './settings/settings';
 import { SettingsTab } from './settings/SettingsTab';
 import { Tabs } from './shell/Tabs';
@@ -97,7 +97,18 @@ export function App() {
         onSelect={setTab}
         tabs={[
           { id: 'booth', label: 'Booth', view: () => <Booth library={library} onDecks={(get) => (boothDecks = get)} /> },
-          { id: 'rip', label: 'Rip', view: () => <RipPlaceholder /> },
+          {
+            id: 'rip',
+            label: 'Rip',
+            view: () => (
+              <RipTab
+                library={library}
+                decks={() => boothDecks()}
+                active={() => tab() === 'rip'}
+                onLoadedToDeck={() => setTab('booth')}
+              />
+            ),
+          },
           { id: 'settings', label: 'Settings', view: () => <SettingsTab /> },
         ]}
       />

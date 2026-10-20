@@ -54,6 +54,9 @@ const SMOOTHING = 0.02;
 const REVERB_SECONDS = 2;
 const DECKS: DeckId[] = ['A', 'B'];
 
+/** The Rip tab's result editor plays here: gain only, outside the decks, crossfader and master section. */
+export const RIP_ORBIT = 3;
+
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
 
 function noiseImpulse(ac: AudioContext): AudioBuffer {
@@ -83,8 +86,19 @@ function defineDeckMixer(Base: ControllerClass) {
     private masterValues: Record<MasterControl, number> = { ...DEFAULT_MASTER_CONTROLS };
     private fader = 0.5;
     private impulse: AudioBuffer | undefined;
+    private ripGain: GainNode | undefined;
+    private ripLevel = 1;
 
     override getOrbit(orbitNum: number, channels?: number[]): Orbit {
+      if (orbitNum === RIP_ORBIT && this.nodes[orbitNum] == null) {
+        // orbit 3 -> ripGain -> destination: no knobs, no crossfader, no master section.
+        const orbit = super.getOrbit(orbitNum, channels);
+        orbit.output.disconnect();
+        this.ripGain = new GainNode(this.audioContext, { gain: this.ripLevel });
+        orbit.output.connect(this.ripGain);
+        this.output.connectToDestination(this.ripGain, channels);
+        return orbit;
+      }
       const deck = DECKS.find((d) => ORBIT[d] === orbitNum);
       if (deck === undefined || this.nodes[orbitNum] != null) return super.getOrbit(orbitNum, channels);
       // The superclass creates the orbit and wires it straight to the output; reroute it through the deck chain.
@@ -102,6 +116,8 @@ function defineDeckMixer(Base: ControllerClass) {
       this.chains = {};
       if (this.master) for (const node of Object.values(this.master)) (node as AudioNode).disconnect();
       this.master = undefined;
+      this.ripGain?.disconnect();
+      this.ripGain = undefined;
       super.reset();
     }
 
@@ -134,6 +150,12 @@ function defineDeckMixer(Base: ControllerClass) {
       this.output.connectToDestination(convolver, channels);
       this.master = { input, hpf, lpf, volume, reverbSend, convolver };
       return this.master;
+    }
+
+    /** The Rip tab result's level in [0, 1] (the A/B toggle); remembered until the result first sounds. */
+    setRipGain(value: number): void {
+      this.ripLevel = clamp01(value);
+      this.ramp(this.ripGain?.gain, this.ripLevel);
     }
 
     /** Crossfader position: 0 is full deck A, 1 is full deck B. */
@@ -181,6 +203,11 @@ function defineDeckMixer(Base: ControllerClass) {
 export type DeckMixer = InstanceType<ReturnType<typeof defineDeckMixer>>;
 
 let mixer: DeckMixer | undefined;
+
+/** The mixer `installMixer()` last created, or null before the engine has booted. */
+export function getMixer(): DeckMixer | null {
+  return mixer ?? null;
+}
 
 /**
  * Installs the deck mixer as superdough's audio controller. Call once after

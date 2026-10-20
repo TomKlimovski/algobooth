@@ -67,6 +67,8 @@ export function createRipStore(deps: RipDeps) {
   let run = 0;
   /** Whether the running rip was sent with tidy on (decides whether the tidy row exists). */
   let sentTidy = false;
+  /** Where the running or last rip came from, for its library pattern's `source`. */
+  let sentReq: { url: string; start: number; end: number } | null = null;
   /** The editor's code per version, so switching back keeps edits. */
   let edits: { generated: string; tidied: string | null } = { generated: '', tidied: null };
 
@@ -132,6 +134,8 @@ export function createRipStore(deps: RipDeps) {
 
   /** Whether a models poll is already scheduled, so a refresh during an install does not start a second loop. */
   let modelsPolling = false;
+  /** Set by `dispose`: no poll runs again. */
+  let disposed = false;
 
   function applyModels(m: ModelStatus): void {
     setState('models', reconcile(m));
@@ -144,7 +148,7 @@ export function createRipStore(deps: RipDeps) {
   /** Asks the service for the model status; keeps asking every second while an install runs. */
   async function refreshModels(): Promise<ModelStatus | null> {
     const client = deps.client();
-    if (!client) return null;
+    if (!client || disposed) return null;
     let m: ModelStatus;
     try {
       m = await client.models();
@@ -152,6 +156,7 @@ export function createRipStore(deps: RipDeps) {
       setState('error', message(e));
       return null;
     }
+    if (disposed) return null;
     applyModels(m);
     if (m.installing && !modelsPolling) {
       modelsPolling = true;
@@ -205,6 +210,7 @@ export function createRipStore(deps: RipDeps) {
     setState('pendingStart', false);
     const mine = ++run;
     sentTidy = req.tidy;
+    sentReq = { url: req.url, start: req.start, end: req.end };
     setState({ busy: true, error: null, job: null, result: null });
     let id: string;
     try {
@@ -252,11 +258,16 @@ export function createRipStore(deps: RipDeps) {
     }
   }
 
+  /** The progress rows for the running or last rip: `tidy` only when it was sent with tidy on. */
+  function stageRows(): Stage[] {
+    return sentTidy ? STAGES : STAGES.filter((st) => st !== 'tidy');
+  }
+
   /** The progress row after the current one; the first row while queued; null when idle or on the last row. */
   function nextStage(): Stage | null {
     const job = state.job;
     if (!state.busy || !job) return null;
-    const rows = sentTidy ? STAGES : STAGES.filter((st) => st !== 'tidy');
+    const rows = stageRows();
     if (job.stage === null) return rows[0];
     return rows[rows.indexOf(job.stage) + 1] ?? null;
   }
@@ -273,5 +284,13 @@ export function createRipStore(deps: RipDeps) {
     nextStage,
     refreshModels,
     installModels,
+    stageRows,
+    /** The link and window of the running or last rip (not the form, which may have changed since). */
+    sent: () => sentReq,
+    /** Stops polling for good (the tab unmounted). */
+    dispose: () => {
+      disposed = true;
+      run++;
+    },
   };
 }

@@ -352,3 +352,27 @@ test('a new rip clears the previous rip\'s code and version', async () => {
   release('j2');
   await started;
 });
+
+test('the sent request is kept for saving, and the stage rows follow tidy', async () => {
+  const { store, q } = setup([job({ status: 'done', stage: 'generate', progress: 1, result: result() })], { claude_api_key: 'k' });
+  expect(store.sent()).toBeNull();
+  expect(store.stageRows()).toEqual(['download', 'separate', 'analyse', 'generate']);
+  store.setField('tidy', true);
+  await store.start();
+  store.setField('url', 'https://other.example/'); // editing the form afterwards does not change the source
+  await q.drain();
+  expect(store.sent()).toEqual({ url: 'https://www.youtube.com/watch?v=x', start: 72, end: 88 });
+  expect(store.stageRows()).toEqual(STAGES);
+});
+
+test('dispose stops the job and model polls', async () => {
+  const { store, fake, q } = setup([job({ stage: 'download' })]);
+  await store.start();
+  fake.models.mockResolvedValueOnce(models({ ready: false, installing: true, stage: 'packages' }));
+  await store.refreshModels();
+  expect(q.pending).toHaveLength(2);
+  store.dispose();
+  await q.drain();
+  expect(fake.status).not.toHaveBeenCalled();
+  expect(fake.models).toHaveBeenCalledTimes(2); // start's check and the refresh, nothing after dispose
+});
