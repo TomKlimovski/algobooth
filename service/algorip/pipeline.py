@@ -14,13 +14,14 @@ from algorip.audio import SR, load_mono
 from algorip.bass import choose_bass_loop, harmonic_ratio, transcribe_bass
 from algorip.chords import estimate_chords
 from algorip.download import Fetcher, Runner, clip_key, fetch_clip, run_command, yt_dlp_fetch
+from algorip.drumloop import drum_loops
 from algorip.drums import VOICES, classify_drums, is_four_on_the_floor
 from algorip.generate import generate
 from algorip.grid import estimate_grid
 from algorip.key import key_from_stems
 from algorip.melody import transcribe_melody
 from algorip.notes import Predictor, basic_pitch_predict
-from algorip.schema import Analysis, RipRequest, RipResult, Stage
+from algorip.schema import Analysis, DrumSummary, RipRequest, RipResult, Stage
 from algorip.separate import STEMS, Separator, demucs_separator, separate
 from algorip.sounds import choose_sounds
 from algorip.tidy import Chat, anthropic_chat, tidy
@@ -150,5 +151,13 @@ def _analyse(stems: dict[str, Path], predict: Predictor, report: Callable[[float
         melody=melody,
         bass_loop=choose_bass_loop(bg, grid, bass_notes),
     )
+    analysis = analysis.model_copy(update={"drum_summary": _drum_summary(analysis)})
     report(1.0)
     return analysis
+
+
+def _drum_summary(a: Analysis) -> DrumSummary:
+    """The drum loops of the analysed hits, in brief, for the Rip tab."""
+    loops = drum_loops(a)
+    regular = [v.period for v in loops.voices.values() if any(v.templates)]
+    return DrumSummary(period=max(regular, default=0), match=loops.match, fill_bars=loops.fill_bars)

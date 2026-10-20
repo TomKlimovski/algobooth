@@ -84,6 +84,8 @@ def test_build_fixture_round_trips(tmp_path):
     code = generate(a, choose_sounds(a), "Build", 0, 16)
     bass2 = [line for line in code.splitlines() if line.startswith("_bass2:")]
     assert len(bass2) == 1 and "*4" in bass2[0]
-    # End to end: the fresh run through _analyse is the committed golden, analysis and code.
-    assert a == Analysis.model_validate_json((GOLDEN / "build.analysis.json").read_text())
+    # End to end: the fresh run through _analyse is the committed golden, analysis and code. The goldens
+    # carry no drum_summary (generate does not read it), so it is checked on its own.
+    assert a.drum_summary is not None and a.drum_summary.match > 0.9
+    assert a.model_copy(update={"drum_summary": None}) == Analysis.model_validate_json((GOLDEN / "build.analysis.json").read_text())
     assert code == (GOLDEN / "build.strudel").read_text()

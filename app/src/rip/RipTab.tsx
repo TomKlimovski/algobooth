@@ -413,6 +413,13 @@ export function RipTab(props: {
                 <p class="rip-analysis">
                   tempo {Math.round(res().analysis.bpm)} · key {res().analysis.key} · {res().analysis.meter} ·{' '}
                   {res().analysis.bars} {res().analysis.bars === 1 ? 'bar' : 'bars'}
+                  <Show when={res().analysis.drum_summary}>
+                    {(drums) => (
+                      <>
+                        {' '}· drums loop {drums().period} {drums().period === 1 ? 'bar' : 'bars'} · {Math.round(drums().match * 100)}% of hits
+                      </>
+                    )}
+                  </Show>
                   <Show when={res().analysis.bass_loop}>
                     {(loop) => (
                       <>

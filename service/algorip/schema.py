@@ -21,6 +21,14 @@ class BassLoop(BaseModel):
     match_with_layer: float | None  # the loop plus the layer, over every bar
 
 
+class DrumSummary(BaseModel):
+    """The drum voices as loops, in brief: how long the longest loop is and how much of the hits they play."""
+
+    period: int  # the longest period among voices with a regular part; 0 when none has one
+    match: float  # F1 of the hits the loops play against the classified hits
+    fill_bars: tuple[int, int] | None  # 1-based inclusive; None when no voice fills
+
+
 class Analysis(BaseModel):
     bpm: float
     key: str
@@ -35,6 +43,7 @@ class Analysis(BaseModel):
     chords: list[str]
     melody: list[Note] | None
     bass_loop: BassLoop | None = None
+    drum_summary: DrumSummary | None = None
 
 
 class SoundChoice(BaseModel):

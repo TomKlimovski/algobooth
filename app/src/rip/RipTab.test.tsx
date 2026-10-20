@@ -1,7 +1,7 @@
 import { render } from 'solid-js/web';
 import type { DeckApi } from '../booth/Deck';
 import type { LibraryStore } from '../library/store';
-import type { JobStatus, ModelStatus, RipResult, BassLoop } from './ripApi';
+import type { JobStatus, ModelStatus, RipResult, BassLoop, DrumSummary } from './ripApi';
 
 // --- fakes for the service, the audio context, the mixer and the result editor ------------------
 
@@ -79,18 +79,20 @@ vi.mock('./ResultEditor', () => ({
 
 const { RipTab } = await import('./RipTab');
 
-function result(bassLoop: BassLoop | null = null): RipResult {
+function result(bassLoop: BassLoop | null = null, drumSummary: DrumSummary | null = null): RipResult {
   return {
     title: 'Song',
     analysis: {
       bpm: 124, key: 'A minor', meter: '4/4', bars: 8, steps_per_bar: 16, first_downbeat: 0.25,
-      drums: {}, four_on_the_floor: true, bass: [], bass_harmonics: 0, chords: [], melody: null, bass_loop: bassLoop,
+      drums: {}, four_on_the_floor: true, bass: [], bass_harmonics: 0, chords: [], melody: null, bass_loop: bassLoop, drum_summary: drumSummary,
     },
     sounds: { drum_bank: 'RolandTR909', snare_name: 'sd', bass_sound: 'sine', bass_lpf: null, chord_sound: 'sawtooth', chord_lpf: 1200, room: 0.4 },
     code: 'setcpm(124/4)\n$: s("bd*4")', tidied_code: null, tidy_error: 'no key', stems: ['drums', 'bass', 'other', 'vocals', 'mix'],
   };
 }
-const done = (bassLoop: BassLoop | null = null): JobStatus => ({ id: 'j1', status: 'done', stage: 'generate', progress: 1, result: result(bassLoop), error: null });
+const done = (bassLoop: BassLoop | null = null, drumSummary: DrumSummary | null = null): JobStatus => ({
+  id: 'j1', status: 'done', stage: 'generate', progress: 1, result: result(bassLoop, drumSummary), error: null,
+});
 const loop = (period: number): BassLoop => ({ period, templates: [[]], layer: null, layer_bars: null, match: 0.92, match_with_layer: null });
 
 function fakeDeck(dirty: boolean) {
@@ -133,11 +135,11 @@ function mount(decks: Record<'A' | 'B', unknown> = { A: null, B: null }) {
   return { onLoadedToDeck, library };
 }
 
-async function ripToDone(bassLoop: BassLoop | null = null) {
+async function ripToDone(bassLoop: BassLoop | null = null, drumSummary: DrumSummary | null = null) {
   type('YouTube link', 'https://www.youtube.com/watch?v=x');
   type('start', '1:12');
   type('end', '1:28');
-  h.state.statuses = [done(bassLoop)];
+  h.state.statuses = [done(bassLoop, drumSummary)];
   button('Analyse')!.click();
   await flush();
   await new Promise((r) => setTimeout(r, 550)); // one status poll
@@ -346,6 +348,22 @@ test('the analysis line shows the bass loop length and its match', async () => {
   await flush();
   await ripToDone(loop(1));
   expect(root.querySelector('.rip-analysis')?.textContent).toBe('tempo 124 · key A minor · 4/4 · 8 bars · bass loop 1 bar · match 0.92');
+});
+
+test('the analysis line shows the drum loop length and how many hits it accounts for, before the bass loop', async () => {
+  mount({ A: fakeDeck(false), B: fakeDeck(false) });
+  await flush();
+  await ripToDone(loop(1), { period: 1, match: 0.92, fill_bars: [4, 4] });
+  expect(root.querySelector('.rip-analysis')?.textContent).toBe(
+    'tempo 124 · key A minor · 4/4 · 8 bars · drums loop 1 bar · 92% of hits · bass loop 1 bar · match 0.92',
+  );
+});
+
+test('no drum summary shows no drums part', async () => {
+  mount({ A: fakeDeck(false), B: fakeDeck(false) });
+  await flush();
+  await ripToDone(loop(1), null);
+  expect(root.querySelector('.rip-analysis')?.textContent).not.toContain('drums loop');
 });
 
 test('a two-bar bass loop is pluralised', async () => {

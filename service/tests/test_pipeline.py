@@ -86,6 +86,8 @@ def test_run_rip_reports_every_stage_and_builds_a_result(tmp_path, tmp_wav):
     # downbeat three beats late and 3 bars (pre-existing: the test only asserts bars >= 1), so no loop can
     # be pinned here; the end-to-end loop through _analyse is pinned by the build golden in Task 6.
     assert result.analysis.bass_loop is None or result.analysis.bass_loop.period == 1
+    # the house drums are the same every bar, so their loops account for nearly every hit
+    assert result.analysis.drum_summary is not None and result.analysis.drum_summary.match > 0.9
 
 
 def test_run_rip_tidy_runs_only_with_key_and_flag(tmp_path, tmp_wav):

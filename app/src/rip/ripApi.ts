@@ -20,6 +20,12 @@ export interface BassLoop {
   match_with_layer: number | null;
 }
 
+export interface DrumSummary {
+  period: number;
+  match: number;
+  fill_bars: [number, number] | null;
+}
+
 export interface Analysis {
   bpm: number;
   key: string;
@@ -35,6 +41,7 @@ export interface Analysis {
   chords: string[];
   melody: Note[] | null;
   bass_loop: BassLoop | null;
+  drum_summary: DrumSummary | null;
 }
 
 export interface SoundChoice {
