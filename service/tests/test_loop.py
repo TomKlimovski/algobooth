@@ -33,3 +33,12 @@ def test_a_stray_hit_is_tolerated_without_becoming_a_layer():
 def test_agreement_and_vote():
     assert agreement({0: 1, 4: 1}, {0: 1, 8: 1}) == pytest.approx(1 / 3)
     assert vote([{0: 1}, {0: 1}, {0: 2}], 1) == [{0: 1}]
+
+
+def test_a_period_whose_phase_has_no_core_bar_after_the_second_vote_is_not_a_loop():
+    # Phase 0's first vote keeps bars 0 and 2 (each misses one of 4/8 and adds 9); their own vote drops
+    # 4 and 8, and against that template neither reaches 0.8, so phase 0 ends with no core bar.
+    drifting = [{0: 4, 8: 4, 9: 4, 12: 4}, {0: 4, 4: 4, 9: 4, 12: 4}, {0: 4, 2: 4, 4: 4, 8: 4, 10: 4, 12: 4}]
+    b = {0: 9, 8: 9}
+    # Period 1 fails, period 2 is refused, and six bars are too few for period 4.
+    assert find_loop([drifting[0], b, drifting[1], b, drifting[2], b]) is None

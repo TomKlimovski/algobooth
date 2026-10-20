@@ -72,6 +72,10 @@ def find_loop(bars: list[dict[int, H]], periods: tuple[int, ...] = LOOP_PERIODS)
         core, deviating = _split(bars, templates)
         if len(core) < max(LOOP_MIN_CORE, LOOP_CORE_SHARE * len(bars)):
             continue
+        # The re-split can leave a phase with no core bar (its first-pass core bars each drift from the
+        # narrower second-pass template); a phase template that no core bar plays is not a loop.
+        if any(not any(i % period == phase for i in core) for phase in range(period)):
+            continue
         extra, extra_bars = _layer(bars, templates, deviating)
         return Loop(period, templates, core, deviating, extra, extra_bars)
     return None

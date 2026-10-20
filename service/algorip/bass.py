@@ -6,7 +6,7 @@ from algorip.bassgrid import BassGrid, bass_grid, grid_to_notes
 from algorip.grid import STEPS_PER_BAR, Grid
 from algorip.key import Key
 from algorip.loop import find_loop
-from algorip.mini import OCTAVE, _one_per_step, loop_mini, template_note
+from algorip.mini import OCTAVE, one_per_step, loop_mini, template_note
 from algorip.notes import Note, fold_octaves, snap_to_key
 from algorip.schema import BassLoop
 from algorip.score import expand, score
@@ -106,7 +106,7 @@ def choose_bass_loop(bg: BassGrid, grid: Grid, notes: list[Note]) -> BassLoop | 
 
     None when the bars do not repeat (or there is no bass).
     """
-    heard = [_one_per_step([n for n in notes if n.bar == b]) for b in range(grid.bars)]
+    heard = [one_per_step([n for n in notes if n.bar == b]) for b in range(grid.bars)]
     loop = find_loop([{step: n.midi % OCTAVE for step, n in bar.items()} for bar in heard])
     if loop is None or not any(loop.templates):
         return None  # no repeat, or the only thing that repeats is silence (a silent stem)

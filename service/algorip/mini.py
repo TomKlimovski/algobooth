@@ -174,7 +174,7 @@ def note_name(midi: int) -> str:
     return librosa.midi_to_note(midi, unicode=False).lower()
 
 
-def _one_per_step(notes: list[Note]) -> dict[int, Note]:
+def one_per_step(notes: list[Note]) -> dict[int, Note]:
     starts: dict[int, Note] = {}
     for note in sorted(notes, key=lambda n: (n.step, n.midi)):
         if 0 <= note.step < STEPS_PER_BAR:
@@ -212,7 +212,7 @@ def notes_bar_mini(notes: list[Note]) -> str:
 
     A note sounds until the next note starts or the bar ends.
     """
-    starts = _one_per_step(notes)
+    starts = one_per_step(notes)
     if any(slot + _length(starts, slot, STEPS_PER_BAR) > slot - slot % BEAT + BEAT for slot in starts):
         return _flat_bar(starts)
     groups = []
@@ -255,7 +255,7 @@ def fold_octaves(notes: list[Note]) -> list[Note]:
 
 def notes_mini(notes: list[Note], bars: int) -> str:
     """Bars of notes through the bar consensus, voting per step on pitch class."""
-    heard = [_one_per_step([n for n in notes if n.bar == b]) for b in range(bars)]
+    heard = [one_per_step([n for n in notes if n.bar == b]) for b in range(bars)]
     agreed = consensus([{step: n.midi % OCTAVE for step, n in bar.items()} for bar in heard])
     if agreed is None:
         lines = [list(bar.values()) for bar in heard]
