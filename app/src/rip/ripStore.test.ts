@@ -376,3 +376,14 @@ test('dispose stops the job and model polls', async () => {
   expect(fake.status).not.toHaveBeenCalled();
   expect(fake.models).toHaveBeenCalledTimes(2); // start's check and the refresh, nothing after dispose
 });
+
+test('a second Analyse while the first is still checking models or posting sends nothing', async () => {
+  const { store, fake, q } = setup([job({ stage: 'download' })]);
+  const first = store.start(); // still awaiting the models check
+  const second = store.start();
+  await Promise.all([first, second]);
+  await store.start(); // busy now
+  expect(fake.start).toHaveBeenCalledTimes(1);
+  expect(fake.models).toHaveBeenCalledTimes(1);
+  q.pending.length = 0;
+});

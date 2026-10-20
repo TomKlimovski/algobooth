@@ -288,6 +288,22 @@ test('Save to library writes the rip pattern under the chosen heading', async ()
   expect((form.querySelector('input') as HTMLInputElement).value).toBe('Song 1:12');
   form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
   await flush();
-  expect(library.writePattern).toHaveBeenCalledWith('', expect.objectContaining({ name: 'Song 1:12', cpm: 124 }));
+  expect(library.writePattern).toHaveBeenCalledWith('ripped', expect.objectContaining({ name: 'Song 1:12', cpm: 124 }));
   expect(root.textContent).toContain('Saved to ripped/song-1-12.json');
+});
+
+test('a job that fails before any stage marks the first row failed', async () => {
+  mount();
+  await flush();
+  type('YouTube link', 'https://www.youtube.com/watch?v=x');
+  type('start', '1:12');
+  type('end', '1:28');
+  h.state.statuses = [{ id: 'j1', status: 'failed', stage: null, progress: 0, result: null, error: 'video unavailable' }];
+  button('Analyse')!.click();
+  await flush();
+  await new Promise((r) => setTimeout(r, 550));
+  await flush();
+  const rows = [...root.querySelectorAll('.rip-stage')].map((r) => r.getAttribute('data-state'));
+  expect(rows).toEqual(['failed', 'waiting', 'waiting', 'waiting']);
+  expect(root.textContent).toContain('video unavailable');
 });

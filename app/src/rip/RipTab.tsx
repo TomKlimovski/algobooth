@@ -9,8 +9,7 @@ import type { LibraryStore } from '../library/store';
 import { settings } from '../settings/settings';
 import { abGains, Audition, loopBounds, type AbSide } from './audition';
 import { loadToDeck } from './deckLoad';
-// The extension is explicit: on a case-insensitive disk './ModelSetup' would resolve to modelSetup.ts.
-import { ModelSetup } from './ModelSetup.tsx';
+import { ModelSetup } from './ModelSetup';
 import { ResultEditor, type ResultApi } from './ResultEditor';
 import { RipClient, serviceApi, STEM_NAMES, type ServiceStatus, type Stage } from './ripApi';
 import { defaultName, ripPattern } from './ripPattern';
@@ -271,10 +270,12 @@ export function RipTab(props: {
     if (!job) return 'waiting';
     if (job.status === 'done') return 'done';
     const rows = store.stageRows();
-    const at = job.stage === null ? -1 : rows.indexOf(job.stage);
+    const ended = job.status === 'failed' || job.status === 'cancelled';
+    // A job that ended before any stage began (a bad link) marks the first row.
+    const at = job.stage === null ? (ended ? 0 : -1) : rows.indexOf(job.stage);
     const mine = rows.indexOf(stage);
     if (mine < at) return 'done';
-    if (mine === at) return job.status === 'failed' || job.status === 'cancelled' ? 'failed' : 'current';
+    if (mine === at) return ended ? 'failed' : 'current';
     return 'waiting';
   };
 

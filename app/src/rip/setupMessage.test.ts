@@ -1,5 +1,5 @@
 import type { ModelStatus } from './ripApi';
-import { setupMessage } from './modelSetup';
+import { setupMessage } from './setupMessage';
 
 const status = (over: Partial<ModelStatus> = {}): ModelStatus => ({
   ready: false,

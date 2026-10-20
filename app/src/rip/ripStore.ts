@@ -134,6 +134,8 @@ export function createRipStore(deps: RipDeps) {
 
   /** Whether a models poll is already scheduled, so a refresh during an install does not start a second loop. */
   let modelsPolling = false;
+  /** A start is checking the models, before `busy` is set: a second Analyse (a double-click) does nothing. */
+  let starting = false;
   /** Set by `dispose`: no poll runs again. */
   let disposed = false;
 
@@ -188,7 +190,16 @@ export function createRipStore(deps: RipDeps) {
    * under way. While the models are missing it only records `pendingStart` (see `applyModels`).
    */
   async function start(): Promise<void> {
-    if (state.busy) return;
+    if (state.busy || starting) return;
+    starting = true;
+    try {
+      await begin();
+    } finally {
+      starting = false;
+    }
+  }
+
+  async function begin(): Promise<void> {
     const req = request();
     if (!req) return;
     const client = deps.client();
@@ -201,7 +212,6 @@ export function createRipStore(deps: RipDeps) {
     setState({ job: null, result: null, code: '', version: 'generated' });
     if (!state.models?.ready) {
       const m = await refreshModels();
-      if (state.busy) return; // a pending start fired from inside the refresh
       if (!m?.ready) {
         if (m) setState('pendingStart', true);
         return;

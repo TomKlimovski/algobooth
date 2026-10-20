@@ -1,6 +1,6 @@
 import { Show } from 'solid-js';
 import type { ModelStatus } from './ripApi';
-import { setupMessage } from './modelSetup';
+import { setupMessage } from './setupMessage';
 
 /** The first-run screen: what the rip needs, a progress bar while it installs, and Download now or Retry. */
 export function ModelSetup(props: { status: ModelStatus; onInstall: () => void; pending?: boolean }) {

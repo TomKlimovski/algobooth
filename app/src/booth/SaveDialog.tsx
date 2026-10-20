@@ -22,6 +22,17 @@ export function headingPaths(node: TreeNode | null): string[] {
   return out;
 }
 
+/**
+ * The heading choices: every heading in the tree, plus `requested` marked as new when the tree lacks it
+ * (`write_pattern` creates a missing heading folder, so a rip can save under `ripped` on a fresh library).
+ */
+export function headingOptions(tree: TreeNode | null, requested: string): { path: string; label: string }[] {
+  const paths = headingPaths(tree);
+  const options = paths.map((path) => ({ path, label: path || ROOT_LABEL }));
+  if (!paths.includes(requested)) options.push({ path: requested, label: `${requested} (new)` });
+  return options;
+}
+
 /** Modal for Save as: a pattern name and the heading to put it under. */
 export function SaveDialog(props: {
   deckId: string;
@@ -31,9 +42,9 @@ export function SaveDialog(props: {
   onSave: (target: SaveTarget) => void;
   onCancel: () => void;
 }) {
-  const headings = () => headingPaths(props.tree);
+  const options = () => headingOptions(props.tree, props.heading);
   const [name, setName] = createSignal(props.name);
-  const [heading, setHeading] = createSignal(headings().includes(props.heading) ? props.heading : '');
+  const [heading, setHeading] = createSignal(props.heading);
   let input!: HTMLInputElement;
   onMount(() => input.select());
 
@@ -59,7 +70,7 @@ export function SaveDialog(props: {
         <label>
           Heading
           <select value={heading()} onChange={(e) => setHeading(e.currentTarget.value)}>
-            <For each={headings()}>{(h) => <option value={h}>{h || ROOT_LABEL}</option>}</For>
+            <For each={options()}>{(o) => <option value={o.path}>{o.label}</option>}</For>
           </select>
         </label>
         <div class="save-actions">

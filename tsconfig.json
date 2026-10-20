@@ -8,8 +8,7 @@
     "jsxImportSource": "solid-js",
     "types": ["vite/client", "vitest/globals"],
     "skipLibCheck": true,
-    "noEmit": true,
-    "allowImportingTsExtensions": true
+    "noEmit": true
   },
   "include": ["app/src", "vite.config.ts", "vitest.config.ts"]
 }
