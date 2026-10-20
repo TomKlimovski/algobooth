@@ -11,6 +11,15 @@ export interface Note {
   midi: number;
 }
 
+export interface BassLoop {
+  period: number;
+  templates: Note[][];
+  layer: Note[][] | null;
+  layer_bars: [number, number] | null;
+  match: number;
+  match_with_layer: number | null;
+}
+
 export interface Analysis {
   bpm: number;
   key: string;
@@ -25,6 +34,7 @@ export interface Analysis {
   bass_harmonics: number;
   chords: string[];
   melody: Note[] | null;
+  bass_loop: BassLoop | null;
 }
 
 export interface SoundChoice {
