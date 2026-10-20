@@ -4,8 +4,8 @@ from dataclasses import replace
 import pytest
 
 from algorip.download import DownloadInfo, clip_key
-from algorip.pipeline import Cancelled, Deps, Paths, run_rip
-from algorip.schema import RipRequest, RipResult
+from algorip.pipeline import Cancelled, Deps, Paths, _drum_summary, run_rip
+from algorip.schema import Analysis, DrumSummary, RipRequest, RipResult
 from tests.synth import bass_line, drum_loop, mix, pad_chords, silence
 
 BPM = 124
@@ -161,3 +161,11 @@ def test_analyse_after_a_replayable_rip_recomputes(tmp_path, tmp_wav):
     run_rip(req, paths(tmp_path), lambda s, f: None, deps)
     run_rip(req, paths(tmp_path), lambda s, f: None, deps)
     assert calls["predict"] == ["other.wav"] * 2  # a plain Analyse never replays (the stems are cached, the analysis is not)
+
+
+def test_no_drum_hits_give_no_drum_summary():
+    a = Analysis(bpm=124, key="A minor", bars=4, first_downbeat=0.0, drums={"bd": [], "sd": [], "hh": [], "oh": []},
+                 four_on_the_floor=False, bass=[], bass_harmonics=0.0, chords=[], melody=None)
+    assert _drum_summary(a) is None
+    hit = a.model_copy(update={"drums": {"bd": [(b, 0) for b in range(4)]}})
+    assert _drum_summary(hit) == DrumSummary(period=1, match=1.0, fill_bars=None)

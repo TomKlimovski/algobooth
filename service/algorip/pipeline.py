@@ -156,8 +156,10 @@ def _analyse(stems: dict[str, Path], predict: Predictor, report: Callable[[float
     return analysis
 
 
-def _drum_summary(a: Analysis) -> DrumSummary:
-    """The drum loops of the analysed hits, in brief, for the Rip tab."""
+def _drum_summary(a: Analysis) -> DrumSummary | None:
+    """The drum loops of the analysed hits, in brief, for the Rip tab; None when no voice has a hit."""
     loops = drum_loops(a)
+    if not loops.voices:
+        return None
     regular = [v.period for v in loops.voices.values() if any(v.templates)]
     return DrumSummary(period=max(regular, default=0), match=loops.match, fill_bars=loops.fill_bars)
