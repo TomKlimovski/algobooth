@@ -88,8 +88,8 @@ New module `algorip/loop.py`, used for bass only in this design but written over
 - Agreement of a bar with its template: the share of steps occupied in either where both hold the
   same value (`_agrees` today, but returning the share, not a yes/no).
 - Core bars are those whose agreement is at least `LOOP_AGREE = 0.8`; deviating bars are the rest. The
-  loop is the shortest period for which at least `LOOP_CORE_SHARE = 0.5` of the bars are core bars and
-  at least 2 bars are core. If no period qualifies, there is no loop: the bass is written out as today.
+  loop is the shortest period for which at least `LOOP_CORE_SHARE = 0.4` of the bars are core bars and
+  at least 2 bars are core (0.4, not a half: the Solomun clip has four core bars of nine). If no period qualifies, there is no loop: the bass is written out as today.
   (The difference from today's `consensus`, which demands that *every* bar agree, is what lets the
   Solomun loop through: bars 4–8 deviate and must not veto bars 0–3.)
 - The vote runs twice: once over all bars to find the core bars, then again over the core bars alone to
