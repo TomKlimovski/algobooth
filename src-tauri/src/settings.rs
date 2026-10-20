@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use tauri::Manager;
 
 use crate::library::commands::LibraryRoot;
+use crate::service::ServiceState;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -25,6 +26,20 @@ pub struct Settings {
   pub library_dir: String,
   pub visualiser: Visualiser,
   pub engine: Engine,
+  /// Where the analysis service keeps downloads, stems and analysis results.
+  #[serde(default = "default_rip_cache_dir")]
+  pub rip_cache_dir: String,
+  /// Keep the downloaded source audio after a rip instead of deleting it.
+  #[serde(default)]
+  pub keep_downloads: bool,
+  /// Optional; the tidy pass is off unless this is set.
+  #[serde(default)]
+  pub claude_api_key: String,
+}
+
+fn default_rip_cache_dir() -> String {
+  let home = dirs::home_dir().unwrap_or_default();
+  home.join("Algobooth").join("cache").to_string_lossy().into_owned()
 }
 
 pub fn default_settings() -> Settings {
@@ -33,6 +48,9 @@ pub fn default_settings() -> Settings {
     library_dir: home.join("Algobooth").join("library").to_string_lossy().into_owned(),
     visualiser: Visualiser::Pianoroll,
     engine: Engine::Webaudio,
+    rip_cache_dir: default_rip_cache_dir(),
+    keep_downloads: false,
+    claude_api_key: String::new(),
   }
 }
 
@@ -69,15 +87,20 @@ pub fn get_settings(app: tauri::AppHandle) -> Settings {
   load(&app)
 }
 
-/// Saves the settings and points the library commands at the new `library_dir`.
+/// Saves the settings, points the library commands at the new `library_dir`, and restarts the
+/// analysis service when a setting it reads at launch changed.
 #[tauri::command]
 pub fn set_settings(
   app: tauri::AppHandle,
   root: tauri::State<'_, LibraryRoot>,
+  service: tauri::State<'_, ServiceState>,
   settings: Settings,
 ) -> Result<(), String> {
+  let old = load(&app);
   write_settings(&settings_path(&app)?, &settings)?;
-  root.set(&settings.library_dir)
+  root.set(&settings.library_dir)?;
+  service.restart_if_changed(&old, &settings);
+  Ok(())
 }
 
 #[cfg(test)]
@@ -91,13 +114,23 @@ mod tests {
     assert_eq!(s.library_dir, home.join("Algobooth").join("library").to_string_lossy());
     assert_eq!(s.visualiser, Visualiser::Pianoroll);
     assert_eq!(s.engine, Engine::Webaudio);
+    assert_eq!(s.rip_cache_dir, home.join("Algobooth").join("cache").to_string_lossy());
+    assert!(!s.keep_downloads);
+    assert_eq!(s.claude_api_key, "");
   }
 
   #[test]
   fn round_trips_through_a_file() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("nested").join("settings.json");
-    let s = Settings { library_dir: "/tmp/lib".into(), visualiser: Visualiser::Scope, engine: Engine::Webaudio };
+    let s = Settings {
+      library_dir: "/tmp/lib".into(),
+      visualiser: Visualiser::Scope,
+      engine: Engine::Webaudio,
+      rip_cache_dir: "/tmp/cache".into(),
+      keep_downloads: true,
+      claude_api_key: "k".into(),
+    };
     write_settings(&path, &s).unwrap();
     assert_eq!(read_settings(&path), s);
     assert!(!path.with_extension("json.tmp").exists());

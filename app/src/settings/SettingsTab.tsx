@@ -14,10 +14,10 @@ export function SettingsTab() {
       setError(`Could not save settings: ${e}`);
     }
   };
-  const choose = async () => {
+  const chooseFolder = async (key: 'library_dir' | 'rip_cache_dir') => {
     try {
-      const dir = await open({ directory: true, defaultPath: settings().library_dir });
-      if (typeof dir === 'string') await save({ library_dir: dir });
+      const dir = await open({ directory: true, defaultPath: settings()[key] });
+      if (typeof dir === 'string') await save({ [key]: dir });
     } catch (e) {
       setError(`Could not open the folder chooser: ${e}`);
     }
@@ -31,7 +31,7 @@ export function SettingsTab() {
       <label class="settings-row">
         <span class="settings-label">Library folder</span>
         <input class="settings-input" type="text" readOnly value={settings().library_dir} />
-        <button type="button" class="deck-btn ghost" onClick={choose}>Choose…</button>
+        <button type="button" class="deck-btn ghost" onClick={() => chooseFolder('library_dir')}>Choose…</button>
       </label>
 
       <fieldset class="settings-row">
@@ -45,6 +45,31 @@ export function SettingsTab() {
         <legend class="settings-label">Engine</legend>
         <label><input type="radio" name="engine" checked={settings().engine === 'webaudio'} onChange={() => save({ engine: 'webaudio' })} /> Web Audio</label>
         <label class="settings-disabled"><input type="radio" name="engine" disabled /> SuperDirt via OSC <em>(coming later)</em></label>
+      </fieldset>
+
+      <fieldset class="settings-group">
+        <legend class="settings-label">Rip</legend>
+        <label class="settings-row">
+          <span class="settings-label">Cache folder</span>
+          <input class="settings-input" type="text" readOnly value={settings().rip_cache_dir} />
+          <button type="button" class="deck-btn ghost" onClick={() => chooseFolder('rip_cache_dir')}>Choose…</button>
+        </label>
+        <label class="settings-row">
+          <span class="settings-label" />
+          <input type="checkbox" checked={settings().keep_downloads} onChange={(e) => save({ keep_downloads: e.currentTarget.checked })} />
+          Keep downloaded audio
+        </label>
+        <label class="settings-row">
+          <span class="settings-label">Claude API key (optional, for the tidy pass)</span>
+          <input
+            class="settings-input"
+            type="password"
+            autocomplete="off"
+            value={settings().claude_api_key}
+            onChange={(e) => save({ claude_api_key: e.currentTarget.value.trim() })}
+          />
+        </label>
+        <span class="settings-hint">Off unless a key is set and Tidy is ticked on the Rip tab</span>
       </fieldset>
     </form>
   );

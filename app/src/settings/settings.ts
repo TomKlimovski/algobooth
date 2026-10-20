@@ -5,10 +5,22 @@ export interface Settings {
   library_dir: string;
   visualiser: 'pianoroll' | 'scope';
   engine: 'webaudio' | 'superdirt';
+  /** Where the analysis service keeps downloads, stems and analyses. */
+  rip_cache_dir: string;
+  keep_downloads: boolean;
+  /** Optional; the tidy pass is off unless this is set. */
+  claude_api_key: string;
 }
 
 export function defaultSettings(home: string): Settings {
-  return { library_dir: `${home}/Algobooth/library`, visualiser: 'pianoroll', engine: 'webaudio' };
+  return {
+    library_dir: `${home}/Algobooth/library`,
+    visualiser: 'pianoroll',
+    engine: 'webaudio',
+    rip_cache_dir: `${home}/Algobooth/cache`,
+    keep_downloads: false,
+    claude_api_key: '',
+  };
 }
 
 const [settings, setSettings] = createSignal<Settings>(defaultSettings('~'));

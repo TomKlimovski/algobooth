@@ -5,3 +5,5 @@
 .settings-hint, .settings-disabled { color: #8b90a0; }
 .settings-notice { color: #ffb86c; margin: 0; }
 .settings-error { color: #e94f37; margin: 0; }
+.settings-group { display: flex; flex-direction: column; gap: 10px; border: 1px solid #2a2d36; border-radius: 4px; margin: 0; padding: 10px 12px; }
+.settings-group > legend { width: auto; padding: 0 4px; }
