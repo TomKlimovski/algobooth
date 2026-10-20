@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from tests.synth import bass_line, click_track, drum_loop, mix, pad_chords, silence
+from tests.synth import bass_line, click_track, drum_loop, hf_floor, mix, pad_chords, silence
 from algorip.audio import SR
 
 
@@ -205,3 +205,27 @@ def test_mix_of_silence_stays_silent():
     y = mix(silence(0.5), silence(1.0))
     assert len(y) == round(1.0 * SR)
     assert not y.any()
+
+
+def test_clap_is_a_1_to_4_khz_body_with_air_10_db_down():
+    y = _voice("cp")
+    assert abs(y).max() == pytest.approx(1.0)
+    assert abs(np.flatnonzero(y).max() - 0.14 * SR) <= 2  # two 10 ms bursts, then the 120 ms tail
+    body, air = _energy_between(y, 1000, 4000), _energy_between(y, 6000, SR / 2)
+    assert body > 0.5
+    # 10 dB down per hertz, over 6-22 kHz against 1-4 kHz: -10 + 10 log10(16 050 / 3000) = -2.7 dB in all
+    assert 10 * np.log10(air / body) == pytest.approx(-2.7, abs=1.0)
+
+
+def test_kick_click_is_a_3_ms_burst_18_db_down():
+    plain, clicked = _voice("bd"), drum_loop({"bd": {(0, 0)}}, bpm=60, bars=1, click=True)
+    click = clicked - plain
+    assert np.flatnonzero(click).max() < round(0.003 * SR)
+    assert 20 * np.log10(abs(click).max()) == pytest.approx(-18, abs=0.01)
+
+
+def test_hf_floor_is_a_6_khz_bed_at_its_rms():
+    y = hf_floor(2.0, -26.0)
+    assert len(y) == 2 * SR
+    assert 20 * np.log10(np.sqrt(np.mean(y.astype(float) ** 2))) == pytest.approx(-26.0, abs=0.01)
+    assert _energy_between(y, 6000, SR / 2) > 0.9

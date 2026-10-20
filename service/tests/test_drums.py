@@ -1,10 +1,8 @@
-import numpy as np
-import pytest
 
 from algorip.audio import SR
 from algorip.drums import classify_drums, is_four_on_the_floor
 from algorip.grid import Grid
-from tests.synth import drum_loop, silence
+from tests.synth import drum_loop, hf_floor
 
 HOUSE = {"bd": {(b, s) for b in range(2) for s in (0, 4, 8, 12)},
          "sd": {(b, s) for b in range(2) for s in (4, 12)},
@@ -37,8 +35,9 @@ def test_breakbeat_is_not_four_on_the_floor():
 
 
 def test_onsets_before_the_first_downbeat_are_dropped():
-    y = np.concatenate([silence(0.5), drum_loop({"bd": {(0, 0)}}, 120, 1)])  # the loop starts 0.5 s in
-    hits = classify_drums(y, SR, Grid(bpm=120, first_downbeat=0.5, bars=1))
+    # kicks at 0 s and 1 s; the grid starts on the second, so the first is a whole second before it
+    y = drum_loop({"bd": {(0, 0), (0, 8)}}, 120, 1)
+    hits = classify_drums(y, SR, Grid(bpm=120, first_downbeat=1.0, bars=1))
     assert hits["bd"] == {(0, 0)}
 
 
@@ -61,13 +60,40 @@ def test_quiet_hats_under_full_kicks_are_kept():
     assert hits["bd"] == KICKS
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="a gain-0.15 snare reads -21.8 dB in its band, under the hats' -18.8 dB leakage that the snare gate must reject",
-)
 def test_quiet_snare_under_full_kicks_is_kept():
     snares = {(b, s) for b in range(2) for s in (4, 12)}
     y = drum_loop({"bd": KICKS}, 124, 2) + 0.15 * drum_loop({"sd": snares}, 124, 2)  # snare at -16.5 dB
     hits = classify_drums(y, SR, grid_for(124, 2))
     assert hits["sd"] == snares
     assert hits["bd"] == KICKS
+
+
+# A separated drum stem: kicks with a beater click and a continuous bed above 6 kHz under everything.
+FLOOR_DB = -26.0
+CLAPS = {(b, s) for b in range(2) for s in (4, 12)}
+OFFBEATS = {(b, s) for b in range(2) for s in (2, 6, 10, 14)}
+
+
+def stem(hits, bpm=124, bars=2):
+    y = drum_loop(hits, bpm, bars, click=True)
+    return y + hf_floor(len(y) / SR, FLOOR_DB)
+
+
+def test_a_clap_with_air_over_kicks_and_open_hats_reads_as_snare_kick_and_open_hat():
+    hits = classify_drums(stem({"bd": KICKS, "cp": CLAPS, "oh": OFFBEATS}), SR, grid_for(124, 2))
+    assert hits["bd"] == KICKS
+    assert hits["sd"] == CLAPS        # the clap's air is not a hat
+    assert hits["oh"] == OFFBEATS     # open over the floor
+    assert hits["hh"] == set()        # no click bleed on the kicks
+
+
+def test_kick_clicks_over_a_floor_are_not_hats_or_snares():
+    hits = classify_drums(stem({"bd": KICKS}), SR, grid_for(124, 2))
+    assert hits["bd"] == KICKS
+    assert hits["sd"] == set() and hits["hh"] == set() and hits["oh"] == set()
+
+
+def test_closed_hats_over_a_floor_stay_closed():
+    y = drum_loop({"hh": EIGHTHS}, 124, 2)
+    hits = classify_drums(y + hf_floor(len(y) / SR, FLOOR_DB), SR, grid_for(124, 2))
+    assert hits["hh"] == EIGHTHS and hits["oh"] == set()
