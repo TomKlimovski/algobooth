@@ -1,6 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { vi } from 'vitest';
 
 // No audio is needed to evaluate a pattern, so webaudio is mocked as in strudel.test.ts.
@@ -21,14 +18,18 @@ const { transpiler } = await import('@strudel/transpiler/dist/index.mjs');
 
 await core.evalScope(core, mini, tonal); // chord().voicing() comes from tonal
 
-// The service's golden outputs: app/src/rip -> repo root -> service/tests/golden.
-const GOLDEN = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../service/tests/golden');
-const files = fs.readdirSync(GOLDEN).filter((f) => f.endsWith('.strudel')).sort();
+// The service's golden outputs (app/src/rip -> repo root -> service/tests/golden), loaded as text by vite.
+const golden = import.meta.glob<string>('../../../service/tests/golden/*.strudel', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+});
+const files = Object.keys(golden).sort();
 
-if (files.length === 0) throw new Error(`no golden .strudel files in ${GOLDEN}`); // never pass vacuously
+if (files.length === 0) throw new Error('no golden .strudel files in service/tests/golden'); // never pass vacuously
 
-test.each(files)('%s evaluates headlessly and plays in its first cycle', async (file) => {
-  const code = fs.readFileSync(path.join(GOLDEN, file), 'utf8');
+test.each(files)('%s evaluates headlessly and plays in its first cycle', async (file: string) => {
+  const code = golden[file];
   const r = core.repl({ transpiler, defaultOutput: async () => {}, getTime: () => 0 });
   const pat = await r.evaluate(code, false);
   expect((pat ?? r.scheduler.pattern).queryArc(0, 1).length).toBeGreaterThan(0);
