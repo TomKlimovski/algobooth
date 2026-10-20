@@ -45,6 +45,8 @@ export interface RipRequest {
   claude_api_key?: string | null;
   /** Keep the downloaded source audio after trimming; from Settings, sent with every rip. */
   keep_downloads?: boolean;
+  /** Return the result stored by this clip's last rip without running anything (the Recent menu). */
+  replay?: boolean;
 }
 
 export interface RipResult {

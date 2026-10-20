@@ -422,6 +422,10 @@ test('recent clips come from the service, and picking one fills the form exactly
   expect(store.state.endText).toBe('37:00.5');
   expect(store.state.error).toBeNull();
   expect(store.request()).toMatchObject({ url: clip.url, start: 2200, end: 2220.5 });
+  expect(store.request()).not.toHaveProperty('replay'); // Analyse recomputes
+  await new Promise((r) => setTimeout(r, 0));
+  // Picking a clip brings its stored result back: the rip is sent as a replay.
+  expect(fake.start).toHaveBeenCalledWith(expect.objectContaining({ url: clip.url, start: 2200, end: 2220.5, replay: true }));
   // A refused list keeps the last one.
   fake.clips.mockRejectedValueOnce(new Error('down'));
   await store.refreshRecent();

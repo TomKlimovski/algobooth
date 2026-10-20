@@ -63,7 +63,7 @@ validation get FastAPI's `422`. One rip runs at a time.
 | `GET /clips` | | `200 ClipInfo[]`: the cached clips (link, window, title, `fetched_at`), newest first, for ripping again without a download | `401` |
 | `GET /models` | | `200 ModelStatus` | `401` |
 | `POST /models/install` | | `202 ModelStatus`; starts the first-run download, a no-op while one is running | `401` |
-| `POST /rip` | `RipRequest`: `url`, `start`, `end` (seconds), `tidy`, `claude_api_key`, `keep_downloads` (overrides `ALGOBOOTH_KEEP_DOWNLOADS` for this rip; the app always sends it) | `202 {"id": "..."}` | `401`; `422` bad URL, start not before end, or a clip over 60 s; `503` models not installed; `409` a rip is already running |
+| `POST /rip` | `RipRequest`: `url`, `start`, `end` (seconds), `tidy`, `claude_api_key`, `keep_downloads` (overrides `ALGOBOOTH_KEEP_DOWNLOADS` for this rip; the app always sends it), `replay` (return the result stored by this clip's last rip, `stems/<key>/result.json`, without running anything; falls through to a normal rip when there is none) | `202 {"id": "..."}` | `401`; `422` bad URL, start not before end, or a clip over 60 s; `503` models not installed; `409` a rip is already running |
 | `GET /rip/{id}` | | `200 JobStatus`: `status` (`queued`, `running`, `done`, `failed`, `cancelled`), `stage` (`download`, `separate`, `analyse`, `generate`, `tidy`), `progress` 0..1 within the stage, `result` (`RipResult`) once done, `error` | `401`; `404` unknown id |
 | `DELETE /rip/{id}` | | `204`; cancels the rip at the next stage boundary | `401`; `404` unknown id |
 | `GET /rip/{id}/stem/{name}` | | `200 audio/wav`; `name` is `drums`, `bass`, `other`, `vocals` or `mix` | `401`; `404` unknown id, rip not done, or no such stem |

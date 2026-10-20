@@ -80,7 +80,7 @@ export function createRipStore(deps: RipDeps) {
   }
 
   /** The wire request for the form, or null (with `error` set) when the form is not valid. */
-  function request(): RipRequest | null {
+  function request(replay = false): RipRequest | null {
     const url = state.url.trim();
     const problem =
       validateUrl(url) ?? validateWindow(parseTime(state.startText), parseTime(state.endText));
@@ -93,6 +93,7 @@ export function createRipStore(deps: RipDeps) {
     const tidy = state.tidy && key !== '';
     const req: RipRequest = { url, start: parseTime(state.startText)!, end: parseTime(state.endText)!, tidy, keep_downloads };
     if (tidy) req.claude_api_key = key;
+    if (replay) req.replay = true;
     return req;
   }
 
@@ -186,9 +187,10 @@ export function createRipStore(deps: RipDeps) {
     }
   }
 
-  /** Fills the form from a cached clip, so Analyse rips it again without the download. */
+  /** Fills the form from a cached clip and brings its last result back (Analyse would recompute it). */
   function pickRecent(clip: ClipInfo): void {
     setState({ url: clip.url, startText: formatTimeExact(clip.start), endText: formatTimeExact(clip.end), error: null });
+    void start(true);
   }
 
   /** Starts (or retries) the one-time model download, then follows it until it ends. */
@@ -209,19 +211,20 @@ export function createRipStore(deps: RipDeps) {
   /**
    * Validates, POSTs the rip, then polls its status every 500 ms until it ends. Resolves once polling is
    * under way. While the models are missing it only records `pendingStart` (see `applyModels`).
+   * With `replay`, the service answers from the clip's stored result when it has one.
    */
-  async function start(): Promise<void> {
+  async function start(replay = false): Promise<void> {
     if (state.busy || starting) return;
     starting = true;
     try {
-      await begin();
+      await begin(replay);
     } finally {
       starting = false;
     }
   }
 
-  async function begin(): Promise<void> {
-    const req = request();
+  async function begin(replay: boolean): Promise<void> {
+    const req = request(replay);
     if (!req) return;
     const client = deps.client();
     if (!client) {

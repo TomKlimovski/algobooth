@@ -53,11 +53,35 @@ def stem_dir(paths: Paths, req: RipRequest) -> Path:
     return paths.cache_dir / "stems" / clip_key(req.url, req.start, req.end)
 
 
+RESULT_FILE = "result.json"
+
+
+def stored_result(paths: Paths, req: RipRequest) -> RipResult | None:
+    """The result of this clip's last rip, or None when there is none or it no longer parses."""
+    try:
+        return RipResult.model_validate_json((stem_dir(paths, req) / RESULT_FILE).read_text())
+    except (OSError, ValueError):
+        return None
+
+
+def _store_result(paths: Paths, req: RipRequest, result: RipResult) -> None:
+    target = stem_dir(paths, req) / RESULT_FILE
+    partial = target.with_name(f"{RESULT_FILE}.partial")
+    partial.write_text(result.model_dump_json())
+    partial.replace(target)
+
+
 def run_rip(req: RipRequest, paths: Paths, progress: Progress, deps: Deps) -> RipResult:
     def enter(stage: Stage) -> None:
         if deps.cancelled():
             raise Cancelled()
         progress(stage, 0.0)
+
+    if req.replay and (stored := stored_result(paths, req)) is not None:
+        for stage in ("download", "separate", "analyse", "generate"):
+            enter(stage)
+            progress(stage, 1.0)
+        return stored
 
     enter("download")
     keep = paths.keep_downloads if req.keep_downloads is None else req.keep_downloads
@@ -84,8 +108,10 @@ def run_rip(req: RipRequest, paths: Paths, progress: Progress, deps: Deps) -> Ri
         tidied_code, tidy_error = tidy(code, analysis, sounds, req.claude_api_key, chat=deps.chat)
         progress("tidy", 1.0)
 
-    return RipResult(title=title, analysis=analysis, sounds=sounds, code=code, tidied_code=tidied_code,
-                     tidy_error=tidy_error, stems=list(RESULT_STEMS))
+    result = RipResult(title=title, analysis=analysis, sounds=sounds, code=code, tidied_code=tidied_code,
+                       tidy_error=tidy_error, stems=list(RESULT_STEMS))
+    _store_result(paths, req, result)
+    return result
 
 
 def _analyse(stems: dict[str, Path], predict: Predictor, report: Callable[[float], None]) -> Analysis:

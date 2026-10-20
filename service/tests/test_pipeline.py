@@ -3,9 +3,9 @@ from dataclasses import replace
 
 import pytest
 
-from algorip.download import DownloadInfo
+from algorip.download import DownloadInfo, clip_key
 from algorip.pipeline import Cancelled, Deps, Paths, run_rip
-from algorip.schema import RipRequest
+from algorip.schema import RipRequest, RipResult
 from tests.synth import bass_line, drum_loop, mix, pad_chords, silence
 
 BPM = 124
@@ -124,3 +124,34 @@ def test_the_request_decides_whether_downloads_are_kept(tmp_path, tmp_wav, reque
     req = RipRequest(url="https://x/v", start=0, end=8, keep_downloads=request_keep)
     run_rip(req, paths(tmp_path), lambda s, f: None, deps)  # the service was launched with keep_downloads off
     assert any((tmp_path / "cache" / "sources").glob("*/src.wav")) is kept
+
+
+def test_a_rip_stores_its_result_and_a_replay_returns_it_without_working(tmp_path, tmp_wav):
+    calls = {}
+    deps = make_deps(tmp_wav, calls)
+    req = RipRequest(url="https://x/v", start=0, end=8)
+    first = run_rip(req, paths(tmp_path), lambda s, f: None, deps)
+    stored = tmp_path / "cache" / "stems" / clip_key(req.url, req.start, req.end) / "result.json"
+    assert RipResult.model_validate_json(stored.read_text()) == first
+
+    stages = []
+    again = run_rip(req.model_copy(update={"replay": True}), paths(tmp_path), lambda s, f: stages.append((s, f)), deps)
+    assert again == first
+    assert calls["separator"] == 1 and calls["fetch"] == 1  # nothing ran again
+    assert stages == [(s, f) for s in ("download", "separate", "analyse", "generate") for f in (0.0, 1.0)]
+
+
+def test_a_replay_with_nothing_stored_runs_the_rip(tmp_path, tmp_wav):
+    calls = {}
+    deps = make_deps(tmp_wav, calls)
+    result = run_rip(RipRequest(url="https://x/v", start=0, end=8, replay=True), paths(tmp_path), lambda s, f: None, deps)
+    assert result.title == "Test House" and calls["separator"] == 1
+
+
+def test_analyse_after_a_replayable_rip_recomputes(tmp_path, tmp_wav):
+    calls = {}
+    deps = make_deps(tmp_wav, calls)
+    req = RipRequest(url="https://x/v", start=0, end=8)
+    run_rip(req, paths(tmp_path), lambda s, f: None, deps)
+    run_rip(req, paths(tmp_path), lambda s, f: None, deps)
+    assert calls["predict"] == ["bass.wav", "other.wav"] * 2  # a plain Analyse never replays (the stems are cached, the analysis is not)

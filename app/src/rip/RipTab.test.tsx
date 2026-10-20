@@ -326,6 +326,8 @@ test('the Recent menu lists the cached clips and fills the form from one', async
   expect(input('start')).toBe('36:40');
   expect(input('end')).toBe('37:00');
   expect(menu.value).toBe('');
+  // ...and its stored result comes back without pressing Analyse.
+  expect(h.client.start).toHaveBeenCalledWith(expect.objectContaining({ replay: true }));
 });
 
 test('the Recent menu is absent with an empty cache and appears once a rip has filled it', async () => {
