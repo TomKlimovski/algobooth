@@ -175,6 +175,24 @@ def bass_line(notes: list[tuple[int, int, int, int]], bpm: float, bars: int) -> 
     return out.astype(np.float32)
 
 
+def plucked_bass(notes: list[tuple[int, int, int, int]], bpm: float, bars: int, release_seconds: float) -> np.ndarray:
+    """Like bass_line, but each note rings on past its length, fading linearly to silence over release_seconds.
+
+    The 10 ms attack is kept; the tail runs into whatever follows (a rest, or the next note, summed).
+    """
+    out = np.zeros(_samples(bars * _bar_seconds(bpm)))
+    release = _samples(release_seconds)
+    for bar, step, length, midi in notes:
+        start = _step_start(bar, step, bpm)
+        n = _step_start(bar, step + length, bpm) - start
+        env = np.ones(n + release)
+        attack = min(_samples(0.01), n)
+        env[:attack] = np.arange(1, attack + 1) / attack
+        env[n:] = np.arange(release, 0, -1) / release
+        _place(out, start, _harmonic_tone(_midi_hz(midi), n + release, harmonics=6) * env)
+    return out.astype(np.float32)
+
+
 _TRIADS = {"major": (0, 4, 7), "minor": (0, 3, 7)}
 
 

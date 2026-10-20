@@ -31,7 +31,7 @@ dev = [
 # Every inet socket is still blocked, so no test touches the network.
 addopts = "--disable-socket --allow-unix-socket"
 testpaths = ["tests"]
-markers = ["slow: runs a real Basic Pitch inference"]
+markers = ["slow: real inference or a timing budget"]
 filterwarnings = [
     # audioread (via librosa) imports stdlib modules Python 3.13 removes; not ours to fix
     "ignore:'(aifc|audioop|sunau)' is deprecated:DeprecationWarning",
