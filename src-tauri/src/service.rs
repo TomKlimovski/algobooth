@@ -5,7 +5,7 @@
 //! the environment so it never appears in `ps` output.
 
 use std::collections::VecDeque;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::mpsc;
@@ -248,13 +248,23 @@ fn config(app: &AppHandle, token: String) -> Result<ServiceConfig, String> {
 
 /// Reads the child's stdout until the port line, then keeps draining it into the log so the
 /// child never blocks on a full pipe.
-fn read_port(stdout: std::process::ChildStdout) -> mpsc::Receiver<u16> {
+fn read_port(stdout: impl Read + Send + 'static) -> mpsc::Receiver<u16> {
   let (tx, rx) = mpsc::channel();
   thread::spawn(move || {
     let mut tx = Some(tx);
-    for line in BufReader::new(stdout).lines() {
-      let Ok(line) = line else { break };
-      match (parse_port_line(&line), tx.as_ref()) {
+    let mut reader = BufReader::new(stdout);
+    let mut buf = Vec::new();
+    // Byte lines, decoded lossily: only EOF or an I/O error stops the read, so the read end stays open
+    // and later prints in the service never hit a broken pipe.
+    loop {
+      buf.clear();
+      match reader.read_until(b'\n', &mut buf) {
+        Ok(0) | Err(_) => break,
+        Ok(_) => {}
+      }
+      let line = String::from_utf8_lossy(&buf);
+      let line = line.trim_end();
+      match (parse_port_line(line), tx.as_ref()) {
         (Some(port), Some(sender)) => {
           let _ = sender.send(port);
           tx = None;
@@ -279,11 +289,12 @@ impl ServiceState {
   /// Launches the service and blocks until it reports its port (or `START_TIMEOUT` passes), then
   /// leaves a supervisor thread watching it.
   pub fn start(&self, app: &AppHandle) -> Result<ServiceInfo, String> {
-    self.start_generation(app).1
+    self.start_generation(app, false).1
   }
 
-  /// `start`, also returning the generation it ran as.
-  fn start_generation(&self, app: &AppHandle) -> (u64, Result<ServiceInfo, String>) {
+  /// `start`, also returning the generation it ran as. A supervisor `retrying` after a crash keeps the
+  /// status at Starting and reports a failed attempt as `stopped`; only the supervisor decides `failed`.
+  fn start_generation(&self, app: &AppHandle, retrying: bool) -> (u64, Result<ServiceInfo, String>) {
     let generation = {
       let mut inner = self.lock();
       inner.generation += 1;
@@ -298,14 +309,16 @@ impl ServiceState {
         let mut inner = self.lock();
         if inner.generation == generation {
           let child = inner.child.take();
-          self.set_status(&mut inner, Status::Down(error.clone()));
+          if !retrying {
+            self.set_status(&mut inner, Status::Down(error.clone()));
+          }
           drop(inner);
           if let Some(mut child) = child {
             let _ = child.kill();
             let _ = child.wait();
           }
           log::error!("analysis service failed to start: {error}");
-          emit(app, "failed", None, Some(error.clone()));
+          emit(app, if retrying { "stopped" } else { "failed" }, None, Some(error.clone()));
         }
         Err(error)
       }
@@ -377,13 +390,6 @@ impl ServiceState {
         }
       }
     };
-    {
-      let mut inner = self.lock();
-      if inner.generation != generation {
-        return;
-      }
-      self.set_status(&mut inner, Status::Down(exit.clone()));
-    }
     emit(app, "stopped", None, Some(exit.clone()));
     let mut reason = exit;
     loop {
@@ -392,7 +398,12 @@ impl ServiceState {
         if inner.generation != generation {
           return;
         }
-        inner.budget.allow(Instant::now())
+        let allowed = inner.budget.allow(Instant::now());
+        if allowed {
+          // `service_info` waits through the restart delay instead of failing fast.
+          self.set_status(&mut inner, Status::Starting);
+        }
+        allowed
       };
       if allowed {
         log::warn!("service stopped, restarting ({reason})");
@@ -412,7 +423,7 @@ impl ServiceState {
         return;
       }
       // A successful start hands supervision to a new thread; a failed one counts as another crash.
-      match self.start_generation(app) {
+      match self.start_generation(app, true) {
         (_, Ok(_)) => return,
         (next, Err(e)) => (generation, reason) = (next, e),
       }
@@ -617,6 +628,13 @@ mod tests {
     // A recycled pid that is some other orphan.
     assert!(!is_stale_service("    1 /usr/bin/vim notes.txt"));
     assert!(!is_stale_service(""));
+  }
+
+  #[test]
+  fn read_port_survives_non_utf8_output_before_the_port_line() {
+    let out: &[u8] = b"Downloading \xff\xfe weights\n{\"port\": 51234}\nlater output\n";
+    let rx = read_port(std::io::Cursor::new(out.to_vec()));
+    assert_eq!(rx.recv_timeout(Duration::from_secs(5)), Ok(51234));
   }
 
   #[test]

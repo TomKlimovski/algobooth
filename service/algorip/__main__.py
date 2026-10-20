@@ -11,6 +11,7 @@ import sys
 import threading
 import time
 from collections.abc import Callable, Mapping
+from typing import TextIO
 from pathlib import Path
 
 from algorip.api import ServiceSettings
@@ -39,8 +40,9 @@ def port_line(port: int) -> str:
 
 
 def parent_gone(original_ppid: int, current_ppid: int) -> bool:
-    """True once this process has been reparented, i.e. the app that launched it died."""
-    return current_ppid != original_ppid
+    """True once this process has been reparented (the app that launched it died), or when it was
+    already an orphan of launchd/init (pid 1) by the time it started watching."""
+    return current_ppid != original_ppid or current_ppid == 1
 
 
 def watch_parent(
@@ -49,12 +51,16 @@ def watch_parent(
     exit_: Callable[[int], object] = os._exit,
     sleep: Callable[[float], object] = time.sleep,
     interval: float = 1.0,
+    stderr: TextIO | None = None,
 ) -> None:
     """Exits the process when the parent dies, so a killed or crashed app never leaves us running."""
     while True:
         if parent_gone(original_ppid, getppid()):
-            print("algorip: parent process exited, shutting down", file=sys.stderr)
-            exit_(0)
+            # The app that read our stderr may be gone too: a failed write must never skip the exit.
+            try:
+                print("algorip: parent process exited, shutting down", file=stderr or sys.stderr, flush=True)
+            finally:
+                exit_(0)
         sleep(interval)
 
 

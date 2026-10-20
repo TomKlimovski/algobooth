@@ -218,6 +218,7 @@ def test_parent_gone_only_when_the_parent_pid_changes():
     assert parent_gone(4242, 1)  # orphaned: reparented to launchd
     assert parent_gone(4242, 777)  # reparented to a subreaper
     assert not parent_gone(4242, 4242)
+    assert parent_gone(1, 1)  # already orphaned before main() ran
 
 
 def test_watch_parent_exits_once_the_parent_changes():
@@ -230,4 +231,23 @@ def test_watch_parent_exits_once_the_parent_changes():
 
     with pytest.raises(SystemExit):
         watch_parent(4242, getppid=lambda: next(ppids), exit_=exit_, sleep=lambda _: None)
+    assert exits == [0]
+
+
+def test_watch_parent_exits_even_when_stderr_is_a_broken_pipe():
+    class BrokenStderr:
+        def write(self, _):
+            raise BrokenPipeError(32, "Broken pipe")  # the app reading our stderr is gone
+
+        def flush(self):
+            raise BrokenPipeError(32, "Broken pipe")
+
+    exits = []
+
+    def exit_(code):
+        exits.append(code)
+        raise SystemExit(code)
+
+    with pytest.raises(SystemExit):
+        watch_parent(4242, getppid=lambda: 1, exit_=exit_, sleep=lambda _: None, stderr=BrokenStderr())
     assert exits == [0]
