@@ -193,6 +193,24 @@ def plucked_bass(notes: list[tuple[int, int, int, int]], bpm: float, bars: int, 
     return out.astype(np.float32)
 
 
+def swept_bass(notes: list[tuple[int, int, int, int]], bpm: float, bars: int, sweep_semitones: float, sweep_seconds: float) -> np.ndarray:
+    """Like bass_line, but without the fundamental (harmonics 2..6) and each note starting sharp.
+
+    The pitch falls from sweep_semitones above the note, exponentially, to within ~5% of the sweep
+    by sweep_seconds: a techno bass's pitch envelope over a separated stem's thin fundamental.
+    """
+    out = np.zeros(_samples(bars * _bar_seconds(bpm)))
+    for bar, step, length, midi in notes:
+        start = _step_start(bar, step, bpm)
+        n = _step_start(bar, step + length, bpm) - start
+        t = np.arange(n) / SR
+        hz = _midi_hz(midi) * 2.0 ** (sweep_semitones * np.exp(-3.0 * t / sweep_seconds) / 12)
+        phase = 2 * np.pi * np.cumsum(hz) / SR
+        tone = sum(np.sin(k * phase) / k for k in range(2, 7))
+        _place(out, start, tone * _ramps(n, 0.01))
+    return out.astype(np.float32)
+
+
 _TRIADS = {"major": (0, 4, 7), "minor": (0, 3, 7)}
 
 
