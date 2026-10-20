@@ -97,3 +97,8 @@ def test_closed_hats_over_a_floor_stay_closed():
     y = drum_loop({"hh": EIGHTHS}, 124, 2)
     hits = classify_drums(y + hf_floor(len(y) / SR, FLOOR_DB), SR, grid_for(124, 2))
     assert hits["hh"] == EIGHTHS and hits["oh"] == set()
+
+
+def test_a_snare_on_every_kick_is_kept():
+    hits = classify_drums(drum_loop({"bd": KICKS, "sd": KICKS}, 124, 2), SR, grid_for(124, 2))
+    assert hits["bd"] == KICKS and hits["sd"] == KICKS

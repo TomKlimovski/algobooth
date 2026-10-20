@@ -119,6 +119,17 @@ _OPEN_DB_PER_MS = 30.0 / 80.0
 _SNARE_OVER_KICK_DB = 16.0
 _KICK_BODY_DELAY_SECONDS = 0.01
 _KICK_BODY_SECONDS = 0.045
+# The lower quartile assumes at least a quarter of the kicks are plain; with a snare on (nearly)
+# every kick it is itself a snare kick, and bd*4 + sd*4 kept 2 of 8 snares. So a kick that the
+# snare band also fires on keeps its snare when its body increment stands 15 dB over the kick's
+# own low band (RMS of the 150 Hz low-pass from 10 ms before the onset to 60 ms after): a
+# kick-only reference that needs no other kicks. The snare band alone is not enough: on the real
+# track it fires on 27 of 33 kicks, 13 of them plain. Measured, body over low band: real plain
+# kicks -3.0 to 13.7 dB, real clap kicks 24.9 to 38.0; synthetic plain kicks with clicks 8.8 at
+# most, a snare on every kick 16.0 to 36.0, claps 46 or more.
+_SNARE_OVER_LOW_DB = 15.0
+_LOW_BEFORE_SECONDS = 0.01
+_LOW_AFTER_SECONDS = 0.06
 
 _FOUR_ON_THE_FLOOR_STEPS = (0, 4, 8, 12)
 _FOUR_ON_THE_FLOOR_SHARE = 0.75
@@ -256,6 +267,12 @@ def _hat_shape(env: np.ndarray, i: int, nxt: int, floor: float) -> tuple[float, 
     return _db(attack) - _db(floor), (_db(attack) - _db(level)) / ms
 
 
+def _low_db(kick_band: np.ndarray, sr: int, t: float) -> float:
+    """The kick band's power (dB) from 10 ms before t to 60 ms after."""
+    seg = kick_band[max(0, round((t - _LOW_BEFORE_SECONDS) * sr)) : round((t + _LOW_AFTER_SECONDS) * sr)]
+    return float(10.0 * np.log10(np.mean(seg**2) + 1e-30)) if len(seg) else -300.0
+
+
 def _near(times: list[float], t: float) -> bool:
     return any(abs(u - t) <= _NEAR_SECONDS for u in times)
 
@@ -271,7 +288,7 @@ def classify_drums(drums: np.ndarray, sr: int, grid: Grid) -> DrumHits:
             return filtered, []
         return filtered, [float(t) for t in _detect(filtered, sr, delta)]
 
-    _, kicks = onsets("bd", *_KICK_BAND, _DELTA)
+    kick_band, kicks = onsets("bd", *_KICK_BAND, _DELTA)
     _, snare_band = onsets("sd", *_SNARE_BAND, _SNARE_DELTA)
     high, hat_band = onsets("hh", *_HAT_BAND, _DELTA)
 
@@ -289,7 +306,9 @@ def classify_drums(drums: np.ndarray, sr: int, grid: Grid) -> DrumHits:
     body = [_band_db(_increment(padded, sr, t + _KICK_BODY_DELAY_SECONDS, _KICK_BODY_SECONDS), sr, *_BODY_BAND)
             for t in kicks]
     kick_body = float(np.percentile(body, 25)) if body else 0.0
-    snares = [t for t, b in zip(kicks, body) if b >= kick_body + _SNARE_OVER_KICK_DB]
+    snares = [t for t, b in zip(kicks, body)
+              if b >= kick_body + _SNARE_OVER_KICK_DB
+              or (_near(snare_band, t) and b - _low_db(kick_band, sr, t) >= _SNARE_OVER_LOW_DB)]
     snares += [t for t in snare_band if not _near(kicks, t)]
 
     env = _rms_envelope(high, sr)
