@@ -60,7 +60,16 @@ def _split(bars: list[dict[int, H]], templates: list[dict[int, H]]) -> tuple[lis
     return core, deviating
 
 
-def find_loop(bars: list[dict[int, H]], periods: tuple[int, ...] = LOOP_PERIODS) -> Loop[H] | None:
+def find_loop(
+    bars: list[dict[int, H]],
+    periods: tuple[int, ...] = LOOP_PERIODS,
+    sounding: list[dict[int, H]] | None = None,
+) -> Loop[H] | None:
+    """The loop the bars' starts repeat at, and the layer the deviating bars add.
+
+    sounding, when given, is one dict per bar of the value sounding on each step; the layer is then
+    measured on those as well as on the starts (see the module docstring).
+    """
     for period in periods:
         if len(bars) < 2 * period:  # one voter per phase is a bar nobody repeated
             continue
@@ -76,7 +85,12 @@ def find_loop(bars: list[dict[int, H]], periods: tuple[int, ...] = LOOP_PERIODS)
         # narrower second-pass template); a phase template that no core bar plays is not a loop.
         if any(not any(i % period == phase for i in core) for phase in range(period)):
             continue
-        extra, extra_bars = _layer(bars, templates, deviating)
+        heard = [bars]
+        heard_templates = [templates]
+        if sounding is not None:
+            heard.append(sounding)
+            heard_templates.append(_core_vote(sounding, core, period))
+        extra, extra_bars = _layer(heard, heard_templates, deviating)
         return Loop(period, templates, core, deviating, extra, extra_bars)
     return None
 
@@ -86,12 +100,18 @@ def _core_vote(bars: list[dict[int, H]], core: list[int], period: int) -> list[d
 
 
 def _layer(
-    bars: list[dict[int, H]], templates: list[dict[int, H]], deviating: list[int]
+    heard: list[list[dict[int, H]]], templates: list[list[dict[int, H]]], deviating: list[int]
 ) -> tuple[list[dict[int, H]] | None, tuple[int, int] | None]:
+    """The deviating bars' extra material, as its own loop: each kind of hearing (starts, sounding) against its template."""
     if not deviating:
         return None, None
     extras = [
-        {step: value for step, value in bars[i].items() if templates[i % len(templates)].get(step) != value}
+        {
+            step: value
+            for bars, phases in zip(heard, templates)
+            for step, value in bars[i].items()
+            if phases[i % len(phases)].get(step) != value
+        }
         for i in deviating
     ]
     bounds = (min(deviating), max(deviating))

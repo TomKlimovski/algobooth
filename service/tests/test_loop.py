@@ -1,6 +1,6 @@
 import pytest
 
-from algorip.loop import agreement, find_loop, vote
+from algorip.loop import LAYER_MIN_STEPS, agreement, find_loop, vote
 
 SOLOMUN = {2: 7, 3: 7, 5: 7, 7: 7, 10: 7, 11: 7, 13: 7, 14: 7, 15: 7}
 BUILD = [{**SOLOMUN, 4: 7, 8: 7, 12: 7}, {**SOLOMUN, 0: 7, 8: 7, 12: 9}, {s: 7 for s in range(16)}, {s: 7 for s in range(16)}, {s: 7 for s in range(16)}]
@@ -42,3 +42,28 @@ def test_a_period_whose_phase_has_no_core_bar_after_the_second_vote_is_not_a_loo
     b = {0: 9, 8: 9}
     # Period 1 fails, period 2 is refused, and six bars are too few for period 4.
     assert find_loop([drifting[0], b, drifting[1], b, drifting[2], b]) is None
+
+
+def test_the_layer_is_measured_on_sounding_steps_when_given_them():
+    # The build bars add only three starts each (under LAYER_MIN_STEPS) but hold the root over the
+    # rests, so what sounds and the template does not is seven steps: a layer.
+    held = {**SOLOMUN, 0: 7, 8: 7, 12: 7}  # three extra starts
+    sounds = {s: 7 for s in range(16)}  # ...each run to the next template note
+    starts = [SOLOMUN] * 4 + [held] * 4
+    sounding = [dict(SOLOMUN)] * 4 + [sounds] * 4
+    without = find_loop(starts)
+    assert without.extra is None and without.extra_bars == (4, 7)
+    loop = find_loop(starts, sounding=sounding)
+    assert loop.period == 1 and loop.templates == [SOLOMUN] and loop.deviating == [4, 5, 6, 7]
+    assert loop.extra == [{s: 7 for s in range(16) if s not in SOLOMUN}]
+    assert len(loop.extra[0]) >= LAYER_MIN_STEPS
+
+
+def test_retriggers_under_a_held_template_note_are_still_extra_material():
+    # The synthetic build: the template holds the root over steps 0-7 and the build bars retrigger
+    # it as 16ths, so nothing new sounds but seven starts are extra.
+    root = {0: 9, 8: 0, 12: 4}
+    retriggered = {**{s: 9 for s in range(8)}, 8: 0, 12: 4}
+    sounds = {**{s: 9 for s in range(8)}, **{s: 0 for s in range(8, 12)}, **{s: 4 for s in range(12, 16)}}
+    loop = find_loop([root] * 4 + [retriggered] * 3, sounding=[sounds] * 7)
+    assert loop.extra == [{s: 9 for s in range(1, 8)}] and loop.extra_bars == (4, 6)

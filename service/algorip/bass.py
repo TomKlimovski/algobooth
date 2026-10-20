@@ -1,5 +1,7 @@
 """Bass stem transcription on the step grid, the loop it repeats, and a brightness measure of the bass sound."""
 
+from collections import Counter
+
 import numpy as np
 
 from algorip.bassgrid import BassGrid, bass_grid, grid_to_notes
@@ -109,13 +111,42 @@ def _phase_notes(heard: list[dict[int, Note]], templates: list[dict[int, int]]) 
     ]
 
 
+def _layer_notes(bg: BassGrid, deviating: list[int], extra: list[dict[int, int]]) -> list[list[Note]]:
+    """Each phase of the layer as notes: a run of steps on one pitch class is one held note, split where the
+    deviating bars at that phase mostly retrigger it, at the midi they mostly sound it at.
+
+    The deviating bars are at the phases find_loop searched them in (their order, modulo the layer's period).
+    """
+    period = len(extra)
+    phases = []
+    for phase, template in enumerate(extra):
+        bars = deviating[phase::period]
+        notes: list[Note] = []
+        for step in sorted(template):
+            pc = template[step]
+            sounding = [b for b in bars if (m := bg.midi[b][step]) is not None and m % OCTAVE == pc]
+            retriggered = 2 * sum(bg.starts[b][step] for b in sounding) > len(sounding)
+            last = notes[-1] if notes else None
+            if last is not None and last.step + last.length == step and last.midi % OCTAVE == pc and not retriggered:
+                notes[-1] = last.model_copy(update={"length": last.length + 1})
+                continue
+            votes = Counter(bg.midi[b][step] for b in sounding)
+            midi = votes.most_common(1)[0][0] if votes else pc + BASS_LOW
+            notes.append(Note(bar=0, step=step, length=1, midi=midi))
+        phases.append(notes)
+    return phases
+
+
 def choose_bass_loop(bg: BassGrid, grid: Grid, notes: list[Note]) -> BassLoop | None:
     """The loop the bass repeats, written as the shortest candidate that scores near the best, and its layer.
 
     None when the bars do not repeat (or there is no bass).
     """
     heard = [one_per_step([n for n in notes if n.bar == b]) for b in range(grid.bars)]
-    loop = find_loop([{step: n.midi % OCTAVE for step, n in bar.items()} for bar in heard])
+    # The layer is measured on the steps that sound as well as on the starts: a fill that sustains
+    # is heard as fewer, longer notes than it has steps.
+    sounding = [{step: m % OCTAVE for step, m in enumerate(bar) if m is not None} for bar in bg.midi]
+    loop = find_loop([{step: n.midi % OCTAVE for step, n in bar.items()} for bar in heard], sounding=sounding)
     if loop is None or not any(loop.templates):
         return None  # no repeat, or the only thing that repeats is silence (a silent stem)
     # Only the core bars name the template's notes; a build must not pick their midi or length.
@@ -134,13 +165,7 @@ def choose_bass_loop(bg: BassGrid, grid: Grid, notes: list[Note]) -> BassLoop | 
 
     layer = layer_bars = match_with_layer = None
     if loop.extra is not None and loop.extra_bars is not None:
-        # The deviating bars' notes on steps the template leaves silent or gives another pitch class,
-        # in the order find_loop searched them for the layer's own loop.
-        extras = [
-            {step: n for step, n in heard[i].items() if loop.templates[i % loop.period].get(step) != n.midi % OCTAVE}
-            for i in loop.deviating
-        ]
-        layer = _phase_notes(extras, loop.extra)
+        layer = _layer_notes(bg, loop.deviating, loop.extra)
         layer_bars = (loop.extra_bars[0] + 1, loop.extra_bars[1] + 1)
         match_with_layer = score(bg, grid, expand(winner, grid.bars), expand(layer, grid.bars)).match
 

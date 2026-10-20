@@ -1,5 +1,40 @@
 [
   {
+    "line": "_bass2",
+    "cycle": 0,
+    "step": 0,
+    "length": 1,
+    "note": "g1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 0,
+    "step": 1,
+    "length": 1,
+    "note": "g1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 0,
+    "step": 4,
+    "length": 1,
+    "note": "g1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 0,
+    "step": 8,
+    "length": 1,
+    "note": "g1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 0,
+    "step": 12,
+    "length": 1,
+    "note": "g1"
+  },
+  {
     "line": "bass",
     "cycle": 0,
     "step": 2,

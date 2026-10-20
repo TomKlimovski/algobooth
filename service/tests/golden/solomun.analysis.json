@@ -1067,9 +1067,45 @@
         }
       ]
     ],
-    "layer": null,
-    "layer_bars": null,
+    "layer": [
+      [
+        {
+          "bar": 0,
+          "step": 0,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 1,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 4,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 8,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 12,
+          "length": 1,
+          "midi": 31
+        }
+      ]
+    ],
+    "layer_bars": [
+      5,
+      9
+    ],
     "match": 0.8,
-    "match_with_layer": null
+    "match_with_layer": 0.8
   }
 }

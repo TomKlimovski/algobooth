@@ -83,7 +83,7 @@ Basic Pitch still transcribes the melody; the bass goes through these modules in
 `mir_eval` is a direct dependency, used for the onset score.
 
 - `algorip/bassgrid.py`: a per-16th-step pitch grid from `librosa.pyin` (stem resampled to 11025 Hz, 30 to 400 Hz), with note starts. Steps quieter than a tenth of the loudest step are rests. The pyin frame is fixed at 2048 samples (186 ms), so the grid is reliable up to roughly 160 bpm and smears 16ths above that (a tempo-adaptive frame is a follow-up).
-- `algorip/loop.py`: finds the period (1, 2, 4 or 8 bars) the bars repeat at with a two-pass majority vote, so deviating bars do not veto it. Their extra notes become a layer when they repeat and are dense enough.
+- `algorip/loop.py`: finds the period (1, 2, 4 or 8 bars) the bars repeat at with a two-pass majority vote, so deviating bars do not veto it. What those bars sound or start that the template does not (measured on the grid's steps, so a sustained fill counts as much as a retriggered one) becomes a layer when it repeats and is dense enough.
 - `algorip/score.py`: scores a candidate against the grid, combining a per-step pitch-class frame score with mir_eval's onset F1 into a `match` in 0 to 1.
 - `algorip/bass.py`: `choose_bass_loop` tries four notations (as heard, on an 8th grid, sustained, both) and keeps the shortest within 0.05 of the best match.
 
