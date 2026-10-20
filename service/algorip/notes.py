@@ -62,6 +62,7 @@ def snap_to_key(notes: list[Note], key: Key) -> list[Note]:
 
 def fold_octaves(midi: int, low: int, high: int) -> int:
     """midi moved by octaves into low..high (high - low must be at least 11)."""
+    assert high - low >= 11, "the range must hold a whole octave"
     while midi < low:
         midi += 12
     while midi > high:

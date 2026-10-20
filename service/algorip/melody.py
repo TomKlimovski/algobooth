@@ -1,6 +1,5 @@
 """An optional lead line from the "other" stem, kept only when the stem plays one note at a time."""
 
-from itertools import combinations
 from pathlib import Path
 
 from algorip.grid import Grid
@@ -31,8 +30,14 @@ def overlap_share(notes: list[Note], steps_per_bar: int) -> float:
     total = sum(n.length for n in notes)
     if total == 0:
         return 0.0
-    spans = [_span(n, steps_per_bar) for n in notes]
-    overlap = sum(max(0, min(a[1], b[1]) - max(a[0], b[0])) for a, b in combinations(spans, 2))
+    # The grid's steps are uniform, so overlap in steps is overlap in seconds scaled by step_seconds.
+    spans = sorted(_span(n, steps_per_bar) for n in notes)
+    overlap = 0
+    for i, (start, end) in enumerate(spans):
+        for other_start, other_end in spans[i + 1 :]:
+            if other_start >= end:
+                break  # sorted by start: no later span can overlap this one
+            overlap += min(end, other_end) - other_start
     return overlap / total
 
 
