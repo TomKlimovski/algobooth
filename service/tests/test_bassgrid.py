@@ -53,6 +53,18 @@ def test_a_note_sounding_across_the_first_downbeat_does_not_start_there():
     assert bg.midi[0][:2] == [31, 31] and not bg.starts[0][0] and bg.starts[0][6]
 
 
+def test_a_quiet_swell_is_a_rest_while_a_quiet_hit_is_heard():
+    # The floor is a tenth of the loudest step: on the Solomun stem, fading swells on rest steps sat at
+    # 0.03-0.10 of the peak and real hits at 0.15 and up. A 0.02 floor heard the swells as notes.
+    loud = bass_line([(0, 0, 2, 31)], BPM, 1)
+    hit = bass_line([(0, 6, 1, 31)], BPM, 1)
+    swell = bass_line([(0, 10, 2, 31)], BPM, 1)
+    bg = bass_grid(loud + 0.16 * hit + 0.06 * swell, SR, Grid(bpm=BPM, first_downbeat=0.0, bars=1))
+    assert bg.midi[0][6] == 31 and bg.starts[0][6]
+    assert bg.midi[0][10] is None and bg.midi[0][11] is None
+    assert [(n.step, n.length, n.midi) for n in grid_to_notes(bg)] == [(0, 2, 31), (6, 1, 31)]
+
+
 @pytest.mark.slow
 def test_a_sixty_second_stem_tracks_in_under_five_seconds():
     y = bass_line([(b, s, 1, 31) for b in range(30) for s in range(0, 16, 2)], BPM, 30)  # 60 s

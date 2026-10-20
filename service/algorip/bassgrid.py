@@ -19,7 +19,11 @@ FMIN = 30.0
 FMAX = 400.0
 FRAME = 2048
 HOP = 256
-RMS_FLOOR = 0.02  # of the stem's peak step RMS; quieter steps are rests
+# Of the stem's peak step RMS; quieter steps are rests. The spec's "0.02 of full scale" was measured
+# on the Solomun stem, whose peak step RMS is 0.188 FS, so it is 0.106 of that peak. 0.02 of the peak
+# (five times lower) admitted that stem's fading swells on rest steps (0.03-0.10 of the peak) and
+# pushed its loop to period 2; 0.1 and 0.12 both give the one-bar loop.
+RMS_FLOOR = 0.1
 VOICED_SHARE = 1 / 3  # of a step's frames that must be voiced for the step to be pitched
 # pyin's default (35.92 octaves/s) cannot leap an octave in one 23 ms hop, so a lone G2 between
 # G1s and an A1 is read an octave down; 60 lets a sixteenth jump an octave.
