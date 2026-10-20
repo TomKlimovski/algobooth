@@ -110,14 +110,18 @@ def bass_grid(y: np.ndarray, sr: int, grid: Grid) -> BassGrid:
     rms = librosa.feature.rms(y=y, frame_length=_RMS_FRAME, hop_length=HOP)[0]
     env = librosa.feature.rms(y=y, frame_length=_DIP_FRAME, hop_length=_DIP_HOP)[0]
     env_t = librosa.frames_to_time(np.arange(len(env)), sr=PYIN_SR, hop_length=_DIP_HOP)
-    # Step 0 here is the step before the grid (empty when the grid starts with the audio). It is heard
-    # only as the first step's predecessor, so a note sounding across the first downbeat is not a start.
+    # Step 0 here is the step before the grid. It is heard only as the first step's predecessor, and
+    # only when the whole step lies inside the audio: then a note sounding across the first downbeat is
+    # not a start, and grid_to_notes writes nothing for it (a sound carried over from before the clip
+    # is not a note of the clip). Cut short by the start of the audio, it holds only the first note's
+    # own attack (the downbeat is placed to one 11.6 ms hop, often just after it), so it is ignored.
     edges = _step_edges(grid)
     steps = _step_frames(edges, min(len(f0), len(rms)), HOP)
+    whole_before = edges[0] >= 0 and len(steps[0]) >= len(steps[1]) - 1
 
     # The median ignores the frames at a step's edges, which hear its neighbours.
     level = np.array([np.median(rms[f]) if len(f) else 0.0 for f in steps])
-    floor = max(RMS_FLOOR * level.max(), np.finfo(np.float32).tiny)
+    floor = max(RMS_FLOOR * level[1:].max(initial=0.0), np.finfo(np.float32).tiny)  # the grid's own steps
     midi: list[int | None] = []
     for i, (frames, loud) in enumerate(zip(steps, level)):
         heard = frames[voiced[frames]]
@@ -125,6 +129,8 @@ def bass_grid(y: np.ndarray, sr: int, grid: Grid) -> BassGrid:
             midi.append(_strongest_midi(f0[heard], voiced_prob[heard]))
         else:
             midi.append(None)
+    if not whole_before:
+        midi[0] = None
 
     starts = [False]
     for i in range(1, len(midi)):

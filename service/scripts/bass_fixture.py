@@ -65,7 +65,7 @@ def main() -> None:
             for s, y in audio.items():
                 stems[s] = Path(tmp) / f"{s}.wav"
                 write_wav(stems[s], y)
-            # Ruling 6: the build's header is "Build", 0 to 16 s, as test_generate expects.
+            # The build's header is "Build", 0 to 16 s, as test_generate expects.
             _golden(stems, args.name, lambda p: [], "Build", 0, 16)
 
 

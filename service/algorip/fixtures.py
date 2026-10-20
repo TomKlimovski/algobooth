@@ -19,15 +19,15 @@ from algorip.mini import note_name
 from algorip.schema import Analysis, BassLoop
 from algorip.sounds import choose_sounds
 
-# Ruling 20: librosa's beat_track reads tempo from a tempogram, so it is quantised to 60 * SR / (hop * k)
+# librosa's beat_track reads tempo from a tempogram, so it is quantised to 60 * SR / (hop * k)
 # (here 126.05, 123.05, ...); a tempo between steps, like 124, reads 123.0 and drifts about a step over
 # 8 bars. This is the k = 42 step, which the estimator reads exactly (a grid.py follow-up for the owner).
 BUILD_BPM = 60 * 44100 / (512 * 42)  # 123.046875
 BUILD_BARS = 8
 BUILD_ROOT = 33  # A1; the build is in A minor
-# Ruling 5: two bars that share only the held root at step 0 (so period 1 fails), each then running
+# Two bars that share only the held root at step 0 (so period 1 fails), each then running
 # six short notes over steps 8-15, no two neighbours on one pitch class: seven onsets a bar, so the
-# 21 extra onsets of the three build bars leave the loop alone an onset F1 near 0.84.
+# loop alone, missing the 21 extra onsets of the three build bars, still scores an onset F1 near 0.84.
 _BUILD_TAILS = (
     ((8, 36), (10, 40), (11, 33), (12, 31), (14, 40), (15, 38)),  # C2 E2 A1 G1 E2 D2
     ((8, 31), (9, 33), (10, 38), (12, 40), (13, 36), (14, 33)),  # G1 A1 D2 E2 C2 A1
@@ -52,7 +52,7 @@ def bass_events(loop: BassLoop | None) -> list[dict]:
 def bass_grid_of(stems: dict[str, Path], analysis: Analysis) -> BassGrid:
     """The bass step grid `pipeline._analyse` built for this analysis.
 
-    Ruling 12: `_analyse` returns only the Analysis, so the grid is rebuilt here from the same stems,
+    `_analyse` returns only the Analysis, so the grid is rebuilt here from the same stems,
     key and grid; transcription is deterministic, so it is the same grid.
     """
     bass = load_mono(stems["bass"], SR)
@@ -76,7 +76,7 @@ def write_golden(golden_dir: Path, name: str, analysis: Analysis, bg: BassGrid,
 def build_bass_notes() -> list[tuple[int, int, int, int]]:
     """The build's bass as (bar, step, length, midi).
 
-    Ruling 5: every bar opens on the root held two beats; bars 6-8 retrigger it as eight 16ths
+    Every bar opens on the root held two beats; bars 6-8 retrigger it as eight 16ths
     instead, so steps 1-7 are extra (at least LAYER_MIN_STEPS) and the layer writes
     `[~ a1 a1 a1] a1*4 ~ ~`, over the same pitch so the frame score stays whole.
     """
@@ -100,7 +100,7 @@ def build_fixture_audio() -> tuple[dict[str, np.ndarray], float, int]:
              "sd": {(b, s) for b in range(bars) for s in (4, 12)},
              "hh": {(b, s) for b in range(bars) for s in range(0, 14, 2)},
              "oh": {(b, 14) for b in range(bars)}}
-    # Ruling 14: with four identical kicks a bar, estimate_grid's downbeat phase (the beat with the most
+    # With four identical kicks a bar, estimate_grid's downbeat phase (the beat with the most
     # energy under 150 Hz) is a coin toss; it read the bar three beats late. click_track's 60 Hz thump on
     # each beat 1 (with its clicks, which land on the kicks) gives beat 1 the most low-band energy.
     drums = drum_loop(house, BUILD_BPM, bars) + click_track(BUILD_BPM, bars)

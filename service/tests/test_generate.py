@@ -18,7 +18,7 @@ GOLDEN = Path(__file__).parent / "golden"
         ("drums_only", "Around The World", 72, 88),
         ("sustain", "Around The World", 72, 88),
         ("solomun", "Solomun – Live at Alexandra Palace, London (2026) (Official Film)", 2200, 2220),
-        ("build", "Build", 0, 16),  # ruling 6: the header bass_fixture.py writes for the synthetic build
+        ("build", "Build", 0, 16),  # the header bass_fixture.py writes for the synthetic build
     ],
 )
 def test_golden(name, title, start, end):

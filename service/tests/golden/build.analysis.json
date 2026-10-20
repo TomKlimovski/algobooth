@@ -427,6 +427,12 @@
   "bass": [
     {
       "bar": 0,
+      "step": 0,
+      "length": 8,
+      "midi": 33
+    },
+    {
+      "bar": 0,
       "step": 8,
       "length": 1,
       "midi": 36
@@ -882,7 +888,7 @@
       "midi": 33
     }
   ],
-  "bass_harmonics": 0.4835108727925336,
+  "bass_harmonics": 0.48350347907821944,
   "chords": [
     "Am",
     "F",
@@ -1037,6 +1043,6 @@
       8
     ],
     "match": 0.92,
-    "match_with_layer": 0.9
+    "match_with_layer": 0.91
   }
 }

@@ -53,6 +53,15 @@ def test_a_note_sounding_across_the_first_downbeat_does_not_start_there():
     assert bg.midi[0][:2] == [31, 31] and not bg.starts[0][0] and bg.starts[0][6]
 
 
+def test_a_note_starting_just_before_the_first_downbeat_is_kept():
+    # estimate_grid places the downbeat to one 512-sample hop (11.6 ms), so it often lands just after
+    # the first attack. The step before the grid is then cut short by the start of the audio and holds
+    # only the first note, so it must not count as that note's predecessor.
+    bg = bass_grid(bass_line([(0, 0, 8, 33), (0, 8, 2, 36)], BPM, 1), SR, Grid(bpm=BPM, first_downbeat=0.0116, bars=1))
+    assert bg.starts[0][0]
+    assert [(n.step, n.length, n.midi) for n in grid_to_notes(bg)] == [(0, 8, 33), (8, 2, 36)]
+
+
 def test_a_quiet_swell_is_a_rest_while_a_quiet_hit_is_heard():
     # The floor is a tenth of the loudest step: on the Solomun stem, fading swells on rest steps sat at
     # 0.03-0.10 of the peak and real hits at 0.15 and up. A 0.02 floor heard the swells as notes.
