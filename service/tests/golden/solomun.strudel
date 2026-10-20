@@ -1,0 +1,8 @@
+// Solomun – Live at Alexandra Palace, London (2026) (Official Film) 36:40 to 37:00 · 129 cpm · G minor · 9 bars
+setcpm(129/4)
+
+drums: s("bd*4, <[[cp ~ cp ~] [cp ~ cp cp] [cp ~ cp ~] [cp ~ cp ~]] cp*8 cp(7,8,7) [[~ ~ cp ~] [cp ~ cp ~] [~ ~ cp ~] [cp ~ cp cp]] [[~ ~ cp ~] [cp ~ cp ~] [~ ~ cp ~] [~ ~ cp ~]] [[~ cp cp ~] [~ ~ cp cp] [~ ~ cp ~] [~ ~ cp ~]] [[~ cp ~ ~] [~ ~ cp ~] [~ ~ cp ~] [~ ~ cp ~]] cp(7,8,5) [[cp ~ cp ~] [cp ~ cp cp] [~ ~ cp ~] [~ ~ cp ~]]>").bank("tr909")
+hats: s("<[[~ oh ~ ~] ~ [~ oh ~ ~] [~ ~ ~ oh]] [[~ oh ~ ~] [~ ~ ~ oh] [~ oh ~ ~] [~ ~ ~ oh]] [[~ oh ~ ~] [~ ~ ~ oh] [~ oh ~ ~] [~ ~ ~ oh]] [[~ oh ~ ~] [~ ~ ~ oh] [~ oh ~ ~] ~] [[~ oh ~ ~] ~ ~ ~] ~ [~ [~ ~ ~ oh] [~ oh ~ ~] [~ ~ ~ oh]] [[~ oh ~ ~] [~ ~ ~ oh] [~ oh ~ ~] [~ ~ ~ oh]] [[~ oh ~ ~] ~ [~ oh ~ ~] [~ ~ ~ oh]]>").bank("tr909")
+bass: note("[~ ~ g1@2] [~ g1 ~ g1] [~ ~ g1@2] [~ g1@2 g2]").s("sawtooth").lpf(800)
+chords: chord("<G G G G G G G Gm G>").voicing().s("sawtooth").lpf(1200).room(0.4).gain(0.6)
+melody: note("<[[~ g3@3] ~ ~ [~ ~ ~ g3]] [[~ ~ g3@2] ~ ~ [~ ~ ~ g3]] [[~ g3@3] ~ ~ [~ ~ ~ g3]] [[~ g3 g3@2] ~ ~ [~ ~ ~ g3]] [[~ g3@3] ~ ~ ~] [[~ g3 g3@2] ~ ~ ~] [[~ g3@3] ~ ~ ~] [[~ ~ c5@2] [~ ~ c5 ~] ~ ~] [~ ~ [d3@2 ~ ~] ~]>").s("triangle").gain(0.5)

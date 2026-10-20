@@ -10,10 +10,20 @@ from algorip.sounds import choose_sounds
 GOLDEN = Path(__file__).parent / "golden"
 
 
-@pytest.mark.parametrize("name", ["house", "breaks", "drums_only", "sustain"])
-def test_golden(name):
+@pytest.mark.parametrize(
+    "name, title, start, end",
+    [
+        ("house", "Around The World", 72, 88),
+        ("breaks", "Around The World", 72, 88),
+        ("drums_only", "Around The World", 72, 88),
+        ("sustain", "Around The World", 72, 88),
+        ("solomun", "Solomun – Live at Alexandra Palace, London (2026) (Official Film)", 2200, 2220),
+        ("build", "Build", 0, 16),  # ruling 6: the header bass_fixture.py writes for the synthetic build
+    ],
+)
+def test_golden(name, title, start, end):
     a = Analysis.model_validate_json((GOLDEN / f"{name}.analysis.json").read_text())
-    code = generate(a, choose_sounds(a), title="Around The World", start=72, end=88)
+    code = generate(a, choose_sounds(a), title=title, start=start, end=end)
     assert code == (GOLDEN / f"{name}.strudel").read_text()
 
 

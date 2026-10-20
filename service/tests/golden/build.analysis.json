@@ -1,0 +1,1042 @@
+{
+  "bpm": 123.0,
+  "key": "A minor",
+  "meter": "4/4",
+  "bars": 8,
+  "steps_per_bar": 16,
+  "first_downbeat": 0.011609977324263039,
+  "drums": {
+    "bd": [
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        4
+      ],
+      [
+        0,
+        8
+      ],
+      [
+        0,
+        12
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        4
+      ],
+      [
+        1,
+        8
+      ],
+      [
+        1,
+        12
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        2,
+        4
+      ],
+      [
+        2,
+        8
+      ],
+      [
+        2,
+        12
+      ],
+      [
+        3,
+        0
+      ],
+      [
+        3,
+        4
+      ],
+      [
+        3,
+        8
+      ],
+      [
+        3,
+        12
+      ],
+      [
+        4,
+        0
+      ],
+      [
+        4,
+        4
+      ],
+      [
+        4,
+        8
+      ],
+      [
+        4,
+        12
+      ],
+      [
+        5,
+        0
+      ],
+      [
+        5,
+        4
+      ],
+      [
+        5,
+        8
+      ],
+      [
+        5,
+        12
+      ],
+      [
+        6,
+        0
+      ],
+      [
+        6,
+        4
+      ],
+      [
+        6,
+        8
+      ],
+      [
+        6,
+        12
+      ],
+      [
+        7,
+        0
+      ],
+      [
+        7,
+        4
+      ],
+      [
+        7,
+        8
+      ],
+      [
+        7,
+        12
+      ]
+    ],
+    "sd": [
+      [
+        0,
+        4
+      ],
+      [
+        0,
+        12
+      ],
+      [
+        1,
+        4
+      ],
+      [
+        1,
+        12
+      ],
+      [
+        2,
+        4
+      ],
+      [
+        2,
+        12
+      ],
+      [
+        3,
+        4
+      ],
+      [
+        3,
+        12
+      ],
+      [
+        4,
+        4
+      ],
+      [
+        4,
+        12
+      ],
+      [
+        5,
+        4
+      ],
+      [
+        5,
+        12
+      ],
+      [
+        6,
+        4
+      ],
+      [
+        6,
+        12
+      ],
+      [
+        7,
+        4
+      ],
+      [
+        7,
+        12
+      ]
+    ],
+    "hh": [
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        2
+      ],
+      [
+        0,
+        4
+      ],
+      [
+        0,
+        6
+      ],
+      [
+        0,
+        8
+      ],
+      [
+        0,
+        10
+      ],
+      [
+        0,
+        12
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        1,
+        4
+      ],
+      [
+        1,
+        6
+      ],
+      [
+        1,
+        8
+      ],
+      [
+        1,
+        10
+      ],
+      [
+        1,
+        12
+      ],
+      [
+        2,
+        2
+      ],
+      [
+        2,
+        4
+      ],
+      [
+        2,
+        6
+      ],
+      [
+        2,
+        8
+      ],
+      [
+        2,
+        10
+      ],
+      [
+        2,
+        12
+      ],
+      [
+        3,
+        2
+      ],
+      [
+        3,
+        4
+      ],
+      [
+        3,
+        6
+      ],
+      [
+        3,
+        8
+      ],
+      [
+        3,
+        10
+      ],
+      [
+        3,
+        12
+      ],
+      [
+        4,
+        2
+      ],
+      [
+        4,
+        4
+      ],
+      [
+        4,
+        6
+      ],
+      [
+        4,
+        8
+      ],
+      [
+        4,
+        10
+      ],
+      [
+        4,
+        12
+      ],
+      [
+        5,
+        2
+      ],
+      [
+        5,
+        6
+      ],
+      [
+        5,
+        8
+      ],
+      [
+        5,
+        10
+      ],
+      [
+        5,
+        12
+      ],
+      [
+        6,
+        2
+      ],
+      [
+        6,
+        6
+      ],
+      [
+        6,
+        8
+      ],
+      [
+        6,
+        10
+      ],
+      [
+        6,
+        12
+      ],
+      [
+        7,
+        2
+      ],
+      [
+        7,
+        6
+      ],
+      [
+        7,
+        8
+      ],
+      [
+        7,
+        10
+      ],
+      [
+        7,
+        12
+      ]
+    ],
+    "oh": [
+      [
+        0,
+        14
+      ],
+      [
+        1,
+        14
+      ],
+      [
+        2,
+        14
+      ],
+      [
+        3,
+        14
+      ],
+      [
+        4,
+        14
+      ],
+      [
+        5,
+        14
+      ],
+      [
+        6,
+        14
+      ],
+      [
+        7,
+        14
+      ]
+    ]
+  },
+  "four_on_the_floor": true,
+  "bass": [
+    {
+      "bar": 0,
+      "step": 8,
+      "length": 1,
+      "midi": 36
+    },
+    {
+      "bar": 0,
+      "step": 10,
+      "length": 1,
+      "midi": 40
+    },
+    {
+      "bar": 0,
+      "step": 11,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 0,
+      "step": 12,
+      "length": 1,
+      "midi": 31
+    },
+    {
+      "bar": 0,
+      "step": 14,
+      "length": 1,
+      "midi": 40
+    },
+    {
+      "bar": 0,
+      "step": 15,
+      "length": 1,
+      "midi": 38
+    },
+    {
+      "bar": 1,
+      "step": 0,
+      "length": 8,
+      "midi": 33
+    },
+    {
+      "bar": 1,
+      "step": 8,
+      "length": 1,
+      "midi": 31
+    },
+    {
+      "bar": 1,
+      "step": 9,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 1,
+      "step": 10,
+      "length": 1,
+      "midi": 38
+    },
+    {
+      "bar": 1,
+      "step": 12,
+      "length": 1,
+      "midi": 40
+    },
+    {
+      "bar": 1,
+      "step": 13,
+      "length": 1,
+      "midi": 36
+    },
+    {
+      "bar": 1,
+      "step": 14,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 2,
+      "step": 0,
+      "length": 8,
+      "midi": 33
+    },
+    {
+      "bar": 2,
+      "step": 8,
+      "length": 1,
+      "midi": 36
+    },
+    {
+      "bar": 2,
+      "step": 10,
+      "length": 1,
+      "midi": 40
+    },
+    {
+      "bar": 2,
+      "step": 11,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 2,
+      "step": 12,
+      "length": 1,
+      "midi": 31
+    },
+    {
+      "bar": 2,
+      "step": 14,
+      "length": 1,
+      "midi": 40
+    },
+    {
+      "bar": 2,
+      "step": 15,
+      "length": 1,
+      "midi": 38
+    },
+    {
+      "bar": 3,
+      "step": 0,
+      "length": 8,
+      "midi": 33
+    },
+    {
+      "bar": 3,
+      "step": 8,
+      "length": 1,
+      "midi": 31
+    },
+    {
+      "bar": 3,
+      "step": 9,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 3,
+      "step": 10,
+      "length": 1,
+      "midi": 38
+    },
+    {
+      "bar": 3,
+      "step": 12,
+      "length": 1,
+      "midi": 40
+    },
+    {
+      "bar": 3,
+      "step": 13,
+      "length": 1,
+      "midi": 36
+    },
+    {
+      "bar": 3,
+      "step": 14,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 4,
+      "step": 0,
+      "length": 8,
+      "midi": 33
+    },
+    {
+      "bar": 4,
+      "step": 8,
+      "length": 1,
+      "midi": 36
+    },
+    {
+      "bar": 4,
+      "step": 10,
+      "length": 1,
+      "midi": 40
+    },
+    {
+      "bar": 4,
+      "step": 11,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 4,
+      "step": 12,
+      "length": 1,
+      "midi": 31
+    },
+    {
+      "bar": 4,
+      "step": 14,
+      "length": 1,
+      "midi": 40
+    },
+    {
+      "bar": 4,
+      "step": 15,
+      "length": 1,
+      "midi": 38
+    },
+    {
+      "bar": 5,
+      "step": 0,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 5,
+      "step": 1,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 5,
+      "step": 2,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 5,
+      "step": 3,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 5,
+      "step": 4,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 5,
+      "step": 5,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 5,
+      "step": 6,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 5,
+      "step": 7,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 5,
+      "step": 8,
+      "length": 1,
+      "midi": 31
+    },
+    {
+      "bar": 5,
+      "step": 9,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 5,
+      "step": 10,
+      "length": 1,
+      "midi": 38
+    },
+    {
+      "bar": 5,
+      "step": 12,
+      "length": 1,
+      "midi": 40
+    },
+    {
+      "bar": 5,
+      "step": 13,
+      "length": 1,
+      "midi": 36
+    },
+    {
+      "bar": 5,
+      "step": 14,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 6,
+      "step": 0,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 6,
+      "step": 1,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 6,
+      "step": 2,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 6,
+      "step": 3,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 6,
+      "step": 4,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 6,
+      "step": 5,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 6,
+      "step": 6,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 6,
+      "step": 7,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 6,
+      "step": 8,
+      "length": 1,
+      "midi": 36
+    },
+    {
+      "bar": 6,
+      "step": 10,
+      "length": 1,
+      "midi": 40
+    },
+    {
+      "bar": 6,
+      "step": 11,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 6,
+      "step": 12,
+      "length": 1,
+      "midi": 31
+    },
+    {
+      "bar": 6,
+      "step": 14,
+      "length": 1,
+      "midi": 40
+    },
+    {
+      "bar": 6,
+      "step": 15,
+      "length": 1,
+      "midi": 38
+    },
+    {
+      "bar": 7,
+      "step": 0,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 7,
+      "step": 1,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 7,
+      "step": 2,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 7,
+      "step": 3,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 7,
+      "step": 4,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 7,
+      "step": 5,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 7,
+      "step": 6,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 7,
+      "step": 7,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 7,
+      "step": 8,
+      "length": 1,
+      "midi": 31
+    },
+    {
+      "bar": 7,
+      "step": 9,
+      "length": 1,
+      "midi": 33
+    },
+    {
+      "bar": 7,
+      "step": 10,
+      "length": 1,
+      "midi": 38
+    },
+    {
+      "bar": 7,
+      "step": 12,
+      "length": 1,
+      "midi": 40
+    },
+    {
+      "bar": 7,
+      "step": 13,
+      "length": 1,
+      "midi": 36
+    },
+    {
+      "bar": 7,
+      "step": 14,
+      "length": 1,
+      "midi": 33
+    }
+  ],
+  "bass_harmonics": 0.4835108727925336,
+  "chords": [
+    "Am",
+    "F",
+    "C",
+    "G",
+    "Am",
+    "F",
+    "C",
+    "G"
+  ],
+  "melody": null,
+  "bass_loop": {
+    "period": 2,
+    "templates": [
+      [
+        {
+          "bar": 0,
+          "step": 0,
+          "length": 8,
+          "midi": 33
+        },
+        {
+          "bar": 0,
+          "step": 8,
+          "length": 1,
+          "midi": 36
+        },
+        {
+          "bar": 0,
+          "step": 10,
+          "length": 1,
+          "midi": 40
+        },
+        {
+          "bar": 0,
+          "step": 11,
+          "length": 1,
+          "midi": 33
+        },
+        {
+          "bar": 0,
+          "step": 12,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 14,
+          "length": 1,
+          "midi": 40
+        },
+        {
+          "bar": 0,
+          "step": 15,
+          "length": 1,
+          "midi": 38
+        }
+      ],
+      [
+        {
+          "bar": 0,
+          "step": 0,
+          "length": 8,
+          "midi": 33
+        },
+        {
+          "bar": 0,
+          "step": 8,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 9,
+          "length": 1,
+          "midi": 33
+        },
+        {
+          "bar": 0,
+          "step": 10,
+          "length": 1,
+          "midi": 38
+        },
+        {
+          "bar": 0,
+          "step": 12,
+          "length": 1,
+          "midi": 40
+        },
+        {
+          "bar": 0,
+          "step": 13,
+          "length": 1,
+          "midi": 36
+        },
+        {
+          "bar": 0,
+          "step": 14,
+          "length": 1,
+          "midi": 33
+        }
+      ]
+    ],
+    "layer": [
+      [
+        {
+          "bar": 0,
+          "step": 1,
+          "length": 1,
+          "midi": 33
+        },
+        {
+          "bar": 0,
+          "step": 2,
+          "length": 1,
+          "midi": 33
+        },
+        {
+          "bar": 0,
+          "step": 3,
+          "length": 1,
+          "midi": 33
+        },
+        {
+          "bar": 0,
+          "step": 4,
+          "length": 1,
+          "midi": 33
+        },
+        {
+          "bar": 0,
+          "step": 5,
+          "length": 1,
+          "midi": 33
+        },
+        {
+          "bar": 0,
+          "step": 6,
+          "length": 1,
+          "midi": 33
+        },
+        {
+          "bar": 0,
+          "step": 7,
+          "length": 1,
+          "midi": 33
+        }
+      ]
+    ],
+    "layer_bars": [
+      6,
+      8
+    ],
+    "match": 0.92,
+    "match_with_layer": 0.9
+  }
+}
