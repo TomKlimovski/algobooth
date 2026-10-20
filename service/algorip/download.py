@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -64,17 +65,35 @@ def probe_ffmpeg() -> str | None:
     return shutil.which("ffmpeg")
 
 
+def _write_json(path: Path, data: dict) -> None:
+    """Write via a temporary sibling, so an interrupted write never leaves a half-written sidecar."""
+    partial = path.with_name(f"{path.name}.partial")
+    partial.write_text(json.dumps(data))
+    os.replace(partial, path)
+
+
+def _read_json(path: Path, *keys: str) -> dict | None:
+    """The sidecar's data, or None when it is missing, unreadable or lacks a key: a cache miss."""
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict) or not all(isinstance(data.get(k), str) for k in keys):
+        return None
+    return data
+
+
 def _cached_source(url: str, cache_dir: Path, fetch: Fetcher) -> tuple[DownloadInfo, Path]:
     folder = cache_dir / "sources" / source_key(url)
     sidecar = folder / "info.json"
-    if sidecar.exists():
-        data = json.loads(sidecar.read_text())
+    data = _read_json(sidecar, "path", "title")
+    if data is not None:
         info = DownloadInfo(path=Path(data["path"]), title=data["title"])
         if info.path.exists():
             return info, folder
     folder.mkdir(parents=True, exist_ok=True)
     info = fetch(url, folder)
-    sidecar.write_text(json.dumps({"path": str(info.path), "title": info.title}))
+    _write_json(sidecar, {"path": str(info.path), "title": info.title})
     return info, folder
 
 
@@ -91,8 +110,9 @@ def fetch_clip(
     clips = cache_dir / "clips"
     clip = clips / f"{key}.wav"
     meta = clips / f"{key}.json"
-    if clip.exists() and meta.exists():
-        return clip, json.loads(meta.read_text())["title"]
+    cached = _read_json(meta, "title")
+    if clip.exists() and cached is not None:
+        return clip, cached["title"]
 
     clips.mkdir(parents=True, exist_ok=True)
     info, folder = _cached_source(url, cache_dir, fetch)
@@ -102,7 +122,7 @@ def fetch_clip(
         tmp.replace(clip)
     finally:
         tmp.unlink(missing_ok=True)
-    meta.write_text(json.dumps({"title": info.title}))
+    _write_json(meta, {"title": info.title})
     if not keep_downloads:
         shutil.rmtree(folder, ignore_errors=True)
     return clip, info.title
