@@ -6,7 +6,6 @@ import type { DeckApi } from '../booth/Deck';
 import { evaluateExclusive } from '../engine/evalLock';
 import { installMixer, RIP_ORBIT } from '../engine/mixer';
 import { initEngine } from '../engine/strudel';
-import { acceptReplCode } from './resultCode';
 
 export interface ResultApi {
   /** Evaluates the editor's code under the app-wide eval lock and starts it (Play). */
@@ -66,14 +65,17 @@ export function ResultEditor(props: {
       onToggle: (started: boolean) => onToggle.forEach((f) => f(started)),
       onEvalError: (e: unknown) => setError(String(e)),
       afterEval: () => setError(null),
-      // The repl reports its whole state on every change (start, stop, pending...), and until the
-      // document first changes its code is Strudel's "// LOADING" placeholder. Only the editor's
-      // own text is the user's edit: anything else would overwrite the generated code.
-      onUpdateState: (s: { code: string }) => {
-        if (acceptReplCode(s.code, mirror?.code ?? '', props.code)) props.onChange(s.code);
-      },
     });
     mirror.evaluate = lockedEvaluate;
+    // Edits come from the document, which the editor reports through the repl's setCode on every change.
+    // The repl's own state reports (onUpdateState) are not used: a start or stop echoes the repl's last
+    // code, and in the moment between the store changing and the editor following it, that echo would
+    // overwrite the new code with the old one.
+    const replSetCode = mirror.repl.setCode;
+    mirror.repl.setCode = (code: string) => {
+      replSetCode(code);
+      if (code !== props.code) props.onChange(code);
+    };
     // Code that arrived before the editor existed (a rip finishing on another tab) goes in now.
     if (mirror.code !== props.code) mirror.setCode(props.code);
     // The document-wide `repl-evaluate` (Vim :w on a deck) must not start the hidden rip result.
