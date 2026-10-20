@@ -29,7 +29,7 @@ Patterns live in `~/Algobooth/library` as plain JSON files (change the folder in
 
 ## Rip
 
-The Rip tab sends a YouTube link and a start and end time to a local Python service (`service/`, package `algorip`), which downloads the clip, separates it into stems with Demucs, works out tempo, key, drums, bass and chords, and writes Strudel code for it. The app starts and stops the service itself.
+The Rip tab sends a YouTube link and a start and end time to a local Python service (`service/`, package `algorip`), which downloads the clip, separates it into stems with Demucs, works out tempo, key, drums, bass and chords, and writes Strudel code for it: one named line per part (`drums:`, `hats:`, `bass:`, `chords:`, `melody:`), so you can mute one by writing `_bass:` in front of it. The app starts and stops the service itself.
 
 Set it up once, alongside the steps above (needs [uv](https://docs.astral.sh/uv/)):
 

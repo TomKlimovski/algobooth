@@ -31,7 +31,7 @@ The point of the rip is a starting sketch and an understanding of how a groove i
 
 ## Anti-goals
 
-- A rip that produces a wall of numbers. The output must read like something a person wrote in Strudel: short lines, mini-notation, one `$:` per instrument, a `setcpm` at the top.
+- A rip that produces a wall of numbers. The output must read like something a person wrote in Strudel: short lines, mini-notation, one named line per instrument (`drums:`, `bass:`...), a `setcpm` at the top.
 - A booth that stutters. Two editors and two visualisers redrawing must not cause audio glitches.
 - Anything that needs internet during a performance.
 - Putting "strudel" in the product name. Strudel's FAQ asks derived projects not to.
@@ -97,7 +97,7 @@ Leaf file format:
 ```json
 {
   "name": "around the world 1:12",
-  "code": "setcpm(126/4)\n$: s(\"bd*4, [~ cp]*2, hh*8\").bank(\"tr909\")\n...",
+  "code": "setcpm(126/4)\ndrums: s(\"bd*4, [~ cp]*2, hh*8\").bank(\"tr909\")\n...",
   "cpm": 126,
   "key": "A minor",
   "tags": ["house", "4/4"],
@@ -145,7 +145,7 @@ Runs in the Python service. Stages, each a separate module with a plain data int
 6. **Bass.** Basic Pitch on the bass stem gives note events. Quantise to the grid, snap to the estimated key when within a semitone, collapse to one monophonic line.
 7. **Chords and melody.** Chord estimation per bar on the "other" stem by template matching against the chroma. A `chord("<...>")` line results. Melody from Basic Pitch on "other" is included only when a clear monophonic line is present, otherwise omitted.
 8. **Sound choice.** Rules, not learning: four-on-the-floor at 118 to 132 cpm suggests `bank("tr909")`; breakbeats suggest `bank("tr808")` or a break sample; bass with strong harmonics suggests `sawtooth` with a low-pass, a cleaner bass suggests `sine` or `triangle`. Reverb and filter values are coarse guesses.
-9. **Generate.** A deterministic Strudel code generator that emits: `setcpm`, one `$:` line per drum voice group, one for bass, one for chords, optional melody, each with the sound and effect choices. Uses `<>` for things that change per bar, `*` and `[]` for subdivisions, and Euclidean notation when a pattern matches one. Output is formatted for reading, not minimal.
+9. **Generate.** A deterministic Strudel code generator that emits: `setcpm`, one named line (`drums:`, `hats:`, `bass:`, `chords:`, `melody:`) per part, so a part can be muted with a leading underscore (`_bass:`), each with the sound and effect choices. Uses `<>` for things that change per bar, `*` and `[]` for subdivisions, and Euclidean notation when a pattern matches one. Output is formatted for reading, not minimal.
 10. **Optional tidy.** If a Claude API key is set and the machine is online, the generated code plus a compact analysis summary is sent to Claude with instructions to make the code more idiomatic without changing what it plays. The user sees both versions and picks. Off by default; the app must work fully without it.
 
 The service exposes a small local HTTP API on localhost with a per-launch random port and token: `POST /rip` starts a job, `GET /rip/{id}` reports stage progress and the result, `GET /rip/{id}/stem/{name}` streams a stem for audition.

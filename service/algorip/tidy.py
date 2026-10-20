@@ -12,7 +12,8 @@ TIDY_SYSTEM = (
     "You tidy short Strudel live-coding patterns. Return only the code, no fences and no commentary. "
     "Make it more idiomatic and readable without changing what it plays: keep every setcpm value, every sound, "
     "every note and every rhythm exactly as given. Do not rename anything. You may reorder lines, merge voices "
-    "into one mini-notation string, use Euclidean notation, and add brief comments."
+    "into one mini-notation string, use Euclidean notation, and add brief comments. Each line is a named pattern "
+    "(drums:, hats:, bass:, chords:, melody:): keep those names on the lines they belong to."
 )
 
 Chat = Callable[[str, str, str], str]  # (system, user, api_key) -> reply text

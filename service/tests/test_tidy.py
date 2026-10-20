@@ -86,3 +86,4 @@ def test_anthropic_chat_cut_off_at_max_tokens_is_a_tidy_error(monkeypatch):
 
 def test_the_prompt_forbids_renaming_in_its_own_sentence():
     assert "Do not rename anything. You may reorder lines" in TIDY_SYSTEM
+    assert "keep those names on the lines they belong to" in TIDY_SYSTEM

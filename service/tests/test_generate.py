@@ -24,7 +24,7 @@ def test_generated_code_has_no_walls_of_numbers():
     a = Analysis.model_validate_json((GOLDEN / "house.analysis.json").read_text())
     code = generate(a, choose_sounds(a), "t", 0, 16)
     assert max(len(line) for line in code.splitlines()) < 100
-    assert code.count("$:") == 4
+    assert [line.split(":")[0] for line in code.splitlines() if ": " in line and not line.startswith("//")] == ["drums", "hats", "bass", "chords"]
 
 
 def test_one_bar_is_singular_and_an_empty_melody_writes_no_voice():
