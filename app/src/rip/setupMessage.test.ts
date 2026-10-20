@@ -22,7 +22,7 @@ test('messages per state', () => {
 test('the first-run wording and the install stages', () => {
   expect(setupMessage(status())).toEqual({
     title: 'One-time download',
-    body: 'Algobooth needs PyTorch and the Demucs separation model, about 2 GB. This happens once; after that ripping works offline.',
+    body: 'Algobooth needs PyTorch and the Demucs separation model, about 600 MB. This happens once; after that ripping works offline.',
     action: 'download',
   });
   for (const stage of [null, 'packages']) {

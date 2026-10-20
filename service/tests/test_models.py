@@ -1,3 +1,4 @@
+import hashlib
 import os
 import sys
 import threading
@@ -13,7 +14,9 @@ from algorip.pipeline import Paths
 
 TOKEN = "s3cret"
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
-URL = f"https://w/{HTDEMUCS_SIGNATURE}-8726e21a.th"
+WEIGHTS = b"w"
+WEIGHTS_NAME = f"{HTDEMUCS_SIGNATURE}-{hashlib.sha256(WEIGHTS).hexdigest()[:8]}.th"  # as torch hub names them
+URL = f"https://w/{WEIGHTS_NAME}"
 
 
 def target(cmd):
@@ -72,7 +75,7 @@ def test_install_runs_pip_then_downloads_weights(tmp_path):
     status = store.status()
     assert status.ready and status.error is None and not status.installing and status.progress == 1.0
     assert (tmp_path / "site" / ".installed").read_text().split("\n") == ML_PACKAGES
-    assert (tmp_path / "torch/hub/checkpoints/955717e8-8726e21a.th").read_bytes() == b"w"
+    assert (tmp_path / "torch/hub/checkpoints" / WEIGHTS_NAME).read_bytes() == WEIGHTS
     assert not list((tmp_path / "torch/hub/checkpoints").glob("*.part"))
 
 
@@ -160,6 +163,29 @@ def test_a_failed_pip_leaves_site_alone_and_no_partial_folder(tmp_path):
     assert list(tmp_path.glob("site.partial-*")) == []
 
 
+def test_weights_that_fail_their_hash_are_an_install_error(tmp_path):
+    def damaged(url, path, on_fraction):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"not the weights")
+
+    store = ModelStore(tmp_path, run=fake_run(tmp_path, []), download=damaged, resolve_url=lambda: URL)
+    store.install(); store.wait(5)
+    s = store.status()
+    assert s.error.startswith("The downloaded model weights are damaged") and not s.weights_present
+    assert list((tmp_path / "torch/hub/checkpoints").iterdir()) == []  # no .part left, nothing renamed
+    assert s.torch_installed  # the packages stay; a retry fetches only the weights
+
+
+def test_check_weights_reads_the_hash_prefix_from_the_name(tmp_path):
+    from algorip.models import check_weights
+    f = tmp_path / "w.th"
+    f.write_bytes(WEIGHTS)
+    check_weights(f, WEIGHTS_NAME)
+    check_weights(f, WEIGHTS_NAME.upper())
+    with pytest.raises(RuntimeError, match="damaged"):
+        check_weights(f, f"{HTDEMUCS_SIGNATURE}-8726e21a.th")
+
+
 def test_store_stop_stops_its_runner(tmp_path):
     class Runner:
         stopped = False
@@ -230,7 +256,7 @@ def test_download_failure_leaves_no_weights_and_keeps_packages(tmp_path):
     store.install(); store.wait(5)
     s = store.status()
     assert s.error == "connection reset" and s.torch_installed and not s.weights_present and not s.installing
-    assert not (tmp_path / "torch/hub/checkpoints/955717e8-8726e21a.th").exists()
+    assert not (tmp_path / "torch/hub/checkpoints" / WEIGHTS_NAME).exists()
 
     store = ModelStore(tmp_path, run=fake_run(tmp_path, calls), download=fake_download, resolve_url=lambda: URL)
     store.install(); store.wait(5)

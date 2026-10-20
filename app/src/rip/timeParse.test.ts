@@ -32,6 +32,11 @@ test('window rules (review focus 2)', () => {
   expect(validateWindow(88, 72)).toBe('End must be after start');
   expect(validateWindow(72, 72)).toBe('End must be after start');
   expect(validateWindow(0, 61)).toBe('Clip must be 60 seconds or less');
+  expect(64.4 - 4.4).toBeGreaterThan(60); // the float error the epsilon absorbs
+  expect(validateWindow(4.4, 64.4)).toBeNull();
+  expect(validateWindow(12.1, 72.1)).toBeNull();
+  expect(validateWindow(parseTime('0:04.4'), parseTime('1:04.4'))).toBeNull();
+  expect(validateWindow(12.1, 72.2)).toBe('Clip must be 60 seconds or less');
   expect(validateWindow(0, 60)).toBeNull();
   expect(validateWindow(null, 5)).toBe('Enter a start time like 1:12 or 72');
   expect(validateWindow(5, null)).toBe('Enter an end time');

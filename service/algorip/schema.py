@@ -7,6 +7,7 @@ from pydantic import BaseModel, model_validator
 from algorip.notes import Note
 
 MAX_CLIP_SECONDS = 60
+_CLIP_EPSILON = 1e-6  # 64.4 - 4.4 is 60.00000000000001 in binary floating point, still 60 s
 
 
 class Analysis(BaseModel):
@@ -48,7 +49,7 @@ class RipRequest(BaseModel):
             raise ValueError("URL must start with http:// or https://")
         if not 0 <= self.start < self.end:
             raise ValueError("Start must be at least 0 and before the end")
-        if self.end - self.start > MAX_CLIP_SECONDS:
+        if self.end - self.start > MAX_CLIP_SECONDS + _CLIP_EPSILON:
             raise ValueError("Clip must be 60 seconds or less")
         return self
 

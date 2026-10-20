@@ -96,7 +96,13 @@ export function App() {
         active={tab()}
         onSelect={setTab}
         tabs={[
-          { id: 'booth', label: 'Booth', view: () => <Booth library={library} onDecks={(get) => (boothDecks = get)} /> },
+          {
+            id: 'booth',
+            label: 'Booth',
+            view: () => (
+              <Booth library={library} onDecks={(get) => (boothDecks = get)} active={() => tab() === 'booth'} />
+            ),
+          },
           {
             id: 'rip',
             label: 'Rip',

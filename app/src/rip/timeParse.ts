@@ -2,6 +2,8 @@
 
 /** The service refuses longer clips (`MAX_CLIP_SECONDS` in service/algorip/schema.py). */
 export const MAX_CLIP_SECONDS = 60;
+/** Decimal times are not exact in binary: 64.4 - 4.4 is 60.00000000000001, which is still 60 s. */
+const CLIP_EPSILON = 1e-6;
 
 const NUMBER = /^\d+(\.\d+)?$/;
 const PART = /^\d+$/;
@@ -37,7 +39,7 @@ export function validateWindow(start: number | null, end: number | null): string
   if (start === null) return 'Enter a start time like 1:12 or 72';
   if (end === null) return 'Enter an end time';
   if (end <= start) return 'End must be after start';
-  if (end - start > MAX_CLIP_SECONDS) return 'Clip must be 60 seconds or less';
+  if (end - start > MAX_CLIP_SECONDS + CLIP_EPSILON) return 'Clip must be 60 seconds or less';
   return null;
 }
 

@@ -76,3 +76,13 @@ def test_anthropic_chat_refusal_becomes_a_tidy_error(monkeypatch):
     _fake(monkeypatch, SimpleNamespace(stop_reason="refusal", content=[]))
     out, err = tidy(CODE, ANALYSIS, SOUNDS, "k", chat=tidy_module.anthropic_chat)
     assert (out, err) == (None, "Claude declined to tidy this pattern")
+
+
+def test_anthropic_chat_cut_off_at_max_tokens_is_a_tidy_error(monkeypatch):
+    _fake(monkeypatch, SimpleNamespace(stop_reason="max_tokens", content=[SimpleNamespace(type="text", text="$: s(")]))
+    out, err = tidy(CODE, ANALYSIS, SOUNDS, "k", chat=tidy_module.anthropic_chat)
+    assert out is None and err == "Tidy ran out of room before the code was finished"
+
+
+def test_the_prompt_forbids_renaming_in_its_own_sentence():
+    assert "Do not rename anything. You may reorder lines" in TIDY_SYSTEM

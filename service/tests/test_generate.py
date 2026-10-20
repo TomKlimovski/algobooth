@@ -25,3 +25,11 @@ def test_generated_code_has_no_walls_of_numbers():
     code = generate(a, choose_sounds(a), "t", 0, 16)
     assert max(len(line) for line in code.splitlines()) < 100
     assert code.count("$:") == 4
+
+
+def test_one_bar_is_singular_and_an_empty_melody_writes_no_voice():
+    a = Analysis.model_validate_json((GOLDEN / "house.analysis.json").read_text())
+    one = a.model_copy(update={"bars": 1, "melody": []})
+    code = generate(one, choose_sounds(one), "t", 0, 2)
+    assert "· 1 bar\n" in code and "triangle" not in code
+    assert "· 4 bars\n" in generate(a, choose_sounds(a), "t", 0, 8)

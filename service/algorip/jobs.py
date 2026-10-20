@@ -106,7 +106,7 @@ def start(store: JobStore, job: Job, work: Work) -> threading.Thread:
             result, stem_dir = work(job)
         except Cancelled:
             store.mark_cancelled(job.id)
-        except Exception as exc:  # noqa: BLE001 - any pipeline failure is reported on the job
+        except BaseException as exc:  # noqa: BLE001 - anything, even SystemExit, must end the job, never leave it running
             store.fail(job.id, str(exc) or type(exc).__name__)
         else:
             store.finish(job.id, result, stem_dir)

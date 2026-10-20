@@ -28,6 +28,15 @@ const files = Object.keys(golden).sort();
 
 if (files.length === 0) throw new Error('no golden .strudel files in service/tests/golden'); // never pass vacuously
 
+test('the glob sees every golden on disk (a cached glob would skip new files)', async () => {
+  // Node's fs, typed by hand: the app's tsconfig has no Node types. Vitest runs from the repo root.
+  const fs: { readdirSync(dir: string): string[] } = await import(/* @vite-ignore */ `node:${'fs'}`);
+  const cwd: string = (globalThis as unknown as { process: { cwd(): string } }).process.cwd();
+  const onDisk = fs.readdirSync(`${cwd}/service/tests/golden`).filter((f) => f.endsWith('.strudel'));
+  expect(onDisk.length).toBeGreaterThan(0);
+  expect(files.length).toBe(onDisk.length);
+});
+
 test.each(files)('%s evaluates headlessly and plays in its first cycle', async (file: string) => {
   const code = golden[file];
   const r = core.repl({ transpiler, defaultOutput: async () => {}, getTime: () => 0 });

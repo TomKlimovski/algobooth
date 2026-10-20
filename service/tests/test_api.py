@@ -138,6 +138,31 @@ def test_cancel(client, fake):
     assert client.post("/rip", json=BODY, headers=AUTH).status_code == 202
 
 
+def test_a_job_that_raises_a_base_exception_still_ends():
+    from algorip.jobs import JobStore
+    from algorip.jobs import start as start_job
+    from algorip.schema import RipRequest
+
+    store = JobStore()
+    job = store.create(RipRequest(**BODY))
+
+    def work(job):
+        raise SystemExit(3)
+
+    start_job(store, job, work).join(5)
+    status = store.get(job.id).status
+    assert status.status == "failed" and status.error == "3"
+
+
+def test_the_60_second_limit_allows_float_error():
+    from algorip.schema import RipRequest
+    assert 64.4 - 4.4 > 60
+    assert RipRequest(url="https://x/v", start=4.4, end=64.4).end == 64.4
+    assert RipRequest(url="https://x/v", start=12.1, end=72.1).end == 72.1
+    with pytest.raises(ValueError, match="60 seconds"):
+        RipRequest(url="https://x/v", start=12.1, end=72.2)
+
+
 def test_cancel_a_queued_job_at_once():
     from algorip.jobs import JobStore
     from algorip.schema import RipRequest

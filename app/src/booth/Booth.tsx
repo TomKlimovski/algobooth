@@ -23,6 +23,8 @@ export function Booth(props: {
   library: LibraryStore;
   /** Hands the owner a getter for the mounted decks, so the library can load into them. */
   onDecks?: (decks: () => Record<DeckId, DeckApi | null>) => void;
+  /** Whether the Booth tab is showing; Space is the transport key only then. The Booth stays mounted. */
+  active?: () => boolean;
 }) {
   const booth = createBoothState();
   props.onDecks?.(() => booth.state.decks);
@@ -105,7 +107,7 @@ export function Booth(props: {
   const stopAll = () => DECK_IDS.forEach((id) => booth.state.decks[id]?.stop());
   const anyStarted = () => DECK_IDS.some((id) => booth.state.decks[id]?.scheduler.started);
   const onKey = (e: KeyboardEvent) => {
-    if (!ready() || !isTransportKey(e)) return;
+    if (!ready() || !isTransportKey(e, props.active?.() ?? true)) return;
     e.preventDefault();
     if (transportAction(anyStarted()) === 'stop') stopAll();
     else masterPlay();

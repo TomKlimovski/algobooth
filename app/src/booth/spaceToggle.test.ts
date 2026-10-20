@@ -18,6 +18,11 @@ test('Space inside an editor, input or button is left alone', () => {
   expect(isTransportKey(key('Space', document.createElement('button')))).toBe(false);
 });
 
+test('Space does nothing while another tab is showing', () => {
+  expect(isTransportKey(key('Space', document.body), false)).toBe(false);
+  expect(isTransportKey(key('Space', document.body), true)).toBe(true);
+});
+
 test('transport action stops if anything plays, else starts', () => {
   expect(transportAction(true)).toBe('stop');
   expect(transportAction(false)).toBe('start');

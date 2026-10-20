@@ -5,6 +5,7 @@ pinned ML packages into `models_dir/site` and downloads the htdemucs checkpoint
 into the torch hub cache under `models_dir/torch`, where `demucs_separator` finds them.
 """
 
+import hashlib
 import os
 import shutil
 import signal
@@ -71,6 +72,21 @@ def httpx_download(url: str, path: Path, on_fraction: Callable[[float], None],
                     done += len(chunk)
                     if total:
                         on_fraction(min(done / total, 1.0))
+
+
+def check_weights(path: Path, name: str) -> None:
+    """Raise unless path's SHA-256 starts with the hash in name (`<signature>-<sha256 prefix>.th`).
+
+    torch hub names its checkpoints this way and checks the same prefix when it downloads them.
+    """
+    expected = name.rsplit(".", 1)[0].rsplit("-", 1)[-1].lower()
+    digest = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(CHUNK), b""):
+            digest.update(chunk)
+    if not digest.hexdigest().startswith(expected):
+        raise RuntimeError(f"The downloaded model weights are damaged (expected sha256 {expected}…, "
+                           f"got {digest.hexdigest()[:len(expected)]}…); try again")
 
 
 class GroupRunner:
@@ -225,6 +241,7 @@ class ModelStore:
         try:
             self.download(url, partial,
                           lambda f: self._set("weights", PACKAGES_SHARE + (1 - PACKAGES_SHARE) * f))
+            check_weights(partial, final.name)
             os.replace(partial, final)
         finally:
             partial.unlink(missing_ok=True)

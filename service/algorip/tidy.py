@@ -11,8 +11,8 @@ TIDY_MODEL = "claude-opus-5-5"
 TIDY_SYSTEM = (
     "You tidy short Strudel live-coding patterns. Return only the code, no fences and no commentary. "
     "Make it more idiomatic and readable without changing what it plays: keep every setcpm value, every sound, "
-    "every note and every rhythm exactly as given. You may rename nothing, reorder lines, merge voices into one "
-    "mini-notation string, use Euclidean notation, and add brief comments."
+    "every note and every rhythm exactly as given. Do not rename anything. You may reorder lines, merge voices "
+    "into one mini-notation string, use Euclidean notation, and add brief comments."
 )
 
 Chat = Callable[[str, str, str], str]  # (system, user, api_key) -> reply text
@@ -47,6 +47,8 @@ def anthropic_chat(system: str, user: str, api_key: str) -> str:
     )
     if response.stop_reason == "refusal":
         raise RuntimeError("Claude declined to tidy this pattern")
+    if response.stop_reason == "max_tokens":
+        raise RuntimeError("Tidy ran out of room before the code was finished")
     return "".join(block.text for block in response.content if block.type == "text")
 
 

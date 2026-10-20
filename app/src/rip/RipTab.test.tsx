@@ -176,7 +176,7 @@ test('missing models show the one-time download in place of the columns', async 
   mount();
   await flush();
   expect(root.textContent).toContain('One-time download');
-  expect(root.textContent).toContain('about 2 GB');
+  expect(root.textContent).toContain('about 600 MB');
   expect(root.querySelector('.rip-columns')).toBeNull();
   h.state.models = { ...h.ready, ready: false, installing: true, stage: 'weights', progress: 0.6 };
   button('Download now')!.click();

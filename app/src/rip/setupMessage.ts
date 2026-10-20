@@ -26,7 +26,7 @@ export function setupMessage(m: ModelStatus): SetupMessage {
   if (m.error) return { title: 'Download failed', body: m.error, action: 'retry' };
   return {
     title: 'One-time download',
-    body: 'Algobooth needs PyTorch and the Demucs separation model, about 2 GB. This happens once; after that ripping works offline.',
+    body: 'Algobooth needs PyTorch and the Demucs separation model, about 600 MB. This happens once; after that ripping works offline.',
     action: 'download',
   };
 }

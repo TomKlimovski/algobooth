@@ -33,7 +33,7 @@ def _drum_line(a: Analysis, s: SoundChoice, voices: list[tuple[str, str]]) -> st
 def generate(a: Analysis, s: SoundChoice, title: str, start: float, end: float) -> str:
     cpm = round(a.bpm)
     head = [
-        f"// {title} {fmt_time(start)} to {fmt_time(end)} · {cpm} cpm · {a.key} · {a.bars} bars",
+        f"// {title} {fmt_time(start)} to {fmt_time(end)} · {cpm} cpm · {a.key} · {a.bars} bar{'' if a.bars == 1 else 's'}",
         f"setcpm({cpm}/4)",
         "",
     ]
@@ -50,6 +50,6 @@ def generate(a: Analysis, s: SoundChoice, title: str, start: float, end: float) 
             f'$: chord("{cycle(a.chords)}").voicing().s("{s.chord_sound}")'
             f".lpf({s.chord_lpf}).room({s.room}).gain(0.6)"
         )
-    if a.melody is not None:
+    if a.melody:  # None (no melody stem) or an empty line: no melody voice
         body.append(f'$: note("{notes_mini(a.melody, a.bars)}").s("triangle").gain(0.5)')
     return "\n".join(head + [line for line in body if line is not None]) + "\n"
