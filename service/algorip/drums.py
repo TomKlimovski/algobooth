@@ -28,6 +28,13 @@ _WAIT_SECONDS = 0.05  # minimum gap between onsets in one band
 # pre-ringing cut off reads as a much louder onset than the same hit mid-file.
 _LEAD_IN_SECONDS = 0.1
 
+# A band whose peak RMS (5 ms hops) is under this fraction of the whole stem's carries only
+# leakage from other voices, and gets no onsets: the onset threshold is relative to the band's
+# own envelope, so leakage alone would otherwise read as hits. Measured on the synthetic kits,
+# leakage peaks at -18.8 dB (hats into the snare band) and real voices sit at -7.9 dB or louder;
+# -15 dB splits them. (-30 dB, the starting point, let the leakage through.)
+_BAND_GATE = 10.0 ** (-15.0 / 20.0)
+
 _KICK_BAND = (None, 150.0)
 _SNARE_BAND = (200.0, 2500.0)
 _HAT_BAND = (6000.0, None)
@@ -55,10 +62,22 @@ def band(y: np.ndarray, sr: int, low: float | None, high: float | None) -> np.nd
     return signal.sosfiltfilt(sos, np.asarray(y, dtype=float))
 
 
+def _rms_envelope(y: np.ndarray, sr: int) -> np.ndarray:
+    """RMS of y over consecutive 5 ms hops."""
+    hop = max(1, round(_DECAY_HOP_SECONDS * sr))
+    frames = len(y) // hop
+    return np.sqrt(np.mean(np.asarray(y[: frames * hop]).reshape(frames, hop) ** 2, axis=1))
+
+
+def _peak_rms(y: np.ndarray, sr: int) -> float:
+    env = _rms_envelope(y, sr)
+    return float(env.max()) if len(env) else 0.0
+
+
 def band_onsets(
     y: np.ndarray, sr: int, low: float | None, high: float | None, delta: float = _DELTA
 ) -> np.ndarray:
-    """Onset times in seconds of y's energy in one band.
+    """Onset times in seconds of y's energy in one band; none when the band is gated out as leakage.
 
     librosa takes `wait` in frames, so 50 ms is converted at the onset envelope's hop. librosa
     min-max normalises the envelope (normalize=True) before peak picking, and the lead-in silence
@@ -67,7 +86,10 @@ def band_onsets(
     """
     lead = round(_LEAD_IN_SECONDS * sr)
     padded = np.concatenate([np.zeros(lead), np.asarray(y, dtype=float)])
-    filtered = band(padded, sr, low, high).astype(np.float32)
+    filtered = band(padded, sr, low, high)
+    if _peak_rms(filtered, sr) < _BAND_GATE * _peak_rms(padded, sr):
+        return np.array([])
+    filtered = filtered.astype(np.float32)
     env = librosa.onset.onset_strength(y=filtered, sr=sr, hop_length=_HOP)
     wait_frames = max(1, round(_WAIT_SECONDS * sr / _HOP))
     onsets = librosa.onset.onset_detect(
@@ -83,22 +105,22 @@ def band_onsets(
     return onsets - lead / sr
 
 
-def decay_ms(y: np.ndarray, sr: int, t: float, floor_db: float = -20) -> float:
-    """Milliseconds after t until the 6 kHz high-passed RMS envelope falls floor_db below its peak in the next 400 ms.
+def decay_ms(y: np.ndarray, sr: int, t: float, floor_db: float = -30) -> float:
+    """Milliseconds after t until the 6 kHz high-passed RMS envelope falls floor_db below its peak, within 400 ms.
 
+    At -30 dB closed hats sit well under 80 ms and open hats well over 150 ms, so the 120 ms
+    open-hat threshold splits them; at -20 dB a 300 ms (to -60 dB) open hat reads only 100 ms.
     The envelope is RMS over 5 ms hops. The peak is the hit at t's own: the loudest frame in the first
     30 ms (onsets land within about a frame of the hit). A later, louder hit in the window would
     otherwise set the reference and the count. The fall is the first frame after that peak below
     the threshold. Capped at 400.
     """
     cap = _DECAY_WINDOW_SECONDS * 1000.0
-    hop = max(1, round(_DECAY_HOP_SECONDS * sr))
     start = max(0, round(t * sr))
     high = band(y, sr, _DECAY_HIGHPASS_HZ, None)[start : start + round(_DECAY_WINDOW_SECONDS * sr)]
-    frames = len(high) // hop
-    if frames == 0:
+    rms = _rms_envelope(high, sr)
+    if len(rms) == 0:
         return 0.0
-    rms = np.sqrt(np.mean(high[: frames * hop].reshape(frames, hop) ** 2, axis=1))
     attack = rms[: max(1, round(_DECAY_ATTACK_SECONDS / _DECAY_HOP_SECONDS))]
     peak = int(np.argmax(attack))
     if rms[peak] <= 0:

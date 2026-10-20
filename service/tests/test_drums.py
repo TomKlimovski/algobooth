@@ -7,7 +7,7 @@ from tests.synth import drum_loop, silence
 
 HOUSE = {"bd": {(b, s) for b in range(2) for s in (0, 4, 8, 12)},
          "sd": {(b, s) for b in range(2) for s in (4, 12)},
-         "hh": {(b, s) for b in range(2) for s in range(0, 16, 2)},
+         "hh": {(b, s) for b in range(2) for s in range(0, 14, 2)},  # the open hat takes step 14
          "oh": {(b, 14) for b in range(2)}}
 
 
@@ -39,3 +39,11 @@ def test_onsets_before_the_first_downbeat_are_dropped():
     y = np.concatenate([silence(0.5), drum_loop({"bd": {(0, 0)}}, 120, 1)])  # the loop starts 0.5 s in
     hits = classify_drums(y, SR, Grid(bpm=120, first_downbeat=0.5, bars=1))
     assert hits["bd"] == {(0, 0)}
+
+
+def test_a_band_with_only_leakage_has_no_onsets():
+    hats = {(b, s) for b in range(2) for s in range(0, 16, 2)}
+    y = drum_loop({"hh": hats}, 124, 2)
+    hits = classify_drums(y, SR, grid_for(124, 2))
+    assert hits["bd"] == set() and hits["sd"] == set()
+    assert hits["hh"] == hats and hits["oh"] == set()
