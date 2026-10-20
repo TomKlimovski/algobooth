@@ -29,7 +29,7 @@ Patterns live in `~/Algobooth/library` as plain JSON files (change the folder in
 
 ## Rip
 
-The Rip tab sends a YouTube link and a start and end time to a local Python service (`service/`, package `algorip`), which downloads the clip, separates it into stems with Demucs, works out tempo, key, drums, bass and chords, and writes Strudel code for it: one named line per part (`drums:`, `hats:`, `bass:`, `chords:`, `melody:`, plus a muted `_bass2:` when the bass has a repeating build layer), so you can mute one by writing `_bass:` in front of it. The app starts and stops the service itself.
+The Rip tab sends a YouTube link and a start and end time to a local Python service (`service/`, package `algorip`), which downloads the clip, separates it into stems with Demucs, works out tempo, key, drums, bass and chords, and writes Strudel code for it: one named line per part (`drums:`, `hats:`, `bass:`, `chords:`, `melody:`; `drums:` and `hats:` are loops, like the bass, plus muted lines: `_bass2:` when the bass has a repeating build layer, and `_fills:` for every hit the drum loops do not play, each in its own bar), so you can mute one by writing `_bass:` in front of it. The app starts and stops the service itself.
 
 Set it up once, alongside the steps above (needs [uv](https://docs.astral.sh/uv/)):
 
@@ -42,6 +42,7 @@ cd service && uv sync
 - **Bass is the loop.** The `bass:` line is the pattern the bass stem plays, not a bar-by-bar transcript: the analysis tests which period (1, 2, 4 or 8 bars) the bars repeat at, and bars that deviate, like a build, do not veto the loop. When no period fits, the bass is written out bar by bar. A beat of retriggered 16ths on one pitch is written `g1*4`.
 - **Build layer.** Extra notes in the deviating bars, when they repeat and are dense enough, come as a muted `_bass2:` line under the bass, with a comment naming the bars they came from. Remove the underscore to switch it on.
 - **Match.** The analysis line on the Rip tab ends with the loop length and a 0–1 match of the loop against the bass stem, for example `bass loop 1 bar · match 0.80`. The generated line for that clip is `bass: note("[~ ~ g1@2] [~ g1 ~ g1] [~ ~ g1@2] [~ g1@2 g2]")`.
+- **Drum match.** The drum number on the analysis line, for example `drums loop 1 bar · 92% of hits`, is the share of the classified drum hits the loops account for. It is agreement with the drum classifier, not with the stem, so read it as weaker than the bass match. Hits outside the loops go to the muted `_fills:` line; remove the underscore to hear them.
 - **Backtest a clip.** `service/scripts/bass_fixture.py` runs the bass analysis on a rip's cached stems and writes the expected loop as test fixtures; see `service/README.md`.
 - **Optional tidy pass.** Put a Claude API key in Settings and tick Tidy on the Rip tab to have Claude rewrite the generated code more idiomatically, keeping the tempo. Without a key the pass is off and nothing leaves your machine but the YouTube download.
 - **Limits.** A clip is at most 60 seconds. Demucs runs on the GPU through Metal, so ripping is supported on Apple Silicon Macs only.
