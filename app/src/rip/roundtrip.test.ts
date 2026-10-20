@@ -1,0 +1,67 @@
+import { vi } from 'vitest';
+
+// No audio is needed to evaluate a pattern, so webaudio is mocked as in golden.test.ts.
+const webaudio = vi.hoisted(() => ({
+  initAudio: vi.fn(async () => {}),
+  registerSynthSounds: vi.fn(),
+  samples: vi.fn(async () => {}),
+  aliasBank: vi.fn(async () => {}),
+  getAudioContext: () => ({ close: vi.fn(async () => {}) }),
+}));
+vi.mock('@strudel/webaudio', () => webaudio);
+
+// The bundles, so the repl, the transpiler, mini and tonal share one Pattern class (see evalLock.test.ts).
+const core = await import('@strudel/core/dist/index.mjs');
+const mini = await import('@strudel/mini/dist/index.mjs');
+const tonal = await import('@strudel/tonal/dist/index.mjs');
+const { transpiler } = await import('@strudel/transpiler/dist/index.mjs');
+
+await core.evalScope(core, mini, tonal);
+
+// The service's goldens (app/src/rip -> repo root -> service/tests/golden), loaded as text by vite.
+const eventsFiles = import.meta.glob<string>('../../../service/tests/golden/*.bass-events.json', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+});
+const strudelFiles = import.meta.glob<string>('../../../service/tests/golden/*.strudel', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+});
+
+const base = (path: string, suffix: string) => path.slice(path.lastIndexOf('/') + 1, -suffix.length);
+const events: Record<string, string> = {};
+for (const [p, text] of Object.entries(eventsFiles)) events[base(p, '.bass-events.json')] = text;
+const strudel: Record<string, string> = {};
+for (const [p, text] of Object.entries(strudelFiles)) strudel[base(p, '.strudel')] = text;
+const names = Object.keys(events).sort();
+
+if (names.length === 0) throw new Error('no golden .bass-events.json files in service/tests/golden'); // never pass vacuously
+
+type Row = [string, number, number];
+const byStart = (a: Row, b: Row) => a[1] - b[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
+
+// For each name with a bass-events file: the `bass:` line of <name>.strudel, evaluated and queried over
+// `cycles` cycles (1 + the last event's cycle), plays exactly those events.
+test.each(names)('%s: the bass line plays its loop', async (name: string) => {
+  const expectedEvents = JSON.parse(events[name]) as { cycle: number; step: number; length: number; note: string }[];
+  const line = strudel[name].split('\n').find((l) => l.startsWith('bass: '))!.slice('bass: '.length);
+  const r = core.repl({ transpiler, defaultOutput: async () => {}, getTime: () => 0 });
+  const pat = await r.evaluate(line, false);
+  const cycles = 1 + Math.max(0, ...expectedEvents.map((e) => e.cycle));
+  const haps = (pat ?? r.scheduler.pattern).queryArc(0, cycles);
+  const played = haps
+    .filter((h: any) => h.whole) // only whole events; a fragment has no onset of its own
+    .map((h: any): Row => [h.value.note, Math.round(h.whole.begin.valueOf() * 16), Math.round(h.whole.end.valueOf() * 16)])
+    .sort(byStart);
+  const expected = expectedEvents
+    .map((e): Row => [e.note, e.cycle * 16 + e.step, e.cycle * 16 + e.step + e.length])
+    .sort(byStart);
+  expect(played).toEqual(expected);
+});
+
+test('every bass-events file has a strudel file and the glob is not empty', () => {
+  expect(names.length).toBeGreaterThan(0);
+  for (const name of names) expect(strudel[name], `${name}.strudel`).toBeDefined();
+});
