@@ -207,6 +207,14 @@ def _flat_bar(starts: dict[int, Note]) -> str:
     return " ".join(text if weight == scale else f"{text}@{weight // scale}" for text, weight in items)
 
 
+def _retriggered(starts: dict[int, Note], lo: int, hi: int) -> str | None:
+    """The note name when every slot in lo..hi starts a note of one midi (so each lasts one slot), else None."""
+    notes = [starts.get(slot) for slot in range(lo, hi)]
+    if any(n is None for n in notes) or len({n.midi for n in notes}) != 1:
+        return None
+    return note_name(notes[0].midi)
+
+
 def notes_bar_mini(notes: list[Note]) -> str:
     """One bar of notes in four beat groups, or one flat @-weighted sequence when a note sustains past its group.
 
@@ -215,9 +223,14 @@ def notes_bar_mini(notes: list[Note]) -> str:
     starts = one_per_step(notes)
     if any(slot + _length(starts, slot, STEPS_PER_BAR) > slot - slot % BEAT + BEAT for slot in starts):
         return _flat_bar(starts)
+    if (retriggered := _retriggered(starts, 0, STEPS_PER_BAR)) is not None:
+        return f"{retriggered}*{STEPS_PER_BAR}"
     groups = []
     for start in range(0, STEPS_PER_BAR, BEAT):
         end = start + BEAT
+        if (retriggered := _retriggered(starts, start, end)) is not None:
+            groups.append(f"{retriggered}*{BEAT}")
+            continue
         items: list[str] = []
         slot = start
         while slot < end:

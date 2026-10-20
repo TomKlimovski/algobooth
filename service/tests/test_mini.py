@@ -196,3 +196,10 @@ def test_fold_octaves_moves_outliers_towards_the_median():
     notes = [Note(bar=0, step=s, length=1, midi=m) for s, m in enumerate([31, 31, 33, 43, 55, 19, 30])]
     assert [n.midi for n in fold_octaves(notes)] == [31, 31, 33, 31, 31, 31, 30]
     assert fold_octaves([]) == []
+
+
+def test_retriggered_sixteenths_use_star():
+    four = [Note(bar=0, step=s, length=1, midi=31) for s in range(4)]
+    assert notes_bar_mini(four + [Note(bar=0, step=8, length=1, midi=31)]) == "g1*4 ~ [g1 ~ ~ ~] ~"
+    assert notes_bar_mini([Note(bar=0, step=s, length=1, midi=31) for s in range(16)]) == "g1*16"
+    assert notes_bar_mini([Note(bar=0, step=s, length=1, midi=31 + (s % 2)) for s in range(4)]) == "[g1 g#1 g1 g#1] ~ ~ ~"
