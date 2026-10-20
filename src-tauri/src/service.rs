@@ -92,6 +92,45 @@ pub fn command(cfg: &ServiceConfig) -> Command {
   cmd
 }
 
+/// Where the running service's pid is recorded: `<models_dir>/../algorip.pid`.
+pub fn pidfile_path(models_dir: &Path) -> PathBuf {
+  models_dir.parent().unwrap_or(models_dir).join("algorip.pid")
+}
+
+/// The pid in a pidfile's text. Rejects 0 and 1: `kill 0` would hit our own process group, and 1 is launchd.
+pub fn parse_pidfile(text: &str) -> Option<u32> {
+  text.trim().parse::<u32>().ok().filter(|pid| *pid > 1)
+}
+
+pub fn read_pidfile(path: &Path) -> Option<u32> {
+  std::fs::read_to_string(path).ok().as_deref().and_then(parse_pidfile)
+}
+
+pub fn write_pidfile(path: &Path, pid: u32) -> std::io::Result<()> {
+  std::fs::write(path, format!("{pid}\n"))
+}
+
+/// True when a `ps -o ppid=,command=` line is an orphaned algorip: its app died (it was reparented to
+/// launchd, pid 1). A live service belonging to another running app instance, or a recycled pid, is
+/// left alone.
+pub fn is_stale_service(ps_line: &str) -> bool {
+  let mut words = ps_line.split_whitespace();
+  words.next() == Some("1") && words.any(|word| word == "algorip")
+}
+
+/// Kills a service left behind by an earlier app process that died without stopping it (a crash, or
+/// a `tauri dev` rebuild, which SIGKILLs the app).
+fn reap_stale(pidfile: &Path) {
+  let Some(pid) = read_pidfile(pidfile) else { return };
+  let pid = pid.to_string();
+  let ps_line = Command::new("ps").args(["-p", &pid, "-o", "ppid=,command="]).output();
+  if ps_line.is_ok_and(|out| is_stale_service(&String::from_utf8_lossy(&out.stdout))) {
+    log::warn!("killing stale analysis service (pid {pid})");
+    let _ = Command::new("kill").arg(&pid).status();
+  }
+  let _ = std::fs::remove_file(pidfile);
+}
+
 /// What the webview needs to call the service.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ServiceInfo {
@@ -153,6 +192,8 @@ struct Inner {
   generation: u64,
   budget: RestartBudget,
   app: Option<AppHandle>,
+  /// Holds the current child's pid, so the next launch can reap it if this app dies without `stop()`.
+  pidfile: Option<PathBuf>,
 }
 
 struct Shared {
@@ -168,8 +209,14 @@ pub struct ServiceState {
 
 impl Default for ServiceState {
   fn default() -> Self {
-    let inner =
-      Inner { status: Status::NotStarted, child: None, generation: 0, budget: RestartBudget::default(), app: None };
+    let inner = Inner {
+      status: Status::NotStarted,
+      child: None,
+      generation: 0,
+      budget: RestartBudget::default(),
+      app: None,
+      pidfile: None,
+    };
     ServiceState { shared: Arc::new(Shared { inner: Mutex::new(inner), changed: Condvar::new() }) }
   }
 }
@@ -271,8 +318,13 @@ impl ServiceState {
     for dir in [&cfg.cache_dir, &cfg.models_dir] {
       std::fs::create_dir_all(dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
     }
+    let pidfile = pidfile_path(&cfg.models_dir);
+    reap_stale(&pidfile);
     let mut child = command(&cfg).spawn().map_err(|e| format!("could not launch {}: {e}", cfg.python.display()))?;
     let stdout = child.stdout.take().ok_or("service stdout was not piped")?;
+    if let Err(e) = write_pidfile(&pidfile, child.id()) {
+      log::warn!("could not write {}: {e}", pidfile.display());
+    }
     {
       let mut inner = self.lock();
       if inner.generation != generation {
@@ -281,6 +333,7 @@ impl ServiceState {
         let _ = child.wait();
         return Err("service start was superseded".into());
       }
+      inner.pidfile = Some(pidfile);
       if let Some(mut old) = inner.child.replace(child) {
         // Never orphan a previous child, whoever started it.
         let _ = old.kill();
@@ -372,6 +425,9 @@ impl ServiceState {
       let mut inner = self.lock();
       inner.generation += 1;
       self.set_status(&mut inner, Status::Down("service stopped".into()));
+      if let Some(pidfile) = inner.pidfile.take() {
+        let _ = std::fs::remove_file(pidfile);
+      }
       inner.child.take()
     };
     if let Some(mut child) = child {
@@ -525,6 +581,42 @@ mod tests {
       &old,
       &Settings { claude_api_key: "k".into(), visualiser: Visualiser::Scope, ..old.clone() }
     ));
+  }
+
+  #[test]
+  fn pidfile_sits_next_to_the_models_dir() {
+    assert_eq!(pidfile_path(Path::new("/data/models")), PathBuf::from("/data/algorip.pid"));
+  }
+
+  #[test]
+  fn pidfile_parses_a_real_pid_only() {
+    assert_eq!(parse_pidfile("4242\n"), Some(4242));
+    assert_eq!(parse_pidfile(" 4242 "), Some(4242));
+    assert_eq!(parse_pidfile(""), None);
+    assert_eq!(parse_pidfile("abc"), None);
+    assert_eq!(parse_pidfile("-5"), None);
+    // `kill 0` signals our own process group and pid 1 is launchd: never target them.
+    assert_eq!(parse_pidfile("0"), None);
+    assert_eq!(parse_pidfile("1"), None);
+  }
+
+  #[test]
+  fn pidfile_round_trips_and_a_missing_one_reads_as_none() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("algorip.pid");
+    assert_eq!(read_pidfile(&path), None);
+    write_pidfile(&path, 4242).unwrap();
+    assert_eq!(read_pidfile(&path), Some(4242));
+  }
+
+  #[test]
+  fn only_an_orphaned_algorip_counts_as_a_stale_service() {
+    assert!(is_stale_service("    1 /repo/service/.venv/bin/python -m algorip\n"));
+    // Still owned by a running app (another instance): not stale.
+    assert!(!is_stale_service("51314 /repo/service/.venv/bin/python -m algorip"));
+    // A recycled pid that is some other orphan.
+    assert!(!is_stale_service("    1 /usr/bin/vim notes.txt"));
+    assert!(!is_stale_service(""));
   }
 
   #[test]

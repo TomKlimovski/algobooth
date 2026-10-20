@@ -8,7 +8,9 @@ import json
 import os
 import socket
 import sys
-from collections.abc import Mapping
+import threading
+import time
+from collections.abc import Callable, Mapping
 from pathlib import Path
 
 from algorip.api import ServiceSettings
@@ -36,8 +38,29 @@ def port_line(port: int) -> str:
     return json.dumps({"port": port})
 
 
+def parent_gone(original_ppid: int, current_ppid: int) -> bool:
+    """True once this process has been reparented, i.e. the app that launched it died."""
+    return current_ppid != original_ppid
+
+
+def watch_parent(
+    original_ppid: int,
+    getppid: Callable[[], int] = os.getppid,
+    exit_: Callable[[int], object] = os._exit,
+    sleep: Callable[[float], object] = time.sleep,
+    interval: float = 1.0,
+) -> None:
+    """Exits the process when the parent dies, so a killed or crashed app never leaves us running."""
+    while True:
+        if parent_gone(original_ppid, getppid()):
+            print("algorip: parent process exited, shutting down", file=sys.stderr)
+            exit_(0)
+        sleep(interval)
+
+
 def main() -> None:
     settings = settings_from_env(os.environ)
+    threading.Thread(target=watch_parent, args=(os.getppid(),), name="parent-watch", daemon=True).start()
 
     import uvicorn
 

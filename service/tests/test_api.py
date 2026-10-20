@@ -5,7 +5,7 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
-from algorip.__main__ import port_line, settings_from_env
+from algorip.__main__ import parent_gone, port_line, settings_from_env, watch_parent
 from algorip.api import ServiceSettings, create_app
 from algorip.download import clip_key
 from algorip.pipeline import Deps, Paths
@@ -212,3 +212,22 @@ def test_settings_from_env(tmp_path, capsys):
 def test_port_line_is_one_json_line():
     line = port_line(51234)
     assert line == '{"port": 51234}' and json.loads(line) == {"port": 51234} and "\n" not in line
+
+
+def test_parent_gone_only_when_the_parent_pid_changes():
+    assert parent_gone(4242, 1)  # orphaned: reparented to launchd
+    assert parent_gone(4242, 777)  # reparented to a subreaper
+    assert not parent_gone(4242, 4242)
+
+
+def test_watch_parent_exits_once_the_parent_changes():
+    ppids = iter([4242, 4242, 1])
+    exits = []
+
+    def exit_(code):
+        exits.append(code)
+        raise SystemExit(code)  # stands in for os._exit, which never returns
+
+    with pytest.raises(SystemExit):
+        watch_parent(4242, getppid=lambda: next(ppids), exit_=exit_, sleep=lambda _: None)
+    assert exits == [0]
