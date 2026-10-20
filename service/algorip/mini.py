@@ -22,6 +22,12 @@ _OPEN, _CLOSE = "[<({", "]>)}"
 # three bars to vote: with two, a majority is both, and the template would be a bar nobody played.
 # (The reviewer's starting share was 75%; on One More Time a bar with the four off-beat hats and
 # two stray ones agrees on 4 of 6, and it is the stray hits that the consensus is for.)
+# A fill is never outvoted: a period is refused when, at some longer phrase length (2 or 4 bars,
+# with at least two bars at each phase), every bar at one phase is the same bar and differs from
+# its template, e.g. the same fill in bars 3 and 7. The whole bar must recur, not just a step: on
+# One More Time stray hats recur at the same phase by chance (step 12 in bars 1 and 5, step 15 in
+# bars 2 and 6), but never as the same whole bar.
+CONSENSUS_PHRASES = (2, 4)
 CONSENSUS_PERIODS = (1, 2, 4)
 CONSENSUS_MIN_VOTES = 3
 CONSENSUS_SHARE = (2, 3)  # numerator, denominator
@@ -141,9 +147,22 @@ def consensus(bars: list[dict[int, H]]) -> list[dict[int, H]] | None:
             voters = bars[phase::p]
             votes = Counter((step, value) for bar in voters for step, value in bar.items())
             templates.append({step: value for (step, value), n in votes.items() if 2 * n > len(voters)})
-        if all(_agrees(bar, templates[i % p]) for i, bar in enumerate(bars)):
+        if all(_agrees(bar, templates[i % p]) for i, bar in enumerate(bars)) and not _recurring_fill(bars, templates):
             return [templates[i % p] for i in range(len(bars))]
     return None
+
+
+def _recurring_fill(bars: list[dict[int, H]], templates: list[dict[int, H]]) -> bool:
+    """Whether some phrase phase holds one bar, repeated in every phrase, that its template would erase."""
+    p = len(templates)
+    for q in CONSENSUS_PHRASES:
+        if q <= p or q % p or len(bars) < 2 * q:
+            continue
+        for phase in range(q):
+            same = bars[phase::q]
+            if all(bar == same[0] for bar in same) and same[0] != templates[phase % p]:
+                return True
+    return False
 
 
 def voice_mini(name: str, bars: list[set[int]]) -> str:

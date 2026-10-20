@@ -152,6 +152,26 @@ def test_a_bar_that_differs_keeps_its_own_line():
     assert voice_mini("bd", [{0, 10}, {0, 6}] * 2) == "<[[bd ~ ~ ~] ~ [~ ~ bd ~] ~] [[bd ~ ~ ~] [~ ~ bd ~] ~ ~]>"
 
 
+def test_a_fill_that_recurs_at_the_same_phrase_bar_is_kept():
+    claps = [{4, 12}] * 8
+    claps[3] = claps[7] = {4, 12, 14}  # the same fill closing each 4-bar phrase
+    assert voice_mini("cp", claps) == "<[~ cp]*2 [~ cp]*2 [~ cp]*2 [~ [cp ~ ~ ~] ~ [cp ~ cp ~]]>"
+    kicks = [{0, 4, 8, 12}] * 8
+    kicks[3] = kicks[7] = {0, 4, 8, 12, 14, 15}
+    assert voice_mini("bd", kicks) == "<bd*4 bd*4 bd*4 [[bd ~ ~ ~] [bd ~ ~ ~] [bd ~ ~ ~] [bd ~ bd bd]]>"
+
+
+def test_a_stray_in_a_single_bar_is_absorbed():
+    claps = [{4, 12}] * 8
+    claps[3] = {4, 12, 14}
+    assert voice_mini("cp", claps) == "[~ cp]*2"
+
+
+def test_a_fill_every_other_bar_is_its_own_phase():
+    claps = [{4, 12}, {4, 12, 14}] * 4
+    assert voice_mini("cp", claps) == "<[~ cp]*2 [~ [cp ~ ~ ~] ~ [cp ~ cp ~]]>"
+
+
 def test_consensus_takes_the_shortest_period_that_fits():
     a, b = {0: 1, 8: 1}, {0: 1, 4: 1}
     assert consensus([a, b] * 4) == [a, b] * 4                      # period 2, 4 votes a phase
