@@ -141,7 +141,9 @@ export class RipClient {
       headers['Content-Type'] = 'application/json';
       init.body = JSON.stringify(body);
     }
-    const res = await this.fetchImpl(`${this.base}${path}`, init);
+    // Called with no `this`: WebKit's fetch refuses to run as a method of anything but the window.
+    const doFetch = this.fetchImpl;
+    const res = await doFetch(`${this.base}${path}`, init);
     if (!res.ok) throw new Error(await errorDetail(res));
     return res;
   }

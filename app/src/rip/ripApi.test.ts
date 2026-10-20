@@ -83,3 +83,13 @@ test('stem returns the bytes', async () => {
 test('stem names', () => {
   expect(STEM_NAMES).toEqual(['drums', 'bass', 'other', 'vocals', 'mix']);
 });
+
+test('fetch is called unbound-safe: WebKit refuses Window.fetch with a foreign this', async () => {
+  // Mimic WebKit: the real fetch throws when invoked with `this` set to anything but the window.
+  const strictFetch = function (this: unknown, input: RequestInfo | URL, init?: RequestInit) {
+    if (this !== globalThis && this !== undefined) throw new TypeError('Can only call Window.fetch on instances of Window');
+    return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json' } }));
+  } as typeof fetch;
+  const client = new RipClient({ port: 1, token: 't' }, strictFetch);
+  await expect(client.models()).resolves.toEqual({ ok: true });
+});
