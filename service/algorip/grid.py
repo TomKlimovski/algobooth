@@ -41,13 +41,14 @@ class Grid(BaseModel):
         return self.first_downbeat + self.bars * self.bar_seconds
 
     def step_at(self, t: float) -> tuple[int, int] | None:
-        """The (bar, step) nearest t, or None before the grid (by over half a step) or past its last bar."""
+        """The (bar, step) nearest t, or None before the grid (by over half a step) or past its last bar.
+
+        The last half step before end_time has no step after it inside the grid, so it clamps to the last step.
+        """
         offset = (t - self.first_downbeat) / self.step_seconds
-        if offset < -0.5:
+        if offset < -0.5 or t >= self.end_time:
             return None
-        index = max(0, round(offset))
-        if index >= self.bars * self.steps_per_bar:
-            return None
+        index = min(max(0, round(offset)), self.bars * self.steps_per_bar - 1)
         bar, step = divmod(index, self.steps_per_bar)
         return bar, step
 

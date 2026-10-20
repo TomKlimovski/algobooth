@@ -46,3 +46,9 @@ def test_estimate_grid_counts_whole_bars():
 def test_silence_has_no_beat():
     with pytest.raises(ValueError):
         estimate_grid(silence(4), None, SR, 4.0)
+
+
+def test_step_at_clamps_the_last_half_step_to_the_last_step():
+    g = Grid(bpm=120, first_downbeat=0.5, bars=2)
+    assert g.step_at(g.end_time - 0.01) == (1, 15)
+    assert g.step_at(g.end_time) is None
