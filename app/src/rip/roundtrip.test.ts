@@ -75,3 +75,34 @@ test('every bass-events file has a strudel file and the glob is not empty', () =
   expect(cases.length).toBeGreaterThan(0);
   for (const name of names) expect(strudel[name], `${name}.strudel`).toBeDefined();
 });
+
+// One case per golden with a `_fills:` line: the comment above it names the bars (1-based, inclusive) the
+// fills play in, and the header names the clip's bar count.
+const fillsCases: [string, number, number, number][] = Object.keys(strudel)
+  .sort()
+  .flatMap((name): [string, number, number, number][] => {
+    const text = strudel[name];
+    if (!text.split('\n').some((l) => l.startsWith('_fills: '))) return [];
+    const m = /^\/\/ bars (\d+)–(\d+) add these hits/m.exec(text);
+    const b = /· (\d+) bars?\s*$/m.exec(text.split('\n')[0]);
+    if (!m || !b) throw new Error(`${name}.strudel has a _fills: line but no readable bars comment or header`);
+    return [[name, Number(m[1]), Number(m[2]), Number(b[1])]];
+  });
+
+test.each(fillsCases)('%s: the _fills line plays only in bars %i–%i of %i', async (name: string, lo: number, hi: number, bars: number) => {
+  const code = strudel[name].split('\n').find((l) => l.startsWith('_fills: '));
+  const r = core.repl({ transpiler, defaultOutput: async () => {}, getTime: () => 0 });
+  const pat = await r.evaluate(code!.slice('_fills: '.length), false); // the underscore removed: it plays
+  const pattern = pat ?? r.scheduler.pattern;
+  const whole = (b: number, e: number) => pattern.queryArc(b, e).filter((h: any) => h.whole);
+  expect(whole(lo - 1, lo).length, `${name}: a hit in bar ${lo}`).toBeGreaterThan(0);
+  const cycles = new Set(whole(0, bars).map((h: any) => Math.floor(h.whole.begin.valueOf())));
+  for (const c of cycles) {
+    expect(c, `${name}: hit in cycle ${c}`).toBeGreaterThanOrEqual(lo - 1);
+    expect(c, `${name}: hit in cycle ${c}`).toBeLessThanOrEqual(hi - 1);
+  }
+});
+
+test('at least one golden has a _fills line', () => {
+  expect(fillsCases.length).toBeGreaterThan(0);
+});
