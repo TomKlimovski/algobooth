@@ -42,6 +42,7 @@ def main() -> None:
     import uvicorn
 
     from algorip.api import create_app
+    from algorip.models import ModelStore
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind(("127.0.0.1", 0))
@@ -49,7 +50,8 @@ def main() -> None:
     sys.stdout.write(port_line(sock.getsockname()[1]) + "\n")
     sys.stdout.flush()
 
-    server = uvicorn.Server(uvicorn.Config(create_app(settings), log_level="warning"))
+    app = create_app(settings, models=ModelStore(settings.paths.models_dir))
+    server = uvicorn.Server(uvicorn.Config(app, log_level="warning", access_log=False))
     server.run(sockets=[sock])
 
 

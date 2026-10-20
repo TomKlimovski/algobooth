@@ -6,13 +6,13 @@ the service starts (and tests run) without them installed.
 """
 
 import os
-import sys
 from pathlib import Path
 from typing import Any, Callable
 
 import numpy as np
 
 from algorip.audio import SR, load_stereo, write_wav
+from algorip.models import use_site
 
 STEMS = ("drums", "bass", "other", "vocals")
 DEMUCS_SEGMENT = 5.0  # seconds per chunk; keeps peak memory inside 8 GB of RAM
@@ -54,20 +54,32 @@ def pick_device(torch: Any) -> str:
     return "mps" if torch.backends.mps.is_available() else "cpu"
 
 
+def _load_legacy(name: str) -> Any:
+    """Load a pretrained bag from demucs's own remote list, never the HuggingFace hub.
+
+    demucs 4.1.0's `get_model` tries HuggingFace first, which would fetch a second
+    copy of the weights; this is its fallback branch, which reads the checkpoint
+    `ModelStore` put in the torch hub cache (see `models.demucs_checkpoint_url`).
+    """
+    from demucs.pretrained import REMOTE_ROOT, _parse_remote_files
+    from demucs.repo import AnyModelRepo, BagOnlyRepo, RemoteRepo
+
+    model_repo = RemoteRepo(_parse_remote_files(REMOTE_ROOT / "files.txt"))
+    model = AnyModelRepo(model_repo, BagOnlyRepo(REMOTE_ROOT, model_repo)).get_model(name)
+    model.eval()
+    return model
+
+
 def demucs_separator(models_dir: Path, device: str | None = None) -> Separator:
     """Build a Demucs htdemucs separator from the packages and weights under models_dir."""
-    site = str(models_dir / "site")
-    if site in sys.path:
-        sys.path.remove(site)
-    sys.path.insert(0, site)
+    use_site(models_dir / "site")
     os.environ["TORCH_HOME"] = str(models_dir / "torch")
 
     import torch
     from demucs.apply import apply_model
-    from demucs.pretrained import get_model
 
     if DEMUCS_MODEL not in _models:
-        _models[DEMUCS_MODEL] = get_model(DEMUCS_MODEL)
+        _models[DEMUCS_MODEL] = _load_legacy(DEMUCS_MODEL)
     model = _models[DEMUCS_MODEL]
     current = device or pick_device(torch)
 

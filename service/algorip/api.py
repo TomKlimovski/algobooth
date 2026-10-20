@@ -20,9 +20,11 @@ STEM_NAMES = (*STEMS, "mix")
 
 
 class ModelStore(Protocol):
-    """Task 14's model installer; only `status()` is used here."""
+    """What the API needs from `algorip.models.ModelStore`."""
 
     def status(self) -> ModelStatus: ...
+
+    def install(self) -> None: ...
 
 
 class ServiceSettings(BaseModel):
@@ -69,7 +71,7 @@ def create_app(
         return result, stem_dir(settings.paths, job.request)
 
     def model_status() -> ModelStatus:
-        if models is None:  # Task 14 supplies the store; until then the service assumes the models are there
+        if models is None:  # no store (tests, or a pipeline with an injected separator): assume the models are there
             return ModelStatus(ready=True, torch_installed=True, weights_present=True, installing=False,
                                stage=None, progress=0.0, error=None)
         return models.status()
@@ -86,6 +88,12 @@ def create_app(
 
     @app.get("/models")
     def get_models() -> ModelStatus:
+        return model_status()
+
+    @app.post("/models/install", status_code=202)
+    def post_models_install() -> ModelStatus:
+        if models is not None:
+            models.install()  # a no-op while an install is already running
         return model_status()
 
     @app.post("/rip", status_code=202)
