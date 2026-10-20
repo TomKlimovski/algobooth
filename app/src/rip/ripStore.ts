@@ -213,7 +213,12 @@ export function createRipStore(deps: RipDeps) {
     if (!state.models?.ready) {
       const m = await refreshModels();
       if (!m?.ready) {
-        if (m) setState('pendingStart', true);
+        if (m) {
+          // Pressing Analyse is the user's yes to the one-time download: start it rather than
+          // leaving them to find the Download button, and run the rip once it is ready.
+          setState('pendingStart', true);
+          if (!m.installing) await installModels();
+        }
         return;
       }
     }

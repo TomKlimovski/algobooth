@@ -291,23 +291,18 @@ test('the default poll waits 500 ms between status calls', async () => {
   }
 });
 
-test('a rip started before models are ready waits and then runs', async () => {
+test('Analyse before the models exist starts the download, waits, then runs the rip', async () => {
   const { store, fake, q } = setup([job({ stage: 'download' })]);
-  fake.models.mockResolvedValueOnce(models({ ready: false, torch_installed: false, weights_present: false, progress: 0 }));
-  await store.start();
-  expect(fake.start).not.toHaveBeenCalled();
-  expect(fake.installModels).not.toHaveBeenCalled();
-  expect(store.state.pendingStart).toBe(true);
-  expect(store.state.busy).toBe(false);
-  expect(store.state.models?.ready).toBe(false);
-
   fake.models
+    .mockResolvedValueOnce(models({ ready: false, torch_installed: false, weights_present: false, progress: 0 }))
     .mockResolvedValueOnce(models({ ready: false, installing: true, stage: 'packages', progress: 0.1 }))
     .mockResolvedValueOnce(models({ ready: false, installing: true, stage: 'weights', progress: 0.8 }));
-  await store.installModels();
-  expect(fake.installModels).toHaveBeenCalledTimes(1);
-  expect(store.state.models?.stage).toBe('packages');
+  await store.start();
   expect(fake.start).not.toHaveBeenCalled();
+  expect(fake.installModels).toHaveBeenCalledTimes(1); // pressing Analyse is enough: no separate Download click
+  expect(store.state.pendingStart).toBe(true);
+  expect(store.state.busy).toBe(false);
+  expect(store.state.models?.stage).toBe('packages');
   expect(q.delays.at(-1)).toBe(1000);
   q.pending.shift()!.f(); // models poll: still installing
   await new Promise((r) => setTimeout(r, 0));
@@ -321,6 +316,14 @@ test('a rip started before models are ready waits and then runs', async () => {
   expect(store.state.pendingStart).toBe(false);
   expect(store.state.busy).toBe(true);
   expect(q.pending.every((p) => p.ms === 500)).toBe(true); // only the job poll is left; model polling stopped
+});
+
+test('Analyse while a download is already running does not start a second one', async () => {
+  const { store, fake } = setup([job({ stage: 'download' })]);
+  fake.models.mockResolvedValueOnce(models({ ready: false, installing: true, stage: 'packages', progress: 0.3 }));
+  await store.start();
+  expect(fake.installModels).not.toHaveBeenCalled();
+  expect(store.state.pendingStart).toBe(true);
 });
 
 test('a known-ready model status skips the models call', async () => {
