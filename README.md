@@ -25,7 +25,7 @@ cd service && uv run pytest
 
 ## Library
 
-Patterns live in `~/Algobooth/library` as plain JSON files (change the folder in Settings). A brand-new library is seeded with a few examples from `library-example/`.
+Patterns live in `~/Algobooth/library` as plain JSON files (change the folder in Settings). A brand-new library is seeded with a few examples from `library-example/`. Rest the pointer on a pattern to see its code. Drag it onto a deck to load it, or double-click: that loads into the target deck, the one you last clicked, typed in or loaded, marked "◂ library" in its header.
 
 ## Rip
 

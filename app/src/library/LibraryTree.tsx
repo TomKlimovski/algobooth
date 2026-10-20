@@ -1,4 +1,4 @@
-import { createSignal, For, Match, onMount, Show, Switch } from 'solid-js';
+import { createSignal, For, Match, onCleanup, onMount, Show, Switch } from 'solid-js';
 import type { DeckId } from '../booth/deckState';
 import type { TreeNode } from './api';
 import { ContextMenu, type MenuItem } from './ContextMenu';
@@ -6,6 +6,9 @@ import { findNode, parentOf, PATTERN_MIME, type LibraryStore } from './store';
 import './library.css';
 
 const INDENT_PX = 12;
+/** How long the pointer rests on a pattern before its code is shown. */
+export const PREVIEW_DELAY_MS = 350;
+const PREVIEW_MAX_LINES = 14;
 const ROOT_LABEL = 'library (top)';
 
 /** Errors land in `store.state.error`; the UI only needs to stop the rejection escaping. */
@@ -44,6 +47,31 @@ export function LibraryTree(props: { store: LibraryStore }) {
   const [menu, setMenu] = createSignal<MenuState | null>(null);
   const [renaming, setRenaming] = createSignal<string | null>(null);
   const [dropTarget, setDropTarget] = createSignal<string | null>(null);
+
+  // The hover preview: a pattern's code beside its row once the pointer has rested on it.
+  const [preview, setPreview] = createSignal<{ path: string; code: string; x: number; y: number } | null>(null);
+  let previewTimer: ReturnType<typeof setTimeout> | undefined;
+  const hidePreview = () => {
+    clearTimeout(previewTimer);
+    previewTimer = undefined;
+    setPreview(null);
+  };
+  const showPreviewLater = (path: string, row: HTMLElement) => {
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(() => {
+      const rect = row.getBoundingClientRect();
+      store
+        .preview(path)
+        .then((code) => {
+          if (previewTimer === undefined) return; // the pointer left meanwhile
+          const lines = code.split('\n');
+          const shown = lines.length > PREVIEW_MAX_LINES ? [...lines.slice(0, PREVIEW_MAX_LINES), '…'].join('\n') : code;
+          setPreview({ path, code: shown, x: rect.right + 8, y: rect.top });
+        })
+        .catch(() => {});
+    }, PREVIEW_DELAY_MS);
+  };
+  onCleanup(hidePreview);
 
   const unfold = (path: string) => {
     if (store.state.folded.has(path)) store.toggleFold(path);
@@ -204,7 +232,10 @@ export function LibraryTree(props: { store: LibraryStore }) {
           style={{ 'padding-left': `${4 + p.depth * INDENT_PX}px` }}
           title={unreadable() ? 'This file is not a valid pattern' : path()}
           draggable={renaming() !== path()}
+          onMouseEnter={(e) => !isHeading() && !unreadable() && showPreviewLater(path(), e.currentTarget)}
+          onMouseLeave={hidePreview}
           onDragStart={(e) => {
+            hidePreview();
             e.dataTransfer!.setData(PATTERN_MIME, path());
             e.dataTransfer!.effectAllowed = 'copyMove';
             store.setDragging(path());
@@ -214,7 +245,11 @@ export function LibraryTree(props: { store: LibraryStore }) {
             setDropTarget(null);
           }}
           onClick={() => store.select(path())}
-          onDblClick={() => (isHeading() ? store.toggleFold(path()) : quietly(store.loadToIdleDeck(path())))}
+          onDblClick={() => {
+            hidePreview();
+            if (isHeading()) store.toggleFold(path());
+            else quietly(store.loadToTarget(path()));
+          }}
           onContextMenu={(e) => openMenu(e, p.node)}
           {...drop}
         >
@@ -277,6 +312,13 @@ export function LibraryTree(props: { store: LibraryStore }) {
       </header>
       <Show when={!store.state.collapsed && store.state.watchWarning}>
         {(w) => <div class="lib-watch" role="status">⚠ {w()}</div>}
+      </Show>
+      <Show when={preview()}>
+        {(pv) => (
+          <pre class="lib-preview" role="tooltip" style={{ left: `${pv().x}px`, top: `${pv().y}px` }}>
+            {pv().code}
+          </pre>
+        )}
       </Show>
       <Show when={!store.state.collapsed}>
         <Show when={store.state.error}>

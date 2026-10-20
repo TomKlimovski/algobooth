@@ -67,6 +67,10 @@ export function Deck(props: {
   onReady?: (api: DeckApi) => void;
   /** A library entry (relative path) was dropped on this deck. */
   onDropPattern?: (path: string) => void;
+  /** This deck is where a library double-click loads; shown as a marker in the header. */
+  target?: boolean;
+  /** The user clicked or typed in this deck: it becomes the library's target. */
+  onUse?: () => void;
   /** Checked during dragover, so the deck refuses (no drop cursor) entries it cannot load. */
   canDropPattern?: () => boolean;
   /** Where Save, Save as and disk reconciliation read and write; without it those buttons are disabled. */
@@ -307,6 +311,8 @@ export function Deck(props: {
       classList={{ 'drop-target': dragOver() }}
       data-deck={id}
       onDragOver={onDragOver}
+      onPointerDown={() => props.onUse?.()}
+      onFocusIn={() => props.onUse?.()}
       onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDragOver(false)}
       on:drop={{ handleEvent: onDrop, capture: true }}
     >
@@ -318,6 +324,9 @@ export function Deck(props: {
             <span class="deck-dirty" title="Unsaved changes" aria-label="unsaved changes">●</span>
           </Show>
         </span>
+        <Show when={props.target}>
+          <span class="deck-target" title="A double-click in the library loads here" aria-label="library target">◂ library</span>
+        </Show>
         <span class="deck-cpm">{deck.state.cpm} cpm</span>
       </header>
       <Show when={saveError()}>

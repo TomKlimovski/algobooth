@@ -78,6 +78,25 @@
 
 .lib-empty { margin: 8px 4px; color: #5c6170; }
 
+.lib-preview {
+  position: fixed;
+  z-index: 20;
+  max-width: 520px;
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid #3a3e4a;
+  border-radius: 4px;
+  background: #0a0b0e;
+  color: #cfd3dc;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre;
+  overflow: hidden;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
 .lib-error {
   display: flex;
   gap: 4px;

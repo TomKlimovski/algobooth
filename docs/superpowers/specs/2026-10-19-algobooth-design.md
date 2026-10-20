@@ -52,7 +52,7 @@ Three top-level tabs: **Booth**, **Rip**, **Settings**. Booth is the home screen
 
 ### Booth
 
-Left: a foldable **library sidebar** showing the tree. A handle folds it away for a clean booth on the night. Dragging a leaf onto a deck loads that pattern into the deck's editor. Double-click does the same into the deck that is not currently playing.
+Left: a foldable **library sidebar** showing the tree. A handle folds it away for a clean booth on the night. Dragging a leaf onto a deck loads that pattern into the deck's editor. Double-click does the same into the target deck: the deck last clicked, typed in or loaded, marked "◂ library" in its header (A at first). Resting the pointer on a pattern shows its code beside the row.
 
 Centre: **two decks**, A and B, side by side. Each deck has:
 

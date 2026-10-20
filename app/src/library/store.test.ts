@@ -1,7 +1,7 @@
 import { createDeckState, type DeckId } from '../booth/deckState';
 import type { DeckApi } from '../booth/Deck';
 import type { LibraryApi, Pattern, TreeNode } from './api';
-import { createLibraryStore, pickDeckForDoubleClick } from './store';
+import { createLibraryStore } from './store';
 
 const heading = (path: string, children: TreeNode[] = []): TreeNode => ({
   name: path.split('/').pop() || 'library',
@@ -83,13 +83,6 @@ test('refresh loads the tree and keeps fold state for surviving paths', async ()
 
   lib.toggleFold('mine');
   expect(lib.state.folded.size).toBe(0);
-});
-
-test('double-click loads into the deck that is not playing', () => {
-  expect(pickDeckForDoubleClick({ A: { started: true }, B: { started: false } })).toBe('B');
-  expect(pickDeckForDoubleClick({ A: { started: false }, B: { started: true } })).toBe('A');
-  expect(pickDeckForDoubleClick({ A: { started: true }, B: { started: true } })).toBe('B');
-  expect(pickDeckForDoubleClick({ A: { started: false }, B: { started: false } })).toBe('B');
 });
 
 test('load sets deck code and name', async () => {
@@ -176,16 +169,35 @@ test('remove sends the entry to the trash and drops a stale selection', async ()
   expect(lib.state.selected).toBeNull();
 });
 
-test('loadToIdleDeck loads into the deck that is not playing', async () => {
-  const api = fakeApi(heading('', [leaf('x.json')]));
+test('a double-click loads into the target deck: A at first, then the deck last used or loaded', async () => {
+  const api = fakeApi(heading('', [leaf('x.json'), leaf('y.json')]));
   const a = fakeDeck('A');
   const b = fakeDeck('B');
-  (b.api.scheduler as { started: boolean }).started = true;
   const lib = createLibraryStore(api, () => ({ A: a.api, B: b.api }));
   await lib.refresh();
-  await expect(lib.loadToIdleDeck('x.json')).resolves.toBe('A');
+  expect(lib.state.target).toBe('A');
+  await expect(lib.loadToTarget('x.json')).resolves.toBe(true);
   expect(a.setCode).toHaveBeenCalledWith('y');
-  expect(b.setCode).not.toHaveBeenCalled();
+  lib.setTarget('B');
+  await lib.loadToTarget('y.json');
+  expect(b.setCode).toHaveBeenCalledWith('y');
+  // Loading onto a deck any other way (a drop, Load to A) makes that deck the target too.
+  await lib.load('x.json', 'A');
+  expect(lib.state.target).toBe('A');
+});
+
+test('preview reads a pattern once until the next refresh', async () => {
+  const api = fakeApi(heading('', [leaf('x.json')]));
+  const lib = createLibraryStore(api, () => ({ A: null, B: null }));
+  await lib.refresh();
+  await expect(lib.preview('x.json')).resolves.toBe('y');
+  await expect(lib.preview('x.json')).resolves.toBe('y');
+  expect(api.read_pattern).toHaveBeenCalledTimes(1);
+  await lib.refresh();
+  await lib.preview('x.json');
+  expect(api.read_pattern).toHaveBeenCalledTimes(2);
+  api.read_pattern.mockRejectedValueOnce(new Error('gone'));
+  await expect(lib.preview('x.json')).resolves.toBe('y'); // still cached
 });
 
 test('a watch warning survives a successful refresh', async () => {

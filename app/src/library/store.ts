@@ -20,6 +20,8 @@ export interface LibraryFields {
   watchWarning: string | null;
   /** Path of the entry being dragged from the tree, so drop targets can refuse it during dragover. */
   dragging: string | null;
+  /** The deck a double-click loads into: the one last clicked, typed in, or loaded; A at first. */
+  target: DeckId;
 }
 
 /** Where a dragged entry could land: a deck, or a heading (`""` is the root). */
@@ -34,13 +36,6 @@ export const NEW_PATTERN: Pattern = {
   source: { kind: 'mine' },
   notes: '',
 };
-
-/** The deck that is not playing; B when neither or both are (A is usually the one you mix from). */
-export function pickDeckForDoubleClick(decks: Record<DeckId, { started: boolean } | null>): DeckId {
-  const playing = (id: DeckId) => decks[id]?.started ?? false;
-  if (playing('B') && !playing('A')) return 'A';
-  return 'B';
-}
 
 export function findNode(node: TreeNode | null, path: string): TreeNode | null {
   if (!node) return null;
@@ -85,6 +80,7 @@ export function createLibraryStore(
     error: null,
     watchWarning: null,
     dragging: null,
+    target: 'A',
   });
 
   /** Runs a library call, recording its failure in `state.error` and rethrowing it. */
@@ -100,9 +96,22 @@ export function createLibraryStore(
     }
   };
 
+  /** Code read for the hover preview, by path; a refresh empties it, since a file may have changed. */
+  const previews = new Map<string, Promise<string>>();
+  const preview = (path: string): Promise<string> => {
+    let p = previews.get(path);
+    if (!p) {
+      p = api.read_pattern(path).then((pattern) => pattern.code);
+      previews.set(path, p);
+      p.catch(() => previews.delete(path));
+    }
+    return p;
+  };
+
   const refresh = () =>
     attempt(async () => {
       const root = await api.list_tree();
+      previews.clear();
       const headings = collectHeadings(root, new Set());
       // Keyed by path, so rows that survive a refresh keep their DOM (and an in-progress rename).
       set('root', reconcile(root, { key: 'path' }));
@@ -139,8 +148,10 @@ export function createLibraryStore(
       deck.setCode(pattern.code);
       deck.setName(pattern.name);
       deck.setFile(path, pattern.code, pattern);
+      set('target', deckId);
       return true;
     });
+
 
   return {
     state,
@@ -153,14 +164,10 @@ export function createLibraryStore(
     select: (path: string | null) => set('selected', path),
     setCollapsed: (collapsed: boolean) => set('collapsed', collapsed),
     load,
-    /** Double-click: loads into whichever deck `pickDeckForDoubleClick` chooses; resolves to that deck. */
-    loadToIdleDeck: async (path: string): Promise<DeckId> => {
-      const all = decks();
-      const started = (id: DeckId) => (all[id] ? { started: all[id]!.scheduler.started } : null);
-      const id = pickDeckForDoubleClick({ A: started('A'), B: started('B') });
-      await load(path, id);
-      return id;
-    },
+    /** Double-click: loads into the target deck; resolves to whether it loaded. */
+    loadToTarget: (path: string) => load(path, state.target),
+    setTarget: (id: DeckId) => set('target', id),
+    preview,
     rename: (path: string, name: string) =>
       attempt(async () => {
         const next = await api.rename_entry(path, name);
