@@ -8,9 +8,9 @@ in its bar.
 
 A drum voice differs from the bass in one way: a phase template with no hits, while that phase's bars
 do have some (open hats every fourth bar vote a period-4 loop with three silent bars), is not a loop.
-The voice is retried over the shorter periods; when none gives a clean loop and a single-bar vote is
-empty too, the voice has no regular part and every hit is a fill. This rule lives here so the bass
-is untouched.
+The voice is retried over the shorter periods; when none gives a clean loop, the voice's loop is its
+one-bar majority vote, and the hits off it are fills. When that vote is empty too, the voice has no
+regular part and every hit is a fill. This rule lives here so the bass is untouched.
 """
 
 from dataclasses import dataclass
@@ -57,9 +57,8 @@ def voice_loop(bars: list[set[int]]) -> VoiceLoop:
         found = find_loop(steps, shorter) if shorter else None
     if found is not None:
         return _loop(found.period, [set(t) for t in found.templates], bars)
-    if len(bars) >= 2 and not vote(steps, 1)[0]:
-        return _loop(1, [set()], bars)  # no regular part: every hit is a fill
-    return _loop(len(bars), [set(bar) for bar in bars], bars)
+    # the one-bar vote; when it is empty the voice has no regular part and every hit is a fill
+    return _loop(1, [set(vote(steps, 1)[0])], bars)
 
 
 def _f1(played: set[tuple[str, int, int]], heard: set[tuple[str, int, int]]) -> float:

@@ -2,7 +2,7 @@
 setcpm(129/4)
 
 drums: s("bd*4, [cp ~ cp ~] [cp ~ cp ~] [~ ~ cp ~] [~ ~ cp ~]").bank("tr909")
-hats: s("<[[~ oh ~ ~] ~ [~ oh ~ ~] [~ ~ ~ oh]] [[~ oh ~ ~] [~ ~ ~ oh] [~ oh ~ ~] [~ ~ ~ oh]] [[~ oh ~ ~] [~ ~ ~ oh] [~ oh ~ ~] [~ ~ ~ oh]] [[~ oh ~ ~] [~ ~ ~ oh] [~ oh ~ ~] ~] [[~ oh ~ ~] ~ ~ ~] ~ [~ [~ ~ ~ oh] [~ oh ~ ~] [~ ~ ~ oh]] [[~ oh ~ ~] [~ ~ ~ oh] [~ oh ~ ~] [~ ~ ~ oh]] [[~ oh ~ ~] ~ [~ oh ~ ~] [~ ~ ~ oh]]>").bank("tr909")
+hats: s("[~ oh ~ ~] [~ ~ ~ oh] [~ oh ~ ~] [~ ~ ~ oh]").bank("tr909")
 // bars 1–9 add these hits (a fill): remove the underscore to hear them
 _fills: s("<[~ ~ ~ [~ ~ ~ bd]] ~ ~ ~ [~ [~ ~ ~ bd] ~ ~] ~ [[~ ~ bd ~] ~ ~ ~] ~ ~>, <[~ [~ ~ ~ cp] [cp ~ ~ ~] [cp ~ ~ ~]] [~ ~ [cp ~ ~ ~] [cp ~ ~ ~]] [~ cp] [~ ~ ~ [cp ~ ~ cp]] ~ [[~ cp ~ ~] [~ ~ ~ cp] ~ ~] [[~ cp ~ ~] ~ ~ ~] [~ ~ ~ [cp ~ ~ ~]] [~ [~ ~ ~ cp] ~ ~]>").bank("tr909")
 bass: note("[~ ~ g1@2] [~ g1 ~ g1] [~ ~ g1@2] [~ g1@2 g2]").s("sawtooth").lpf(800)

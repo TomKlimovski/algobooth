@@ -74,3 +74,11 @@ def test_hits_off_the_clip_are_ignored():
     drums = {"bd": [(b, s) for b in range(4) for s in FOUR] + [(3, 10)]}
     stray = {"bd": drums["bd"] + [(4, 2), (-1, 6)], "oh": [(9, 2)]}
     assert drum_loops(analysis(drums=stray, bars=4)) == drum_loops(analysis(drums=drums, bars=4))
+
+
+def test_a_loop_with_an_empty_phase_falls_back_to_the_one_bar_vote():
+    # Solomun's open hats: a period-4 vote leaves a silent phase, periods 1 and 2 give no clean loop
+    bars = [{1, 9, 15}, {1, 7, 9, 15}, {1, 7, 9, 15}, {1, 7, 9}, {1}, set(), {7, 9, 15}, {1, 7, 9, 15}, {1, 9, 15}]
+    v = voice_loop(bars)
+    assert v.period == 1 and v.templates == [{1, 7, 9, 15}]
+    assert not any(v.fills)
