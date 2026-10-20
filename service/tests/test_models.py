@@ -1,11 +1,14 @@
+import os
+import sys
 import threading
+import time
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 from algorip.api import ServiceSettings, create_app
-from algorip.models import HTDEMUCS_SIGNATURE, ML_PACKAGES, ModelStore
+from algorip.models import HTDEMUCS_SIGNATURE, ML_PACKAGES, GroupRunner, ModelStore
 from algorip.pipeline import Paths
 
 TOKEN = "s3cret"
@@ -13,10 +16,14 @@ AUTH = {"Authorization": f"Bearer {TOKEN}"}
 URL = f"https://w/{HTDEMUCS_SIGNATURE}-8726e21a.th"
 
 
+def target(cmd):
+    return Path(cmd[cmd.index("--target") + 1])
+
+
 def fake_run(tmp_path, calls):
     def run(cmd):
         calls.append(cmd)
-        (tmp_path / "site" / "torch").mkdir(parents=True, exist_ok=True)
+        (target(cmd) / "torch").mkdir(parents=True, exist_ok=True)
     return run
 
 
@@ -61,7 +68,7 @@ def test_install_runs_pip_then_downloads_weights(tmp_path):
     cmd = calls[0]
     assert cmd[:3] == ["/py", "-m", "pip"] and "--target" in cmd and ML_PACKAGES[0] in cmd
     assert cmd == ["/py", "-m", "pip", "install", "--quiet", "--disable-pip-version-check", "--only-binary=:all:",
-                   "--target", str(tmp_path / "site"), *ML_PACKAGES]
+                   "--target", str(tmp_path / f"site.partial-{os.getpid()}"), *ML_PACKAGES]
     status = store.status()
     assert status.ready and status.error is None and not status.installing and status.progress == 1.0
     assert (tmp_path / "site" / ".installed").read_text().split("\n") == ML_PACKAGES
@@ -76,7 +83,7 @@ def test_install_reports_stages_and_progress(tmp_path):
 
     def run(cmd):
         s = store.status(); seen.append((s.stage, s.progress, s.installing))
-        (tmp_path / "site").mkdir(parents=True, exist_ok=True)
+        target(cmd).mkdir(parents=True, exist_ok=True)
 
     def download(url, path, on_fraction):
         on_fraction(0.5)
@@ -94,7 +101,7 @@ def test_install_reports_stages_and_progress(tmp_path):
 
 def test_marker_is_written_only_after_pip_succeeds(tmp_path):
     def run(cmd):
-        (tmp_path / "site" / "torch").mkdir(parents=True)
+        (target(cmd) / "torch").mkdir(parents=True)
         raise RuntimeError("disk full")
 
     store = ModelStore(tmp_path, run=run, download=fake_download, resolve_url=lambda: URL)
@@ -118,17 +125,97 @@ def test_install_failure_is_reported_and_retryable(tmp_path):
     assert len(calls) == 2
 
 
-def test_retry_clears_a_half_written_site(tmp_path):
+def test_pip_installs_into_a_partial_folder_that_then_replaces_site(tmp_path):
     (tmp_path / "site" / "torch").mkdir(parents=True)
-    (tmp_path / "site" / "torch" / "stale.py").write_text("")
+    (tmp_path / "site" / "torch" / "stale.py").write_text("")  # a half-written site from a killed install
+    (tmp_path / "site.partial-1").mkdir()  # an orphaned pip's folder
     seen = []
 
     def run(cmd):
-        seen.append((tmp_path / "site" / "torch" / "stale.py").exists())
+        seen.append((target(cmd), (tmp_path / "site" / "torch" / "stale.py").exists()))
+        (target(cmd) / "torch").mkdir(parents=True)
+        (target(cmd) / "torch" / "new.py").write_text("")
 
     store = ModelStore(tmp_path, run=run, download=fake_download, resolve_url=lambda: URL)
     store.install(); store.wait(5)
-    assert seen == [False]
+    assert seen == [(tmp_path / f"site.partial-{os.getpid()}", True)]  # pip never writes into site itself
+    assert (tmp_path / "site" / "torch" / "new.py").exists()
+    assert not (tmp_path / "site" / "torch" / "stale.py").exists()
+    assert (tmp_path / "site" / ".installed").exists()
+    assert list(tmp_path.glob("site.partial-*")) == []
+
+
+def test_a_failed_pip_leaves_site_alone_and_no_partial_folder(tmp_path):
+    (tmp_path / "site").mkdir()
+    (tmp_path / "site" / "keep.py").write_text("")
+
+    def run(cmd):
+        (target(cmd) / "torch").mkdir(parents=True)
+        raise RuntimeError("no wheel")
+
+    store = ModelStore(tmp_path, run=run, download=fake_download, resolve_url=lambda: URL)
+    store.install(); store.wait(5)
+    assert store.status().error == "no wheel"
+    assert (tmp_path / "site" / "keep.py").exists()
+    assert list(tmp_path.glob("site.partial-*")) == []
+
+
+def test_store_stop_stops_its_runner(tmp_path):
+    class Runner:
+        stopped = False
+
+        def __call__(self, cmd):
+            pass
+
+        def stop(self):
+            Runner.stopped = True
+
+    ModelStore(tmp_path, run=Runner()).stop()
+    assert Runner.stopped
+    ModelStore(tmp_path, run=lambda cmd: None).stop()  # a plain runner has nothing to stop
+
+
+def _alive(pid):
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    return True
+
+
+def test_group_runner_stop_kills_the_command_and_its_children(tmp_path):
+    pidfile = tmp_path / "child.pid"
+    script = ("import subprocess, sys, time\n"
+              "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
+              f"open({str(pidfile)!r}, 'w').write(str(child.pid))\n"
+              "time.sleep(60)\n")
+    runner, errors = GroupRunner(), []
+
+    def go():
+        try:
+            runner([sys.executable, "-c", script])
+        except RuntimeError as exc:
+            errors.append(exc)
+
+    thread = threading.Thread(target=go)
+    thread.start()
+    deadline = time.monotonic() + 10
+    while not (pidfile.exists() and pidfile.read_text()) and time.monotonic() < deadline:
+        time.sleep(0.02)
+    child = int(pidfile.read_text())
+    runner.stop()
+    thread.join(10)
+    assert not thread.is_alive() and len(errors) == 1
+    deadline = time.monotonic() + 10
+    while _alive(child) and time.monotonic() < deadline:
+        time.sleep(0.02)
+    assert not _alive(child)
+
+
+def test_group_runner_reports_a_failure_with_its_stderr():
+    with pytest.raises(RuntimeError, match="boom"):
+        GroupRunner()([sys.executable, "-c", "import sys; sys.stderr.write('boom'); sys.exit(3)"])
+    GroupRunner()([sys.executable, "-c", "pass"])
 
 
 def test_download_failure_leaves_no_weights_and_keeps_packages(tmp_path):
@@ -166,7 +253,7 @@ def test_second_install_while_installing_is_a_no_op(tmp_path):
     def run(cmd):
         calls.append(cmd)
         assert release.wait(5)
-        (tmp_path / "site").mkdir(parents=True, exist_ok=True)
+        target(cmd).mkdir(parents=True, exist_ok=True)
 
     store = ModelStore(tmp_path, run=run, download=fake_download, resolve_url=lambda: URL)
     store.install()
@@ -193,7 +280,7 @@ def client_with_models(tmp_path):
     def run(cmd):
         calls.append(cmd)
         assert release.wait(5)
-        (tmp_path / "m" / "site").mkdir(parents=True, exist_ok=True)
+        target(cmd).mkdir(parents=True, exist_ok=True)
 
     store = ModelStore(tmp_path / "m", run=run, download=fake_download, resolve_url=lambda: URL)
     settings = ServiceSettings(token=TOKEN, paths=Paths(cache_dir=tmp_path / "c", models_dir=tmp_path / "m",

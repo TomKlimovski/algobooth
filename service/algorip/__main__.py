@@ -66,12 +66,22 @@ def watch_parent(
 
 def main() -> None:
     settings = settings_from_env(os.environ)
-    threading.Thread(target=watch_parent, args=(os.getppid(),), name="parent-watch", daemon=True).start()
+    from algorip.models import ModelStore
+
+    models = ModelStore(settings.paths.models_dir)
+
+    def exit_now(code: int) -> None:
+        try:
+            models.stop()  # an install's pip and its helpers must not outlive us
+        finally:
+            os._exit(code)
+
+    threading.Thread(target=watch_parent, args=(os.getppid(),), kwargs={"exit_": exit_now}, name="parent-watch",
+                     daemon=True).start()
 
     import uvicorn
 
     from algorip.api import create_app
-    from algorip.models import ModelStore
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind(("127.0.0.1", 0))
@@ -79,9 +89,12 @@ def main() -> None:
     sys.stdout.write(port_line(sock.getsockname()[1]) + "\n")
     sys.stdout.flush()
 
-    app = create_app(settings, models=ModelStore(settings.paths.models_dir))
+    app = create_app(settings, models=models)
     server = uvicorn.Server(uvicorn.Config(app, log_level="warning", access_log=False))
-    server.run(sockets=[sock])
+    try:
+        server.run(sockets=[sock])
+    finally:
+        models.stop()
 
 
 if __name__ == "__main__":

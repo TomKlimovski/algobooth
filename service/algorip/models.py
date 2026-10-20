@@ -7,6 +7,8 @@ into the torch hub cache under `models_dir/torch`, where `demucs_separator` find
 
 import os
 import shutil
+import signal
+import subprocess
 import sys
 import threading
 from pathlib import Path
@@ -14,7 +16,7 @@ from typing import Callable
 
 import httpx
 
-from algorip.download import Runner, run_command
+from algorip.download import Runner
 from algorip.schema import ModelStatus
 
 # demucs 4.0.1 is published as an sdist only, which `--only-binary=:all:` refuses;
@@ -71,18 +73,50 @@ def httpx_download(url: str, path: Path, on_fraction: Callable[[float], None],
                         on_fraction(min(done / total, 1.0))
 
 
+class GroupRunner:
+    """Runs each command in a session of its own, so stop() can kill it with every process it started.
+
+    pip spawns build and install helpers; killing pip alone would leave them writing.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._running: set[subprocess.Popen] = set()
+
+    def __call__(self, cmd: list[str]) -> None:
+        proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, start_new_session=True)
+        with self._lock:
+            self._running.add(proc)
+        try:
+            _, err = proc.communicate()
+        finally:
+            with self._lock:
+                self._running.discard(proc)
+        if proc.returncode != 0:
+            raise RuntimeError(err.decode(errors="replace").strip() or f"{cmd[0]} exited with {proc.returncode}")
+
+    def stop(self) -> None:
+        with self._lock:
+            running = list(self._running)
+        for proc in running:
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)  # start_new_session made its pid the group id
+            except (ProcessLookupError, PermissionError):
+                pass
+
+
 class ModelStore:
     def __init__(
         self,
         models_dir: Path,
         python: Path = Path(sys.executable),
-        run: Runner = run_command,
+        run: Runner | None = None,  # None means a GroupRunner
         download: Downloader = httpx_download,
         resolve_url: Callable[[], str] | None = None,  # None means demucs_checkpoint_url(self.site)
     ):
         self.models_dir = models_dir
         self.python = python
-        self.run = run
+        self.run = run or GroupRunner()
         self.download = download
         self.resolve_url = resolve_url or (lambda: demucs_checkpoint_url(self.site))
         self._lock = threading.Lock()
@@ -132,6 +166,12 @@ class ModelStore:
             self._thread = threading.Thread(target=self._install, name="model-install", daemon=True)
             self._thread.start()
 
+    def stop(self) -> None:
+        """Kill a running pip and everything it started (the service calls this as it exits)."""
+        stop = getattr(self.run, "stop", None)
+        if stop is not None:
+            stop()
+
     def wait(self, timeout: float | None = None) -> None:
         """Join the install thread (for tests)."""
         thread = self._thread
@@ -160,10 +200,18 @@ class ModelStore:
 
     def _install_packages(self) -> None:
         self._set("packages", 0.0)
-        # pip --target skips packages already in the folder, so a half-written site starts over
-        shutil.rmtree(self.site, ignore_errors=True)
-        self.run([str(self.python), "-m", "pip", "install", "--quiet", "--disable-pip-version-check",
-                  "--only-binary=:all:", "--target", str(self.site), *ML_PACKAGES])
+        # pip installs into a folder of this process's own, which replaces site only once pip is done:
+        # a pip orphaned by an earlier, killed service may still be writing into its own folder.
+        partial = self.models_dir / f"site.partial-{os.getpid()}"
+        for stale in self.models_dir.glob("site.partial-*"):
+            shutil.rmtree(stale, ignore_errors=True)
+        try:
+            self.run([str(self.python), "-m", "pip", "install", "--quiet", "--disable-pip-version-check",
+                      "--only-binary=:all:", "--target", str(partial), *ML_PACKAGES])
+            shutil.rmtree(self.site, ignore_errors=True)
+            os.replace(partial, self.site)
+        finally:
+            shutil.rmtree(partial, ignore_errors=True)
         self._set("packages", PACKAGES_SHARE)
         # Written last: a site without this marker (or with other pins) is never "installed"
         self.marker.write_text("\n".join(ML_PACKAGES))
