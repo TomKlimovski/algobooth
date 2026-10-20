@@ -115,7 +115,7 @@ def drum_loops(a: Analysis) -> DrumLoops
   has one stray closed-hat hit in a core bar, so it gains a `_fills:` line and its match drops under
   1.0; that is the every-bar rule working and the golden is regenerated with that reason.
 - Unit tests for `drum_loops` on hand-made hit sets: a one-bar loop with one fill bar; a four-bar
-  phrase whose last bar always fills (period 4 found on 8 bars, no fills); a clip with no repetition
+  phrase whose last bar always fills (a one-bar loop, the fill every fourth bar on the fills line); a clip with no repetition
   (verbatim, match 1.0 by definition); a silent voice.
 - A vitest check that every golden with a `_fills:` line evaluates and plays something in its fill bar.
 
