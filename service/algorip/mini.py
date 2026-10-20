@@ -260,12 +260,17 @@ def notes_mini(notes: list[Note], bars: int) -> str:
     if agreed is None:
         lines = [list(bar.values()) for bar in heard]
     else:
-        lines = [[_template_note(heard, step, pc) for step, pc in template.items()] for template in agreed]
+        lines = [[template_note(heard, step, pc) for step, pc in template.items()] for template in agreed]
     return cycle([notes_bar_mini(line) for line in lines])
 
 
-def _template_note(heard: list[dict[int, Note]], step: int, pc: int) -> Note:
+def template_note(heard: list[dict[int, Note]], step: int, pc: int) -> Note:
     """The commonest (midi, length) among the bars that play pitch class pc on step."""
     votes = Counter((n.midi, n.length) for bar in heard if (n := bar.get(step)) is not None and n.midi % OCTAVE == pc)
     midi, length = votes.most_common(1)[0][0]
     return Note(bar=0, step=step, length=length, midi=midi)
+
+
+def loop_mini(templates: list[list[Note]]) -> str:
+    """A loop's phases, one bar each, as one alternation per cycle."""
+    return cycle([notes_bar_mini(t) for t in templates])

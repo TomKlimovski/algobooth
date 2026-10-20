@@ -1,15 +1,17 @@
 import numpy as np
-import pytest
 
 from algorip.audio import SR
-from algorip.bass import harmonic_ratio, transcribe_bass
+from algorip.bass import candidates, choose_bass_loop, harmonic_ratio, transcribe_bass
+from algorip.bassgrid import BassGrid
 from algorip.grid import Grid
 from algorip.key import Key
+from algorip.mini import loop_mini
 from algorip.notes import Note, monophonic, quantise, snap_to_key
 from tests.synth import bass_line
 
 G = Grid(bpm=120, first_downbeat=0.0, bars=1)   # step = 0.125 s
 AMIN = Key(tonic=9, mode="minor")
+GMIN = Key(tonic=7, mode="minor")
 
 
 def test_quantise_rounds_to_steps_and_drops_quiet_notes():
@@ -52,23 +54,67 @@ def test_monophonic_overlap_across_bars():
     assert [(n.bar, n.step, n.length) for n in out] == [(0, 14, 2), (1, 0, 2)]
 
 
-def test_transcribe_bass_with_a_fake_predictor(tmp_path):
-    fake = lambda path: [(0.0, 0.5, 33, 0.9), (1.0, 1.25, 28, 0.9), (1.25, 1.5, 70, 0.9)]
-    notes = transcribe_bass(tmp_path / "bass.wav", G, AMIN, predict=fake)
-    assert [n.midi for n in notes] == [33, 28, 57]     # 70 (A#4) snaps to A, then folds an octave into the bass register
+SOLO = [(0, 2, 1, 31), (0, 3, 1, 31), (0, 5, 1, 31), (0, 7, 1, 31), (0, 10, 1, 31), (0, 11, 1, 31), (0, 13, 1, 31), (0, 14, 1, 31), (0, 15, 1, 43)]
 
 
-def test_transcribe_bass_folds_low_notes_up(tmp_path):
-    notes = transcribe_bass(tmp_path / "bass.wav", G, AMIN, predict=lambda p: [(0.0, 0.5, 21, 0.9)])
-    assert [n.midi for n in notes] == [33]
+def solomun_audio(bars=4, build_from=None):
+    notes = [(b, s, n, m) for b in range(bars) for (_, s, n, m) in SOLO]
+    if build_from is not None:
+        notes += [(b, s, 1, 31) for b in range(build_from, bars) for s in range(16) if s not in {2, 3, 5, 7, 10, 11, 13, 14, 15}]
+    return bass_line(notes, 129, bars)
 
 
-@pytest.mark.slow
-def test_real_basic_pitch_hears_a_sawtooth_bass(tmp_wav):
-    y = bass_line([(0, 0, 8, 45), (0, 8, 8, 40)], bpm=120, bars=1)  # A2 then E2
-    notes = transcribe_bass(tmp_wav("bass.wav", y), G, AMIN)
-    classes = {n.midi % 12 for n in notes}
-    assert {9, 4} <= classes
+def test_transcribe_bass_snaps_and_folds_into_the_register():
+    g = Grid(bpm=129, first_downbeat=0.0, bars=1)
+    # B0 (23, 30.9 Hz) folds up; A0 (21, 27.5 Hz) would be under bassgrid's FMIN and heard as a rest.
+    bg, notes = transcribe_bass(bass_line([(0, 0, 4, 70), (0, 8, 4, 23)], 129, 1), SR, g, AMIN)
+    assert [n.midi for n in notes] == [57, 35] and bg.midi[0][0] == 57
+
+
+def test_choose_bass_loop_finds_the_one_bar_loop_and_the_build_layer():
+    g = Grid(bpm=129, first_downbeat=0.0, bars=9)
+    # Not build_from=4: five identical full bars of nine are a strict majority, so by the vote they are the loop.
+    bg, notes = transcribe_bass(solomun_audio(9, build_from=5), SR, g, GMIN)
+    loop = choose_bass_loop(bg, g, notes)
+    assert loop.period == 1
+    assert loop_mini(loop.templates) == "[~ ~ g1 g1] [~ g1 ~ g1] [~ ~ g1 g1] [~ g1 g1 g2]"
+    assert loop.layer_bars == (6, 9) and loop.layer is not None
+    # Controller ruling: match is the loop alone over all nine bars, so the build bars cap it well
+    # under 0.9 by construction (0.78 with four build bars); the brief's >= 0.9 cannot hold.
+    assert 0.7 <= loop.match < loop.match_with_layer
+
+
+def test_candidates():
+    t = [[Note(bar=0, step=0, length=1, midi=31), Note(bar=0, step=1, length=1, midi=31), Note(bar=0, step=8, length=1, midi=31)]]
+    named = dict(candidates(t))
+    assert [n.step for n in named["b"][0]] == [0, 8]            # the odd 16th merged into its even neighbour
+    assert [(n.step, n.length) for n in named["c"][0]] == [(0, 2), (8, 1)]
+
+
+def test_retriggers_are_kept_because_sustaining_them_loses_onsets():
+    g = Grid(bpm=120, first_downbeat=0.0, bars=4)
+    notes_in = [(b, 0, 1, 31) for b in range(4)] + [(b, 1, 1, 31) for b in range(4)] + [(b, 8, 1, 31) for b in range(4)]
+    bg, notes = transcribe_bass(bass_line(notes_in, 120, 4), SR, g, GMIN)
+    # (c) would write "[g1@2 ~ ~] ~ [g1 ~ ~ ~] ~", one character shorter, but its onset F1 is 0.8: outside the tolerance
+    assert loop_mini(choose_bass_loop(bg, g, notes).templates) == "[g1 g1 ~ ~] ~ [g1 ~ ~ ~] ~"
+
+
+def test_a_better_fitting_candidate_wins_over_a_shorter_one():
+    # The truth has starts on steps 0 and 8; the notes put the first on step 1 (a late onset). (b) moves it to 0 and fits.
+    g = Grid(bpm=120, first_downbeat=0.0, bars=4)
+    starts = [[s in (0, 8) for s in range(16)]] * 4
+    bg = BassGrid(bars=4, midi=[[31 if s in (0, 8) else None for s in range(16)]] * 4, starts=starts)
+    notes = [Note(bar=b, step=s, length=1, midi=31) for b in range(4) for s in (1, 8)]
+    loop = choose_bass_loop(bg, g, notes)
+    assert loop_mini(loop.templates) == "[g1 ~ ~ ~] ~ [g1 ~ ~ ~] ~" and loop.match == 1.0
+
+
+def test_no_loop_and_no_bass():
+    g = Grid(bpm=120, first_downbeat=0.0, bars=4)
+    bg, notes = transcribe_bass(bass_line([(b, 0, 4, 31 + 2 * b) for b in range(4)], 120, 4), SR, g, GMIN)
+    assert choose_bass_loop(bg, g, notes) is None
+    bg, notes = transcribe_bass(np.zeros(SR * 8, dtype=np.float32), SR, g, GMIN)
+    assert notes == [] and choose_bass_loop(bg, g, notes) is None
 
 
 def test_harmonic_ratio_is_higher_for_sawtooth_than_sine():

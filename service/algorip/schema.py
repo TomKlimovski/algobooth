@@ -10,6 +10,17 @@ MAX_CLIP_SECONDS = 60
 _CLIP_EPSILON = 1e-6  # 64.4 - 4.4 is 60.00000000000001 in binary floating point, still 60 s
 
 
+class BassLoop(BaseModel):
+    """The bass as a loop: the bars it repeats, a layer some bars add on top, and how well each fits the stem."""
+
+    period: int
+    templates: list[list[Note]]  # one per phase; every note has bar == 0
+    layer: list[list[Note]] | None  # one per phase of the layer's own period
+    layer_bars: tuple[int, int] | None  # 1-based inclusive
+    match: float  # the loop alone against the stem's step grid, over every bar
+    match_with_layer: float | None  # the loop plus the layer, over every bar
+
+
 class Analysis(BaseModel):
     bpm: float
     key: str
@@ -23,6 +34,7 @@ class Analysis(BaseModel):
     bass_harmonics: float
     chords: list[str]
     melody: list[Note] | None
+    bass_loop: BassLoop | None = None
 
 
 class SoundChoice(BaseModel):

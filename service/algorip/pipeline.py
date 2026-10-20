@@ -1,7 +1,7 @@
 """One rip end to end: download, separate, analyse, generate and (optionally) tidy.
 
 Every heavy or networked step comes in through `Deps`, so tests run the whole
-pipeline on synthetic audio with no network, no Demucs and no Basic Pitch.
+pipeline on synthetic audio with no network, no Demucs and no Basic Pitch (which hears only the melody now; the bass goes through pyin).
 """
 
 from dataclasses import dataclass
@@ -11,7 +11,7 @@ from typing import Callable
 from pydantic import BaseModel
 
 from algorip.audio import SR, load_mono
-from algorip.bass import harmonic_ratio, transcribe_bass
+from algorip.bass import choose_bass_loop, harmonic_ratio, transcribe_bass
 from algorip.chords import estimate_chords
 from algorip.download import Fetcher, Runner, clip_key, fetch_clip, run_command, yt_dlp_fetch
 from algorip.drums import VOICES, classify_drums, is_four_on_the_floor
@@ -128,7 +128,7 @@ def _analyse(stems: dict[str, Path], predict: Predictor, report: Callable[[float
     hits = classify_drums(drums, SR, grid)
     report(0.5)
 
-    bass_notes = transcribe_bass(stems["bass"], grid, key, predict=predict)
+    bg, bass_notes = transcribe_bass(bass, SR, grid, key)
     bass_harmonics = harmonic_ratio(bass, SR, bass_notes, grid)
     report(0.7)
 
@@ -148,6 +148,7 @@ def _analyse(stems: dict[str, Path], predict: Predictor, report: Callable[[float
         bass_harmonics=bass_harmonics,
         chords=chords,
         melody=melody,
+        bass_loop=choose_bass_loop(bg, grid, bass_notes),
     )
     report(1.0)
     return analysis

@@ -81,7 +81,11 @@ def test_run_rip_reports_every_stage_and_builds_a_result(tmp_path, tmp_wav):
     assert result.code.startswith("// ") and "setcpm(" in result.code
     assert result.tidied_code is None and result.tidy_error is None
     assert result.stems == ["drums", "bass", "other", "vocals", "mix"]
-    assert "chat" not in calls and calls["separator"] == 1 and calls["predict"] == ["bass.wav", "other.wav"]
+    assert "chat" not in calls and calls["separator"] == 1 and calls["predict"] == ["other.wav"]  # the bass is heard by pyin now, not Basic Pitch
+    # BASS is the same every bar, but estimate_grid on this short synthetic mix lands at 123 bpm with the
+    # downbeat three beats late and 3 bars (pre-existing: the test only asserts bars >= 1), so no loop can
+    # be pinned here; the end-to-end loop through _analyse is pinned by the build golden in Task 6.
+    assert result.analysis.bass_loop is None or result.analysis.bass_loop.period == 1
 
 
 def test_run_rip_tidy_runs_only_with_key_and_flag(tmp_path, tmp_wav):
@@ -154,4 +158,4 @@ def test_analyse_after_a_replayable_rip_recomputes(tmp_path, tmp_wav):
     req = RipRequest(url="https://x/v", start=0, end=8)
     run_rip(req, paths(tmp_path), lambda s, f: None, deps)
     run_rip(req, paths(tmp_path), lambda s, f: None, deps)
-    assert calls["predict"] == ["bass.wav", "other.wav"] * 2  # a plain Analyse never replays (the stems are cached, the analysis is not)
+    assert calls["predict"] == ["other.wav"] * 2  # a plain Analyse never replays (the stems are cached, the analysis is not)
