@@ -16,6 +16,8 @@ dependencies = [
     "anthropic==1.15.0",
     "httpx==0.28.1",
     "pip==26.2.1",
+    # basic-pitch pins resampy<0.4.3, which imports pkg_resources; setuptools 82 removed it
+    "setuptools==81.0.0",
 ]
 
 [dependency-groups]
@@ -31,4 +33,6 @@ markers = ["slow: runs a real Basic Pitch inference"]
 filterwarnings = [
     # audioread (via librosa) imports stdlib modules Python 3.13 removes; not ours to fix
     "ignore:'(aifc|audioop|sunau)' is deprecated:DeprecationWarning",
+    # resampy (via basic-pitch) imports pkg_resources; see the setuptools pin above
+    "ignore:pkg_resources is deprecated:UserWarning",
 ]
