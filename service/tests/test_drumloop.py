@@ -68,3 +68,9 @@ def test_drum_loops_over_an_analysis():
     assert d.fill_bars == (4, 4)
     assert d.match == pytest.approx(round(2 * 24 / (24 + 25), 2))   # 24 played, 25 classified
     assert drum_loops(analysis(drums={}, bars=4)).voices == {} and drum_loops(analysis(drums={}, bars=4)).match == 1.0
+
+
+def test_hits_off_the_clip_are_ignored():
+    drums = {"bd": [(b, s) for b in range(4) for s in FOUR] + [(3, 10)]}
+    stray = {"bd": drums["bd"] + [(4, 2), (-1, 6)], "oh": [(9, 2)]}
+    assert drum_loops(analysis(drums=stray, bars=4)) == drum_loops(analysis(drums=drums, bars=4))

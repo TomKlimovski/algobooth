@@ -73,7 +73,8 @@ def drum_loops(a: Analysis) -> DrumLoops:
     voices: dict[str, VoiceLoop] = {}
     played: set[tuple[str, int, int]] = set()
     heard: set[tuple[str, int, int]] = set()
-    for voice, hits in a.drums.items():
+    for voice, all_hits in a.drums.items():
+        hits = [(bar, step) for bar, step in all_hits if 0 <= bar < a.bars]  # as generate._bars
         if not hits:
             continue
         bars: list[set[int]] = [set() for _ in range(a.bars)]
