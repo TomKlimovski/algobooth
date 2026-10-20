@@ -1,0 +1,7 @@
+// Around The World 1:12 to 1:28 · 123 cpm · G minor · 2 bars
+setcpm(123/4)
+
+$: s("bd*4, [~ cp]*2").bank("tr909")
+$: s("[~ oh]*4").bank("tr909")
+$: note("~@6 g1@6 ~@2 g1 ~").s("sawtooth").lpf(800)
+$: chord("<Gm F>").voicing().s("sawtooth").lpf(1200).room(0.4).gain(0.6)

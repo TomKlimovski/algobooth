@@ -9,7 +9,7 @@ from algorip.sounds import choose_sounds
 GOLDEN = Path(__file__).parent / "golden"
 
 
-@pytest.mark.parametrize("name", ["house", "breaks", "drums_only"])
+@pytest.mark.parametrize("name", ["house", "breaks", "drums_only", "sustain"])
 def test_golden(name):
     a = Analysis.model_validate_json((GOLDEN / f"{name}.analysis.json").read_text())
     code = generate(a, choose_sounds(a), title="Around The World", start=72, end=88)

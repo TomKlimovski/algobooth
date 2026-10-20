@@ -34,3 +34,14 @@ test.each(files)('%s evaluates headlessly and plays in its first cycle', async (
   const pat = await r.evaluate(code, false);
   expect((pat ?? r.scheduler.pattern).queryArc(0, 1).length).toBeGreaterThan(0);
 });
+
+test('a flat bar with weighted rests sustains each note for its weight', async () => {
+  const r = core.repl({ transpiler, defaultOutput: async () => {}, getTime: () => 0 });
+  const pat = await r.evaluate('note("~@6 g1@6 ~@2 g1 ~")', false);
+  const haps = (pat ?? r.scheduler.pattern).queryArc(0, 1);
+  const spans = haps.map((h: any) => [h.value.note, h.whole.begin.valueOf() * 16, h.whole.end.valueOf() * 16]);
+  expect(spans).toEqual([
+    ['g1', 6, 12],
+    ['g1', 14, 15],
+  ]);
+});

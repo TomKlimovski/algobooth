@@ -2,7 +2,7 @@
 
 import math
 
-from algorip.mini import cycle, notes_mini, voice_mini
+from algorip.mini import cycle, fold_octaves, notes_mini, voice_mini
 from algorip.schema import Analysis, SoundChoice
 
 
@@ -43,7 +43,8 @@ def generate(a: Analysis, s: SoundChoice, title: str, start: float, end: float) 
     ]
     if a.bass:
         lpf = f".lpf({s.bass_lpf})" if s.bass_lpf is not None else ""
-        body.append(f'$: note("{notes_mini(a.bass, a.bars)}").s("{s.bass_sound}"){lpf}')
+        bass = notes_mini(fold_octaves(a.bass), a.bars)
+        body.append(f'$: note("{bass}").s("{s.bass_sound}"){lpf}')
     if a.chords:
         body.append(
             f'$: chord("{cycle(a.chords)}").voicing().s("{s.chord_sound}")'

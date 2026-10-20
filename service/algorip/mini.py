@@ -1,6 +1,10 @@
 """Strudel mini-notation from step hits and notes: repeats, offbeats, Euclid, beat groups, cycles."""
 
-from collections.abc import Sequence
+import math
+import statistics
+from collections import Counter
+from collections.abc import Hashable, Sequence
+from typing import TypeVar
 
 import librosa
 
@@ -9,6 +13,21 @@ from algorip.notes import Note
 
 BEAT = 4  # slots per beat group
 _OPEN, _CLOSE = "[<({", "]>)}"
+
+# Bar consensus: a line heard over several bars is written as the template its bars agree on, so
+# a missed or stray hit in one bar does not turn a loop into eight different bars. Periods are
+# tried shortest first; a period's template takes, at each phase, every step (and pitch class)
+# that a strict majority of that phase's bars have. It is accepted when every bar agrees with its
+# template on at least two thirds of the steps either of them occupies. Each phase needs at least
+# three bars to vote: with two, a majority is both, and the template would be a bar nobody played.
+# (The reviewer's starting share was 75%; on One More Time a bar with the four off-beat hats and
+# two stray ones agrees on 4 of 6, and it is the stray hits that the consensus is for.)
+CONSENSUS_PERIODS = (1, 2, 4)
+CONSENSUS_MIN_VOTES = 3
+CONSENSUS_SHARE = (2, 3)  # numerator, denominator
+OCTAVE = 12
+
+H = TypeVar("H", bound=Hashable)
 
 
 def bjorklund(k: int, n: int) -> list[bool]:
@@ -105,20 +124,78 @@ def cycle(parts: list[str]) -> str:
     return "<" + " ".join(f"[{p}]" if _has_top_level_space(p) else p for p in parts) + ">"
 
 
+def _agrees(bar: dict[int, Hashable], template: dict[int, Hashable]) -> bool:
+    occupied = set(bar) | set(template)
+    matches = sum(bar.get(step) == template.get(step) for step in occupied)
+    numerator, denominator = CONSENSUS_SHARE
+    return matches * denominator >= len(occupied) * numerator
+
+
+def consensus(bars: list[dict[int, H]]) -> list[dict[int, H]] | None:
+    """Each bar's phase template for the shortest period that fits, or None if none does."""
+    for p in CONSENSUS_PERIODS:
+        if len(bars) < CONSENSUS_MIN_VOTES * p:
+            break
+        templates = []
+        for phase in range(p):
+            voters = bars[phase::p]
+            votes = Counter((step, value) for bar in voters for step, value in bar.items())
+            templates.append({step: value for (step, value), n in votes.items() if 2 * n > len(voters)})
+        if all(_agrees(bar, templates[i % p]) for i, bar in enumerate(bars)):
+            return [templates[i % p] for i in range(len(bars))]
+    return None
+
+
 def voice_mini(name: str, bars: list[set[int]]) -> str:
-    return cycle([bar_mini(name, b) for b in bars])
+    agreed = consensus([dict.fromkeys(b, True) for b in bars])
+    return cycle([bar_mini(name, set(b)) for b in (bars if agreed is None else agreed)])
 
 
 def note_name(midi: int) -> str:
     return librosa.midi_to_note(midi, unicode=False).lower()
 
 
-def notes_bar_mini(notes: list[Note]) -> str:
-    """One bar of notes in four beat groups; a note sustains to at most the end of its beat group."""
+def _one_per_step(notes: list[Note]) -> dict[int, Note]:
     starts: dict[int, Note] = {}
     for note in sorted(notes, key=lambda n: (n.step, n.midi)):
         if 0 <= note.step < STEPS_PER_BAR:
-            starts.setdefault(note.step, note)  # one note per step
+            starts.setdefault(note.step, note)  # one note per step: the lowest
+    return starts
+
+
+def _length(starts: dict[int, Note], slot: int, end: int) -> int:
+    """The steps the note on slot sounds before the next start or end."""
+    next_start = next((s for s in range(slot + 1, end) if s in starts), end)
+    return min(starts[slot].length, next_start - slot)
+
+
+def _flat_bar(starts: dict[int, Note]) -> str:
+    """The bar as one sequence of @-weighted notes and rests, for notes that sustain across beat groups."""
+    items: list[tuple[str, int]] = []
+    slot = 0
+    while slot < STEPS_PER_BAR:
+        if slot not in starts:
+            if items and items[-1][0] == "~":
+                items[-1] = ("~", items[-1][1] + 1)
+            else:
+                items.append(("~", 1))
+            slot += 1
+            continue
+        length = _length(starts, slot, STEPS_PER_BAR)
+        items.append((note_name(starts[slot].midi), length))
+        slot += length
+    scale = math.gcd(*(weight for _, weight in items))
+    return " ".join(text if weight == scale else f"{text}@{weight // scale}" for text, weight in items)
+
+
+def notes_bar_mini(notes: list[Note]) -> str:
+    """One bar of notes in four beat groups, or one flat @-weighted sequence when a note sustains past its group.
+
+    A note sounds until the next note starts or the bar ends.
+    """
+    starts = _one_per_step(notes)
+    if any(slot + _length(starts, slot, STEPS_PER_BAR) > slot - slot % BEAT + BEAT for slot in starts):
+        return _flat_bar(starts)
     groups = []
     for start in range(0, STEPS_PER_BAR, BEAT):
         end = start + BEAT
@@ -130,8 +207,7 @@ def notes_bar_mini(notes: list[Note]) -> str:
                 items.append("~")
                 slot += 1
                 continue
-            next_start = next((s for s in range(slot + 1, end) if s in starts), end)
-            length = min(note.length, next_start - slot)
+            length = _length(starts, slot, end)
             name = note_name(note.midi)
             items.append(name if length == 1 else f"{name}@{length}")
             slot += length
@@ -144,5 +220,33 @@ def notes_bar_mini(notes: list[Note]) -> str:
     return " ".join(groups)
 
 
+def fold_octaves(notes: list[Note]) -> list[Note]:
+    """Notes an octave or more from the line's median pitch moved by octaves until they are within one."""
+    if not notes:
+        return []
+    centre = statistics.median_low(n.midi for n in notes)
+    folded = []
+    for note in notes:
+        midi = note.midi
+        while abs(midi - centre) >= OCTAVE:
+            midi += OCTAVE if midi < centre else -OCTAVE
+        folded.append(note if midi == note.midi else note.model_copy(update={"midi": midi}))
+    return folded
+
+
 def notes_mini(notes: list[Note], bars: int) -> str:
-    return cycle([notes_bar_mini([n for n in notes if n.bar == b]) for b in range(bars)])
+    """Bars of notes through the bar consensus, voting per step on pitch class."""
+    heard = [_one_per_step([n for n in notes if n.bar == b]) for b in range(bars)]
+    agreed = consensus([{step: n.midi % OCTAVE for step, n in bar.items()} for bar in heard])
+    if agreed is None:
+        lines = [list(bar.values()) for bar in heard]
+    else:
+        lines = [[_template_note(heard, step, pc) for step, pc in template.items()] for template in agreed]
+    return cycle([notes_bar_mini(line) for line in lines])
+
+
+def _template_note(heard: list[dict[int, Note]], step: int, pc: int) -> Note:
+    """The commonest (midi, length) among the bars that play pitch class pc on step."""
+    votes = Counter((n.midi, n.length) for bar in heard if (n := bar.get(step)) is not None and n.midi % OCTAVE == pc)
+    midi, length = votes.most_common(1)[0][0]
+    return Note(bar=0, step=step, length=length, midi=midi)
