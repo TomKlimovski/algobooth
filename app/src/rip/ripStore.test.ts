@@ -1,5 +1,5 @@
 import { defaultSettings, type Settings } from '../settings/settings';
-import type { JobStatus, RipClient, RipRequest, RipResult } from './ripApi';
+import type { JobStatus, ModelStatus, RipClient, RipRequest, RipResult } from './ripApi';
 import { createRipStore, STAGES } from './ripStore';
 
 function result(over: Partial<RipResult> = {}): RipResult {
@@ -15,6 +15,10 @@ function result(over: Partial<RipResult> = {}): RipResult {
   };
 }
 
+const models = (over: Partial<ModelStatus> = {}): ModelStatus => ({
+  ready: true, torch_installed: true, weights_present: true, installing: false, stage: null, progress: 1, error: null, ...over,
+});
+
 const job = (over: Partial<JobStatus>): JobStatus =>
   ({ id: 'j1', status: 'running', stage: null, progress: 0, result: null, error: null, ...over });
 
@@ -29,6 +33,8 @@ function fakeClient(statuses: JobStatus[] = []) {
       return next;
     }),
     cancel: vi.fn(async (_id: string) => {}),
+    models: vi.fn(async (): Promise<ModelStatus> => models()),
+    installModels: vi.fn(async () => {}),
   };
   return { fake, client: fake as unknown as RipClient };
 }
@@ -179,6 +185,7 @@ test('a failed service while the POST is in flight fails the rip too', async () 
   const { store, fake, q } = setup([job({ stage: 'download' })]);
   let release: (id: string) => void = () => {};
   fake.start.mockImplementationOnce(() => new Promise<string>((r) => { release = r; }));
+  await store.refreshModels(); // models known ready, so start goes straight to the POST
   const started = store.start();
   store.onServiceStatus({ state: 'failed', error: 'exited' });
   release('j1');
@@ -265,4 +272,83 @@ test('the default poll waits 500 ms between status calls', async () => {
   } finally {
     vi.useRealTimers();
   }
+});
+
+test('a rip started before models are ready waits and then runs', async () => {
+  const { store, fake, q } = setup([job({ stage: 'download' })]);
+  fake.models.mockResolvedValueOnce(models({ ready: false, torch_installed: false, weights_present: false, progress: 0 }));
+  await store.start();
+  expect(fake.start).not.toHaveBeenCalled();
+  expect(fake.installModels).not.toHaveBeenCalled();
+  expect(store.state.pendingStart).toBe(true);
+  expect(store.state.busy).toBe(false);
+  expect(store.state.models?.ready).toBe(false);
+
+  fake.models
+    .mockResolvedValueOnce(models({ ready: false, installing: true, stage: 'packages', progress: 0.1 }))
+    .mockResolvedValueOnce(models({ ready: false, installing: true, stage: 'weights', progress: 0.8 }));
+  await store.installModels();
+  expect(fake.installModels).toHaveBeenCalledTimes(1);
+  expect(store.state.models?.stage).toBe('packages');
+  expect(fake.start).not.toHaveBeenCalled();
+  expect(q.delays.at(-1)).toBe(1000);
+  q.pending.shift()!.f(); // models poll: still installing
+  await new Promise((r) => setTimeout(r, 0));
+  expect(store.state.models?.progress).toBe(0.8);
+  expect(fake.start).not.toHaveBeenCalled();
+  q.pending.shift()!.f(); // models poll: ready (the default)
+  await new Promise((r) => setTimeout(r, 0));
+  await new Promise((r) => setTimeout(r, 0));
+  expect(store.state.models?.ready).toBe(true);
+  expect(fake.start).toHaveBeenCalledTimes(1);
+  expect(store.state.pendingStart).toBe(false);
+  expect(store.state.busy).toBe(true);
+  expect(q.pending.every((p) => p.ms === 500)).toBe(true); // only the job poll is left; model polling stopped
+});
+
+test('a known-ready model status skips the models call', async () => {
+  const { store, fake } = setup();
+  await store.refreshModels();
+  expect(fake.models).toHaveBeenCalledTimes(1);
+  await store.start();
+  expect(fake.models).toHaveBeenCalledTimes(1);
+  expect(fake.start).toHaveBeenCalledTimes(1);
+});
+
+test('a failed install shows its error and stops polling; cancel drops a pending start', async () => {
+  const { store, fake, q } = setup();
+  fake.models.mockResolvedValue(models({ ready: false, torch_installed: false, weights_present: false }));
+  await store.start();
+  expect(store.state.pendingStart).toBe(true);
+  fake.models.mockResolvedValueOnce(models({ ready: false, installing: true, stage: 'weights' }));
+  fake.models.mockResolvedValueOnce(models({ ready: false, installing: false, stage: 'weights', error: 'no wheel' }));
+  await store.installModels();
+  q.pending.shift()!.f();
+  await new Promise((r) => setTimeout(r, 0));
+  expect(store.state.models?.error).toBe('no wheel');
+  expect(q.pending).toHaveLength(0);
+  await store.cancel();
+  expect(store.state.pendingStart).toBe(false);
+  fake.models.mockResolvedValue(models());
+  await store.refreshModels();
+  expect(fake.start).not.toHaveBeenCalled();
+});
+
+test('a new rip clears the previous rip\'s code and version', async () => {
+  const { store, fake, q } = setup([
+    job({ status: 'done', stage: 'tidy', progress: 1, result: result({ tidied_code: 'tidied code' }) }),
+    job({ stage: 'download' }),
+  ]);
+  await store.start();
+  await q.drain();
+  store.pickVersion('tidied');
+  expect(store.state.code).toBe('tidied code');
+  let release: (id: string) => void = () => {};
+  fake.start.mockImplementationOnce(() => new Promise<string>((r) => { release = r; }));
+  const started = store.start();
+  expect(store.state.code).toBe('');
+  expect(store.state.version).toBe('generated');
+  expect(store.state.result).toBeNull();
+  release('j2');
+  await started;
 });

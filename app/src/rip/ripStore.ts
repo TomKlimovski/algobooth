@@ -7,6 +7,8 @@ import { parseTime, validateUrl, validateWindow } from './timeParse';
 export const STAGES: Stage[] = ['download', 'separate', 'analyse', 'generate', 'tidy'];
 
 const POLL_MS = 500;
+/** How often the model status is asked for while an install runs. */
+const MODELS_POLL_MS = 1000;
 const SERVICE_STOPPED = 'Analysis service stopped';
 
 export interface RipFields {
@@ -25,6 +27,8 @@ export interface RipFields {
   error: string | null;
   /** From Analyse until the job ends (done, failed, cancelled or the service stopping). */
   busy: boolean;
+  /** Analyse was pressed while the models were missing: the rip starts by itself once they are ready. */
+  pendingStart: boolean;
 }
 
 export interface RipDeps {
@@ -56,6 +60,7 @@ export function createRipStore(deps: RipDeps) {
     code: '',
     error: null,
     busy: false,
+    pendingStart: false,
   });
 
   /** Bumped whenever a rip ends or a new one starts, so a stale POST or poll does nothing. */
@@ -125,7 +130,58 @@ export function createRipStore(deps: RipDeps) {
     }
   }
 
-  /** Validates, POSTs the rip, then polls its status every 500 ms until it ends. Resolves once polling is under way. */
+  /** Whether a models poll is already scheduled, so a refresh during an install does not start a second loop. */
+  let modelsPolling = false;
+
+  function applyModels(m: ModelStatus): void {
+    setState('models', reconcile(m));
+    if (m.ready && state.pendingStart) {
+      setState('pendingStart', false);
+      void start();
+    }
+  }
+
+  /** Asks the service for the model status; keeps asking every second while an install runs. */
+  async function refreshModels(): Promise<ModelStatus | null> {
+    const client = deps.client();
+    if (!client) return null;
+    let m: ModelStatus;
+    try {
+      m = await client.models();
+    } catch (e) {
+      setState('error', message(e));
+      return null;
+    }
+    applyModels(m);
+    if (m.installing && !modelsPolling) {
+      modelsPolling = true;
+      poll(() => {
+        modelsPolling = false;
+        void refreshModels();
+      }, MODELS_POLL_MS);
+    }
+    return m;
+  }
+
+  /** Starts (or retries) the one-time model download, then follows it until it ends. */
+  async function installModels(): Promise<void> {
+    const client = deps.client();
+    if (!client) {
+      setState('error', 'Analysis service is not running');
+      return;
+    }
+    try {
+      await client.installModels();
+    } catch (e) {
+      setState('error', message(e));
+    }
+    await refreshModels();
+  }
+
+  /**
+   * Validates, POSTs the rip, then polls its status every 500 ms until it ends. Resolves once polling is
+   * under way. While the models are missing it only records `pendingStart` (see `applyModels`).
+   */
   async function start(): Promise<void> {
     if (state.busy) return;
     const req = request();
@@ -135,6 +191,18 @@ export function createRipStore(deps: RipDeps) {
       setState('error', 'Analysis service is not running');
       return;
     }
+    // A new rip: the previous rip's code must not linger in the editor.
+    edits = { generated: '', tidied: null };
+    setState({ job: null, result: null, code: '', version: 'generated' });
+    if (!state.models?.ready) {
+      const m = await refreshModels();
+      if (state.busy) return; // a pending start fired from inside the refresh
+      if (!m?.ready) {
+        if (m) setState('pendingStart', true);
+        return;
+      }
+    }
+    setState('pendingStart', false);
     const mine = ++run;
     sentTidy = req.tidy;
     setState({ busy: true, error: null, job: null, result: null });
@@ -152,6 +220,7 @@ export function createRipStore(deps: RipDeps) {
 
   /** Asks the service to cancel; the poll then sees `cancelled` and ends the rip. */
   async function cancel(): Promise<void> {
+    if (state.pendingStart) setState('pendingStart', false);
     const job = state.job;
     const client = deps.client();
     if (!state.busy || !job || !client) return;
@@ -192,5 +261,17 @@ export function createRipStore(deps: RipDeps) {
     return rows[rows.indexOf(job.stage) + 1] ?? null;
   }
 
-  return { state, setField, request, start, cancel, pickVersion, setCode, onServiceStatus, nextStage };
+  return {
+    state,
+    setField,
+    request,
+    start,
+    cancel,
+    pickVersion,
+    setCode,
+    onServiceStatus,
+    nextStage,
+    refreshModels,
+    installModels,
+  };
 }
