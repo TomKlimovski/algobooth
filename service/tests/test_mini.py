@@ -10,7 +10,6 @@ from algorip.mini import (
     notes_mini,
     period,
     template_note,
-    voice_mini,
 )
 from algorip.notes import Note
 
@@ -74,22 +73,12 @@ def test_cycle_collapses_repeats():
     assert cycle(["a", "a", "a", "a"]) == "a"
     assert cycle(["a", "b", "a", "b"]) == "<a b>"
     assert cycle(["[~ cp]*2", "bd ~ bd ~"]) == "<[~ cp]*2 [bd ~ bd ~]>"   # only a top-level space gets wrapped
-    assert voice_mini("bd", [{0, 4, 8, 12}, {0, 4, 8, 12}, {0, 4, 8, 12}, {0, 4, 8, 10}]) == \
-        "<bd*4 bd*4 bd*4 [[bd ~ ~ ~] [bd ~ ~ ~] [bd ~ bd ~] ~]>"
 
 
 def test_cycle_chords():
     assert cycle(["Am", "F", "C", "G"]) == "<Am F C G>"
     assert cycle(["Dm"] * 4) == "Dm"
     assert cycle(["a b", "a b"]) == "a b"           # one part is returned as is, unwrapped
-
-
-def test_voice_mini_golden_drums():
-    assert voice_mini("bd", [{0, 4, 8, 12}] * 4) == "bd*4"
-    assert voice_mini("cp", [{4, 12}] * 4) == "[~ cp]*2"
-    assert voice_mini("hh", [set(range(0, 16, 2))] * 4) == "hh*8"
-    assert voice_mini("oh", [{2, 6, 10, 14}] * 4) == "[~ oh]*4"
-    assert voice_mini("bd", [{0, 6, 12}]) == "bd(3,8)"
 
 
 def test_note_name():
@@ -133,44 +122,6 @@ def test_notes_mini_cycles_bars():
     b = [Note(bar=1, step=0, length=16, midi=36)]
     assert notes_mini(a + b, 2) == "<a1 c2>"
     assert notes_mini(a + [n.model_copy(update={"bar": 1}) for n in a], 2) == "a1"
-
-
-OFFBEATS = {2, 6, 10, 14}
-
-
-def test_a_stray_hit_in_one_bar_is_outvoted():
-    bars = [set(OFFBEATS) for _ in range(8)]
-    bars[1] |= {11, 12}  # 4 of the 6 occupied steps agree
-    bars[6].discard(6)
-    assert voice_mini("oh", bars) == "[~ oh]*4"
-
-
-def test_a_bar_that_differs_keeps_its_own_line():
-    # a fill: 3 of the 5 occupied steps agree, under two thirds
-    assert voice_mini("bd", [{0, 4, 8, 12}] * 3 + [{0, 4, 8, 10}]) == \
-        "<bd*4 bd*4 bd*4 [[bd ~ ~ ~] [bd ~ ~ ~] [bd ~ bd ~] ~]>"
-    # an alternation over 4 bars has two votes per phase, too few for a period of 2
-    assert voice_mini("bd", [{0, 10}, {0, 6}] * 2) == "<[[bd ~ ~ ~] ~ [~ ~ bd ~] ~] [[bd ~ ~ ~] [~ ~ bd ~] ~ ~]>"
-
-
-def test_a_fill_that_recurs_at_the_same_phrase_bar_is_kept():
-    claps = [{4, 12}] * 8
-    claps[3] = claps[7] = {4, 12, 14}  # the same fill closing each 4-bar phrase
-    assert voice_mini("cp", claps) == "<[~ cp]*2 [~ cp]*2 [~ cp]*2 [~ [cp ~ ~ ~] ~ [cp ~ cp ~]]>"
-    kicks = [{0, 4, 8, 12}] * 8
-    kicks[3] = kicks[7] = {0, 4, 8, 12, 14, 15}
-    assert voice_mini("bd", kicks) == "<bd*4 bd*4 bd*4 [[bd ~ ~ ~] [bd ~ ~ ~] [bd ~ ~ ~] [bd ~ bd bd]]>"
-
-
-def test_a_stray_in_a_single_bar_is_absorbed():
-    claps = [{4, 12}] * 8
-    claps[3] = {4, 12, 14}
-    assert voice_mini("cp", claps) == "[~ cp]*2"
-
-
-def test_a_fill_every_other_bar_is_its_own_phase():
-    claps = [{4, 12}, {4, 12, 14}] * 4
-    assert voice_mini("cp", claps) == "<[~ cp]*2 [~ [cp ~ ~ ~] ~ [cp ~ cp ~]]>"
 
 
 def test_consensus_takes_the_shortest_period_that_fits():

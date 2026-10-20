@@ -165,11 +165,6 @@ def _recurring_fill(bars: list[dict[int, H]], templates: list[dict[int, H]]) -> 
     return False
 
 
-def voice_mini(name: str, bars: list[set[int]]) -> str:
-    agreed = consensus([dict.fromkeys(b, True) for b in bars])
-    return cycle([bar_mini(name, set(b)) for b in (bars if agreed is None else agreed)])
-
-
 def note_name(midi: int) -> str:
     return librosa.midi_to_note(midi, unicode=False).lower()
 

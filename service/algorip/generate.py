@@ -2,7 +2,8 @@
 
 import math
 
-from algorip.mini import cycle, fold_octaves, loop_mini, notes_mini, voice_mini
+from algorip.drumloop import VOICE_LINES, drum_loops
+from algorip.mini import bar_mini, cycle, fold_octaves, loop_mini, notes_mini
 from algorip.schema import Analysis, SoundChoice
 
 
@@ -14,20 +15,30 @@ def fmt_time(seconds: float) -> str:
     return f"{hours}:{minutes:02d}:{secs:02d}" if hours else f"{minutes}:{secs:02d}"
 
 
-def _bars(a: Analysis, voice: str) -> list[set[int]]:
-    bars: list[set[int]] = [set() for _ in range(a.bars)]
-    for bar, step in a.drums.get(voice, []):
-        if 0 <= bar < a.bars:
-            bars[bar].add(step)
-    return bars
-
-
-def _drum_line(label: str, a: Analysis, s: SoundChoice, voices: list[tuple[str, str]]) -> str | None:
-    """voices are (analysis voice, Strudel name) pairs; voices with no hits are left out."""
-    parts = [voice_mini(name, _bars(a, voice)) for voice, name in voices if a.drums.get(voice)]
-    if not parts:
-        return None
-    return f'{label}: s("{", ".join(parts)}").bank("{s.drum_bank}")'
+def drum_lines(a: Analysis, s: SoundChoice) -> list[str]:
+    """Each drum voice's loop on its line; every hit a loop does not play on a muted fills line after them."""
+    loops = drum_loops(a)
+    names = {"sd": s.snare_name}
+    lines = []
+    for label, voices in VOICE_LINES.items():
+        parts = [
+            cycle([bar_mini(names.get(voice, voice), t) for t in loop.templates])
+            for voice in voices
+            if (loop := loops.voices.get(voice)) is not None and any(loop.templates)
+        ]
+        if parts:
+            lines.append(f'{label}: s("{", ".join(parts)}").bank("{s.drum_bank}")')
+    if loops.fill_bars is not None:
+        lo, hi = loops.fill_bars
+        fills = [
+            cycle([bar_mini(names.get(voice, voice), f) for f in loop.fills])
+            for voices in VOICE_LINES.values()
+            for voice in voices
+            if (loop := loops.voices.get(voice)) is not None and any(loop.fills)
+        ]
+        lines.append(f"// bars {lo}–{hi} add these hits (a fill): remove the underscore to hear them")
+        lines.append(f'_fills: s("{", ".join(fills)}").bank("{s.drum_bank}")')
+    return lines
 
 
 def bass_lines(a: Analysis, s: SoundChoice) -> list[str]:
@@ -58,10 +69,7 @@ def generate(a: Analysis, s: SoundChoice, title: str, start: float, end: float) 
     ]
     # Each part is a named pattern (`bass: ...` rather than `$: ...`), matching the stems it was transcribed
     # from: a name can be muted by writing `_bass:` in front of it, the way a stem button isolates a part.
-    body = [
-        _drum_line("drums", a, s, [("bd", "bd"), ("sd", s.snare_name)]),
-        _drum_line("hats", a, s, [("hh", "hh"), ("oh", "oh")]),
-    ]
+    body = drum_lines(a, s)
     body.extend(bass_lines(a, s))
     if a.chords:
         body.append(
@@ -70,4 +78,4 @@ def generate(a: Analysis, s: SoundChoice, title: str, start: float, end: float) 
         )
     if a.melody:  # None (no melody stem) or an empty line: no melody voice
         body.append(f'melody: note("{notes_mini(a.melody, a.bars)}").s("triangle").gain(0.5)')
-    return "\n".join(head + [line for line in body if line is not None]) + "\n"
+    return "\n".join(head + body) + "\n"

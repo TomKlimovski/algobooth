@@ -2,12 +2,17 @@ from pathlib import Path
 
 import pytest
 
-from algorip.generate import bass_lines, fmt_time, generate
+from algorip.generate import bass_lines, drum_lines, fmt_time, generate
 from algorip.notes import Note
 from algorip.schema import Analysis, BassLoop
 from algorip.sounds import choose_sounds
 
 GOLDEN = Path(__file__).parent / "golden"
+HOUSE = Analysis.model_validate_json((GOLDEN / "house.analysis.json").read_text())
+
+
+def analysis(drums: dict[str, list[tuple[int, int]]], bars: int) -> Analysis:
+    return HOUSE.model_copy(update={"drums": drums, "bars": bars})
 
 
 @pytest.mark.parametrize(
@@ -60,3 +65,30 @@ def test_bass_lines_write_the_loop_and_a_muted_layer():
     assert bass_lines(a.model_copy(update={"bass": []}), s) == []
     no_layer = with_loop.model_copy(update={"bass_loop": with_loop.bass_loop.model_copy(update={"layer": None, "layer_bars": None, "match_with_layer": None})})
     assert len(bass_lines(no_layer, s)) == 1
+
+
+def test_drum_lines_write_the_loop_and_a_muted_fills_line():
+    a = analysis(drums={"bd": [(b, s) for b in range(8) for s in (0, 4, 8, 12)],
+                        "sd": [(b, s) for b in range(8) for s in (4, 12)] + [(3, 14), (7, 14)],
+                        "hh": [(b, s) for b in range(8) for s in range(0, 16, 2)] + [(1, 5)], "oh": []}, bars=8)
+    s = choose_sounds(a)  # snare_name is "cp" or "sd": the test uses s.snare_name
+    assert drum_lines(a, s) == [
+        f'drums: s("bd*4, [~ {s.snare_name}]*2").bank("{s.drum_bank}")',
+        f'hats: s("hh*8").bank("{s.drum_bank}")',
+        "// bars 2–8 add these hits (a fill): remove the underscore to hear them",
+        f'_fills: s("<~ ~ ~ [~ ~ ~ [~ ~ {s.snare_name} ~]]>, <~ [~ [~ hh ~ ~] ~ ~] ~ ~ ~ ~ ~ ~>").bank("{s.drum_bank}")',
+    ]
+
+
+def test_no_fills_line_without_fills_and_no_drum_lines_without_hits():
+    a = Analysis.model_validate_json((GOLDEN / "house.analysis.json").read_text())
+    assert not any(line.startswith("_fills") for line in drum_lines(a, choose_sounds(a)))
+    assert drum_lines(analysis(drums={}, bars=4), choose_sounds(a)) == []
+
+
+def test_a_voice_with_no_regular_part_lives_only_in_fills():
+    bars = {b: {2, 6, 10, 14} for b in (0, 4, 8)}
+    a = analysis(drums={"bd": [(b, s) for b in range(9) for s in (0, 4, 8, 12)], "sd": [], "hh": [], "oh": [(b, s) for b, steps in bars.items() for s in steps]}, bars=9)
+    lines = drum_lines(a, choose_sounds(a))
+    assert not any(line.startswith("hats:") for line in lines)
+    assert lines[-1].startswith('_fills: s("<[~ oh]*4 ~ ~ ~ [~ oh]*4 ~ ~ ~ [~ oh]*4>")')
