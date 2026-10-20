@@ -60,6 +60,7 @@ validation get FastAPI's `422`. One rip runs at a time.
 | Method and path | Body | Success | Errors |
 | --- | --- | --- | --- |
 | `GET /health` | | `200 {"ok": true}` (no auth) | |
+| `GET /clips` | | `200 ClipInfo[]`: the cached clips (link, window, title, `fetched_at`), newest first, for ripping again without a download | `401` |
 | `GET /models` | | `200 ModelStatus` | `401` |
 | `POST /models/install` | | `202 ModelStatus`; starts the first-run download, a no-op while one is running | `401` |
 | `POST /rip` | `RipRequest`: `url`, `start`, `end` (seconds), `tidy`, `claude_api_key`, `keep_downloads` (overrides `ALGOBOOTH_KEEP_DOWNLOADS` for this rip; the app always sends it) | `202 {"id": "..."}` | `401`; `422` bad URL, start not before end, or a clip over 60 s; `503` models not installed; `409` a rip is already running |

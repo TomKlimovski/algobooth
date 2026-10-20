@@ -7,6 +7,7 @@ from algorip.download import (
     DownloadInfo,
     clip_key,
     fetch_clip,
+    list_clips,
     probe_ffmpeg,
     run_command,
     trim_command,
@@ -116,3 +117,31 @@ def test_sidecars_are_written_through_a_temporary_file(tmp_path, monkeypatch):
     assert ("info.json.partial", "info.json") in replaced
     assert (f"{key}.json.partial", f"{key}.json") in replaced
     assert not list(tmp_path.rglob("*.partial"))
+
+
+def test_list_clips_names_each_cached_clip_newest_first(tmp_path):
+    calls, fetch, run = make_fakes()
+    fetch_clip(URL, 72, 88, tmp_path, keep_downloads=False, fetch=fetch, run=run)
+    fetch_clip("https://x/w", 10, 20.5, tmp_path, keep_downloads=False, fetch=fetch, run=run)
+    clips = list_clips(tmp_path)
+    assert [(c.url, c.start, c.end, c.title) for c in clips] == [
+        ("https://x/w", 10.0, 20.5, "Song"),
+        (URL, 72.0, 88.0, "Song"),
+    ]
+    assert clips[0].fetched_at >= clips[1].fetched_at
+    assert list_clips(tmp_path / "nowhere") == []
+
+
+def test_list_clips_skips_clips_whose_audio_or_window_is_missing(tmp_path):
+    calls, fetch, run = make_fakes()
+    clip, _ = fetch_clip(URL, 72, 88, tmp_path, keep_downloads=False, fetch=fetch, run=run)
+    # A sidecar from before the window was recorded is still a cache hit, but it cannot be listed...
+    meta = clip.with_suffix(".json")
+    meta.write_text('{"title": "Song"}')
+    assert list_clips(tmp_path) == []
+    # ...until the next cache hit rewrites it with the window.
+    fetch_clip(URL, 72, 88, tmp_path, keep_downloads=False, fetch=fetch, run=run)
+    assert calls == {"fetch": 1, "run": 1}
+    assert [c.url for c in list_clips(tmp_path)] == [URL]
+    clip.unlink()
+    assert list_clips(tmp_path) == []

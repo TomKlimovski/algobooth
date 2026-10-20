@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
 from algorip import jobs
+from algorip.download import ClipInfo, list_clips
 from algorip.jobs import Busy, Job, JobStore
 from algorip.pipeline import Deps, Paths, run_rip as default_run_rip, stem_dir
 from algorip.schema import JobStatus, ModelStatus, RipRequest
@@ -95,6 +96,10 @@ def create_app(
         if models is not None:
             models.install()  # a no-op while an install is already running
         return model_status()
+
+    @app.get("/clips")
+    def get_clips() -> list[ClipInfo]:
+        return list_clips(settings.paths.cache_dir)
 
     @app.post("/rip", status_code=202)
     def post_rip(req: RipRequest) -> RipCreated:

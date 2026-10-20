@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import subprocess
+import time
 from pathlib import Path
 from typing import Callable
 
@@ -15,6 +16,16 @@ from pydantic import BaseModel
 class DownloadInfo(BaseModel):
     path: Path
     title: str
+
+
+class ClipInfo(BaseModel):
+    """A clip in the cache: enough to rip it again without the download."""
+
+    url: str
+    start: float
+    end: float
+    title: str
+    fetched_at: float
 
 
 Fetcher = Callable[[str, Path], DownloadInfo]
@@ -83,6 +94,29 @@ def _read_json(path: Path, *keys: str) -> dict | None:
     return data
 
 
+def _clip_meta(url: str, start: float, end: float, title: str) -> dict:
+    return {"url": url.strip(), "start": float(start), "end": float(end), "title": title, "fetched_at": time.time()}
+
+
+def _clip_info(data: dict) -> ClipInfo | None:
+    try:
+        return ClipInfo.model_validate(data)
+    except ValueError:
+        return None  # a sidecar from before the window was recorded, or a damaged one
+
+
+def list_clips(cache_dir: Path) -> list[ClipInfo]:
+    """The cached clips that can be ripped again, newest first (those whose audio or window is gone are left out)."""
+    clips = cache_dir / "clips"
+    found: list[ClipInfo] = []
+    for meta in clips.glob("*.json") if clips.is_dir() else []:
+        data = _read_json(meta, "title")
+        info = _clip_info(data) if data is not None else None
+        if info is not None and meta.with_suffix(".wav").exists():
+            found.append(info)
+    return sorted(found, key=lambda c: c.fetched_at, reverse=True)
+
+
 def _cached_source(url: str, cache_dir: Path, fetch: Fetcher) -> tuple[DownloadInfo, Path]:
     folder = cache_dir / "sources" / source_key(url)
     sidecar = folder / "info.json"
@@ -112,6 +146,8 @@ def fetch_clip(
     meta = clips / f"{key}.json"
     cached = _read_json(meta, "title")
     if clip.exists() and cached is not None:
+        if _clip_info(cached) is None:  # recorded before the window was kept: list it from now on
+            _write_json(meta, _clip_meta(url, start, end, cached["title"]))
         return clip, cached["title"]
 
     clips.mkdir(parents=True, exist_ok=True)
@@ -122,7 +158,7 @@ def fetch_clip(
         tmp.replace(clip)
     finally:
         tmp.unlink(missing_ok=True)
-    _write_json(meta, {"title": info.title})
+    _write_json(meta, _clip_meta(url, start, end, info.title))
     if not keep_downloads:
         shutil.rmtree(folder, ignore_errors=True)
     return clip, info.title

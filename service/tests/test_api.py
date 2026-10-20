@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 import threading
 import time
 
@@ -276,3 +277,21 @@ def test_watch_parent_exits_even_when_stderr_is_a_broken_pipe():
     with pytest.raises(SystemExit):
         watch_parent(4242, getppid=lambda: 1, exit_=exit_, sleep=lambda _: None, stderr=BrokenStderr())
     assert exits == [0]
+
+
+def test_clips_lists_the_cached_windows(client, tmp_path):
+    assert client.get("/clips", headers=AUTH).json() == []
+    from algorip.download import DownloadInfo, fetch_clip
+
+    def fetch(url, out_dir):
+        p = out_dir / "abc.m4a"
+        p.write_bytes(b"src")
+        return DownloadInfo(path=p, title="Song")
+
+    def run(cmd):
+        Path(cmd[-1]).write_bytes(b"wav")
+
+    fetch_clip("https://x/v", 72, 88, tmp_path / "cache", keep_downloads=False, fetch=fetch, run=run)
+    body = client.get("/clips", headers=AUTH).json()
+    assert [(c["url"], c["start"], c["end"], c["title"]) for c in body] == [("https://x/v", 72.0, 88.0, "Song")]
+    assert isinstance(body[0]["fetched_at"], float)
