@@ -5,6 +5,7 @@ the real one, importing PyTorch and Demucs lazily from the models directory so
 the service starts (and tests run) without them installed.
 """
 
+import gc
 import os
 from pathlib import Path
 from typing import Any, Callable
@@ -20,7 +21,6 @@ DEMUCS_MODEL = "htdemucs"
 
 Separator = Callable[[np.ndarray, int], dict[str, np.ndarray]]
 
-_models: dict[str, Any] = {}
 _mps_failed = False
 
 
@@ -70,20 +70,35 @@ def _load_legacy(name: str) -> Any:
     return model
 
 
+def release_memory(torch: Any) -> None:
+    """Return freed tensors' memory: Python's garbage, then the MPS allocator's cached heap."""
+    gc.collect()
+    if torch.backends.mps.is_available():
+        torch.mps.empty_cache()
+
+
 def demucs_separator(models_dir: Path, device: str | None = None) -> Separator:
-    """Build a Demucs htdemucs separator from the packages and weights under models_dir."""
+    """Build a Demucs htdemucs separator from the packages and weights under models_dir.
+
+    The model is loaded for each separation and let go after it, with the MPS heap emptied: kept,
+    the service sat at about 0.9 GB RSS (2.3 GB physical footprint) between rips, for a reload that
+    costs a second or two.
+    """
     use_site(models_dir / "site")
     os.environ["TORCH_HOME"] = str(models_dir / "torch")
 
     import torch
     from demucs.apply import apply_model
 
-    if DEMUCS_MODEL not in _models:
-        _models[DEMUCS_MODEL] = _load_legacy(DEMUCS_MODEL)
-    model = _models[DEMUCS_MODEL]
     current = device or pick_device(torch)
 
     def run(mix: np.ndarray, sr: int) -> dict[str, np.ndarray]:
+        try:
+            return separate_with(_load_legacy(DEMUCS_MODEL), mix, sr)
+        finally:
+            release_memory(torch)
+
+    def separate_with(model: Any, mix: np.ndarray, sr: int) -> dict[str, np.ndarray]:
         global _mps_failed
         nonlocal current
         if sr != model.samplerate:

@@ -38,3 +38,17 @@ def test_separator_output_missing_a_stem_is_an_error(tmp_path, tmp_wav):
     with pytest.raises(ValueError, match="bass, other, vocals"):
         separate(clip, out_dir, drums_only)
     assert not out_dir.exists() or not any(out_dir.iterdir())
+
+
+def _fake_torch(mps: bool, calls: list):
+    from types import SimpleNamespace
+    return SimpleNamespace(backends=SimpleNamespace(mps=SimpleNamespace(is_available=lambda: mps)),
+                           mps=SimpleNamespace(empty_cache=lambda: calls.append("empty_cache")))
+
+
+def test_release_memory_empties_the_mps_heap_only_when_there_is_one():
+    from algorip.separate import release_memory
+    calls = []
+    release_memory(_fake_torch(True, calls))
+    release_memory(_fake_torch(False, calls))
+    assert calls == ["empty_cache"]
