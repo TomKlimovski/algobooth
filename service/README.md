@@ -18,7 +18,7 @@ Every dependency is pinned with `==` in `pyproject.toml`.
 
 ```sh
 uv run pytest                 # everything (what CI runs)
-uv run pytest -m "not slow"   # skip the tests that run a real Basic Pitch inference
+uv run pytest -m "not slow"   # skip the slow tests: real Basic Pitch inference and the timing budget
 ```
 
 Tests never touch the network: `pytest-socket` runs with `--disable-socket`, and the
@@ -68,9 +68,38 @@ validation get FastAPI's `422`. One rip runs at a time.
 | `DELETE /rip/{id}` | | `204`; cancels the rip at the next stage boundary | `401`; `404` unknown id |
 | `GET /rip/{id}/stem/{name}` | | `200 audio/wav`; `name` is `drums`, `bass`, `other`, `vocals` or `mix` | `401`; `404` unknown id, rip not done, or no such stem |
 
-The types are in `algorip/schema.py`; `app/src/rip/ripApi.ts` mirrors them.
+The types are in `algorip/schema.py`; `app/src/rip/ripApi.ts` mirrors them. `Analysis`
+carries `bass_loop` (`BassLoop`: `period`, `templates`, `layer`, `layer_bars`, `match`,
+`match_with_layer`), null when no loop is found.
 
 ## PyTorch and Demucs
 
 torch and Demucs are not project dependencies. The service installs them into the
 app's models folder the first time you rip a clip, so `uv sync` stays small.
+
+## Bass loop
+
+Basic Pitch still transcribes the melody; the bass goes through these modules instead.
+`mir_eval` is a direct dependency, used for the onset score.
+
+- `algorip/bassgrid.py`: a per-16th-step pitch grid from `librosa.pyin` (stem resampled to 11025 Hz, 30 to 400 Hz), with note starts. Steps quieter than a tenth of the loudest step are rests.
+- `algorip/loop.py`: finds the period (1, 2, 4 or 8 bars) the bars repeat at with a two-pass majority vote, so deviating bars do not veto it. Their extra notes become a layer when they repeat and are dense enough.
+- `algorip/score.py`: scores a candidate against the grid, combining a per-step pitch-class frame score with mir_eval's onset F1 into a `match` in 0 to 1.
+- `algorip/bass.py`: `choose_bass_loop` tries four notations (as heard, on an 8th grid, sustained, both) and keeps the shortest within 0.05 of the best match.
+
+### Backtest fixtures
+
+`tests/golden/` holds `solomun.*` (a real clip; the derived grid, analysis, Strudel code and
+bass events, no audio) and `build.*` (a synthetic 2-bar loop with a build layer).
+`app/src/rip/roundtrip.test.ts` plays each golden's `bass:` line under real Strudel and
+checks it against the events. `scripts/bass_fixture.py` builds the fixtures and prints the
+loop and the match:
+
+```sh
+# a real clip: run the analysis on a rip's cached stems (~/Algobooth/cache/stems/<key>/)
+uv run python scripts/bass_fixture.py stems <stems_dir> <name> --title T --start S --end E
+# the synthetic golden
+uv run python scripts/bass_fixture.py synthetic build
+```
+
+For a new clip, run `stems`, look at the grid and the loop, and commit the files with the expected loop.
