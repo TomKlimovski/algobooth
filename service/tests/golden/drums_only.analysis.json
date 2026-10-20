@@ -1,0 +1,18 @@
+{
+  "bpm": 120.0,
+  "key": "C minor",
+  "bars": 1,
+  "first_downbeat": 0.0,
+  "drums": {
+    "bd": [
+      [0, 0],
+      [0, 6],
+      [0, 12]
+    ]
+  },
+  "four_on_the_floor": false,
+  "bass": [],
+  "bass_harmonics": 0.0,
+  "chords": [],
+  "melody": null
+}

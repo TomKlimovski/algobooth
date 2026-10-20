@@ -1,0 +1,27 @@
+from pathlib import Path
+
+import pytest
+
+from algorip.generate import fmt_time, generate
+from algorip.schema import Analysis
+from algorip.sounds import choose_sounds
+
+GOLDEN = Path(__file__).parent / "golden"
+
+
+@pytest.mark.parametrize("name", ["house", "breaks", "drums_only"])
+def test_golden(name):
+    a = Analysis.model_validate_json((GOLDEN / f"{name}.analysis.json").read_text())
+    code = generate(a, choose_sounds(a), title="Around The World", start=72, end=88)
+    assert code == (GOLDEN / f"{name}.strudel").read_text()
+
+
+def test_fmt_time():
+    assert (fmt_time(72), fmt_time(5), fmt_time(3723.9)) == ("1:12", "0:05", "1:02:03")
+
+
+def test_generated_code_has_no_walls_of_numbers():
+    a = Analysis.model_validate_json((GOLDEN / "house.analysis.json").read_text())
+    code = generate(a, choose_sounds(a), "t", 0, 16)
+    assert max(len(line) for line in code.splitlines()) < 100
+    assert code.count("$:") == 4
