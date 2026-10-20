@@ -36,11 +36,13 @@ test('every call carries the token and hits its route', async () => {
   const models: ModelStatus = {
     ready: true, torch_installed: true, weights_present: true, installing: false, stage: null, progress: 1, error: null,
   };
+  const clip = { url: 'https://x/v', start: 72, end: 88, title: 'Song', fetched_at: 1 };
   const f = fakeFetch((url, init) => {
     if (url.endsWith('/rip/j') && init?.method === 'DELETE') return new Response(null, { status: 204 });
     if (url.endsWith('/rip/j')) return json(job);
     if (url.endsWith('/models/install')) return json({}, 202);
     if (url.endsWith('/models')) return json(models);
+    if (url.endsWith('/clips')) return json([clip]);
     return json({ detail: 'nope' }, 404);
   });
   const client = new RipClient(info, f.impl);
@@ -48,11 +50,13 @@ test('every call carries the token and hits its route', async () => {
   await expect(client.cancel('j')).resolves.toBeUndefined();
   await expect(client.models()).resolves.toEqual(models);
   await expect(client.installModels()).resolves.toBeUndefined();
+  await expect(client.clips()).resolves.toEqual([clip]);
   expect(f.calls.map((c) => [c.init?.method ?? 'GET', c.url])).toEqual([
     ['GET', 'http://127.0.0.1:5000/rip/j'],
     ['DELETE', 'http://127.0.0.1:5000/rip/j'],
     ['GET', 'http://127.0.0.1:5000/models'],
     ['POST', 'http://127.0.0.1:5000/models/install'],
+    ['GET', 'http://127.0.0.1:5000/clips'],
   ]);
   for (const c of f.calls) expect(auth(c)).toBe('Bearer tok');
 });

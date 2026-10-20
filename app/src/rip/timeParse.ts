@@ -34,6 +34,14 @@ export function formatTime(seconds: number): string {
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
 }
 
+/** Like `formatTime`, but keeps a fraction of a second (up to 3 decimals, trailing zeros dropped), so it parses back exactly. */
+export function formatTimeExact(seconds: number): string {
+  const whole = formatTime(seconds);
+  const fraction = Math.round((seconds - Math.floor(seconds)) * 1000);
+  if (fraction === 0) return whole;
+  return `${whole}.${String(fraction).padStart(3, '0').replace(/0+$/, '')}`;
+}
+
 /** Why a clip window cannot be ripped, or null when it can. */
 export function validateWindow(start: number | null, end: number | null): string | null {
   if (start === null) return 'Enter a start time like 1:12 or 72';

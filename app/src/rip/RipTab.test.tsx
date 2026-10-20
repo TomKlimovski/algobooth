@@ -11,6 +11,7 @@ const h = vi.hoisted(() => {
     models: { ...ready } as Record<string, unknown>,
     statuses: [] as unknown[],
     statusHandler: null as null | ((s: unknown) => void),
+    clips: [] as unknown[],
   };
   const client = {
     start: vi.fn(async () => 'j1'),
@@ -19,6 +20,7 @@ const h = vi.hoisted(() => {
     stem: vi.fn(async () => new ArrayBuffer(8)),
     models: vi.fn(async () => state.models),
     installModels: vi.fn(async () => {}),
+    clips: vi.fn(async () => state.clips),
   };
   const service = {
     info: vi.fn(async () => ({ port: 5000, token: 't' })),
@@ -145,6 +147,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   h.state.models = { ...h.ready };
   h.state.statuses = [];
+  h.state.clips = [];
   h.sources.length = 0;
   h.result.scheduler.started = false;
 });
@@ -306,4 +309,30 @@ test('a job that fails before any stage marks the first row failed', async () =>
   const rows = [...root.querySelectorAll('.rip-stage')].map((r) => r.getAttribute('data-state'));
   expect(rows).toEqual(['failed', 'waiting', 'waiting', 'waiting']);
   expect(root.textContent).toContain('video unavailable');
+});
+
+test('the Recent menu lists the cached clips and fills the form from one', async () => {
+  h.state.clips = [{ url: 'https://www.youtube.com/watch?v=S46', start: 2200, end: 2220, title: 'Solomun live', fetched_at: 5 }];
+  mount();
+  await flush();
+  const menu = root.querySelector('select[aria-label="Recent"]') as HTMLSelectElement;
+  expect(menu).not.toBeNull();
+  expect([...menu.options].map((o) => o.textContent)).toEqual(['Recent…', 'Solomun live 36:40–37:00']);
+  menu.value = '0';
+  menu.dispatchEvent(new Event('change', { bubbles: true }));
+  await flush();
+  const input = (name: string) => (root.querySelector(`input[aria-label="${name}"]`) as HTMLInputElement).value;
+  expect(input('YouTube link')).toBe('https://www.youtube.com/watch?v=S46');
+  expect(input('start')).toBe('36:40');
+  expect(input('end')).toBe('37:00');
+  expect(menu.value).toBe('');
+});
+
+test('the Recent menu is absent with an empty cache and appears once a rip has filled it', async () => {
+  mount();
+  await flush();
+  expect(root.querySelector('select[aria-label="Recent"]')).toBeNull();
+  h.state.clips = [{ url: 'https://www.youtube.com/watch?v=x', start: 72, end: 88, title: 'Song', fetched_at: 1 }];
+  await ripToDone();
+  expect(root.querySelector('select[aria-label="Recent"]')).not.toBeNull();
 });

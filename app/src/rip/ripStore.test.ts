@@ -1,5 +1,5 @@
 import { defaultSettings, type Settings } from '../settings/settings';
-import type { JobStatus, ModelStatus, RipClient, RipRequest, RipResult } from './ripApi';
+import type { ClipInfo, JobStatus, ModelStatus, RipClient, RipRequest, RipResult } from './ripApi';
 import { createRipStore, STAGES } from './ripStore';
 
 function result(over: Partial<RipResult> = {}): RipResult {
@@ -35,6 +35,7 @@ function fakeClient(statuses: JobStatus[] = []) {
     cancel: vi.fn(async (_id: string) => {}),
     models: vi.fn(async (): Promise<ModelStatus> => models()),
     installModels: vi.fn(async () => {}),
+    clips: vi.fn(async (): Promise<ClipInfo[]> => []),
   };
   return { fake, client: fake as unknown as RipClient };
 }
@@ -406,4 +407,34 @@ test('a second Analyse while the first is still checking models or posting sends
   expect(fake.start).toHaveBeenCalledTimes(1);
   expect(fake.models).toHaveBeenCalledTimes(1);
   q.pending.length = 0;
+});
+
+test('recent clips come from the service, and picking one fills the form exactly', async () => {
+  const { store, fake } = setup();
+  const clip: ClipInfo = { url: 'https://www.youtube.com/watch?v=y', start: 2200, end: 2220.5, title: 'Live', fetched_at: 1 };
+  fake.clips.mockResolvedValueOnce([clip]);
+  await store.refreshRecent();
+  expect(store.state.recent).toEqual([clip]);
+  store.setField('error', 'old error');
+  store.pickRecent(clip);
+  expect(store.state.url).toBe(clip.url);
+  expect(store.state.startText).toBe('36:40');
+  expect(store.state.endText).toBe('37:00.5');
+  expect(store.state.error).toBeNull();
+  expect(store.request()).toMatchObject({ url: clip.url, start: 2200, end: 2220.5 });
+  // A refused list keeps the last one.
+  fake.clips.mockRejectedValueOnce(new Error('down'));
+  await store.refreshRecent();
+  expect(store.state.recent).toEqual([clip]);
+  expect(store.state.error).toBeNull();
+});
+
+test('a finished rip refreshes the recent list', async () => {
+  const { store, fake, q } = setup([job({ status: 'done', stage: 'generate', progress: 1, result: result() })]);
+  const clip: ClipInfo = { url: 'https://www.youtube.com/watch?v=x', start: 72, end: 88, title: 'Song', fetched_at: 2 };
+  fake.clips.mockResolvedValueOnce([clip]);
+  await store.start();
+  await q.drain();
+  expect(fake.clips).toHaveBeenCalledTimes(1);
+  expect(store.state.recent).toEqual([clip]);
 });

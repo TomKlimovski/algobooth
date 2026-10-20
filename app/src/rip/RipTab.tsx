@@ -13,6 +13,7 @@ import { ModelSetup } from './ModelSetup';
 import { ResultEditor, type ResultApi } from './ResultEditor';
 import { RipClient, serviceApi, STEM_NAMES, type ServiceStatus, type Stage } from './ripApi';
 import { defaultName, ripPattern } from './ripPattern';
+import { formatTime } from './timeParse';
 import { createRipStore } from './ripStore';
 import './rip.css';
 
@@ -69,6 +70,7 @@ export function RipTab(props: {
       if (mine !== infoGeneration) return;
       setClient(new RipClient(info));
       void store.refreshModels();
+      void store.refreshRecent();
     } catch (e) {
       if (mine !== infoGeneration) return;
       setClient(null);
@@ -303,6 +305,27 @@ export function RipTab(props: {
           void store.start();
         }}
       >
+        <Show when={state.recent.length > 0}>
+          <select
+            class="rip-input rip-recent"
+            aria-label="Recent"
+            title="Clips already downloaded: pick one to analyse it again without the download"
+            onChange={(e) => {
+              const clip = state.recent[Number(e.currentTarget.value)];
+              e.currentTarget.value = '';
+              if (clip) store.pickRecent(clip);
+            }}
+          >
+            <option value="">Recent…</option>
+            <For each={state.recent}>
+              {(clip, i) => (
+                <option value={i()}>
+                  {clip.title} {formatTime(clip.start)}–{formatTime(clip.end)}
+                </option>
+              )}
+            </For>
+          </select>
+        </Show>
         <input
           class="rip-input rip-url"
           placeholder="https://www.youtube.com/watch?v=…"

@@ -1,7 +1,7 @@
 import { createStore, reconcile } from 'solid-js/store';
 import type { Settings } from '../settings/settings';
-import type { JobStatus, ModelStatus, RipClient, RipRequest, RipResult, ServiceStatus, Stage } from './ripApi';
-import { parseTime, validateUrl, validateWindow } from './timeParse';
+import type { ClipInfo, JobStatus, ModelStatus, RipClient, RipRequest, RipResult, ServiceStatus, Stage } from './ripApi';
+import { formatTimeExact, parseTime, validateUrl, validateWindow } from './timeParse';
 
 /** The progress rows, in pipeline order; `tidy` is shown only for a rip sent with tidy on. */
 export const STAGES: Stage[] = ['download', 'separate', 'analyse', 'generate', 'tidy'];
@@ -29,6 +29,8 @@ export interface RipFields {
   busy: boolean;
   /** Analyse was pressed while the models were missing: the rip starts by itself once they are ready. */
   pendingStart: boolean;
+  /** The service's cached clips, newest first: a rip of one of these skips the download. */
+  recent: ClipInfo[];
 }
 
 export interface RipDeps {
@@ -61,6 +63,7 @@ export function createRipStore(deps: RipDeps) {
     error: null,
     busy: false,
     pendingStart: false,
+    recent: [],
   });
 
   /** Bumped whenever a rip ends or a new one starts, so a stale POST or poll does nothing. */
@@ -104,6 +107,7 @@ export function createRipStore(deps: RipDeps) {
     if (job.status === 'done' && job.result) {
       edits = { generated: job.result.code, tidied: job.result.tidied_code };
       setState({ job, result: job.result, version: 'generated', code: job.result.code, busy: false, error: null });
+      void refreshRecent(); // the clip is in the cache now
     } else if (job.status === 'cancelled') {
       setState({ job, busy: false, error: 'Rip cancelled' });
     } else {
@@ -168,6 +172,23 @@ export function createRipStore(deps: RipDeps) {
       }, MODELS_POLL_MS);
     }
     return m;
+  }
+
+  /** Asks the service for its cached clips; a refusal leaves the list as it was (it is only a convenience). */
+  async function refreshRecent(): Promise<void> {
+    const client = deps.client();
+    if (!client || disposed) return;
+    try {
+      const clips = await client.clips();
+      if (!disposed) setState('recent', reconcile(clips));
+    } catch {
+      // the form still works without the list
+    }
+  }
+
+  /** Fills the form from a cached clip, so Analyse rips it again without the download. */
+  function pickRecent(clip: ClipInfo): void {
+    setState({ url: clip.url, startText: formatTimeExact(clip.start), endText: formatTimeExact(clip.end), error: null });
   }
 
   /** Starts (or retries) the one-time model download, then follows it until it ends. */
@@ -299,6 +320,8 @@ export function createRipStore(deps: RipDeps) {
     nextStage,
     refreshModels,
     installModels,
+    refreshRecent,
+    pickRecent,
     stageRows,
     /** The link and window of the running or last rip (not the form, which may have changed since). */
     sent: () => sentReq,

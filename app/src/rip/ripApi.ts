@@ -58,6 +58,16 @@ export interface RipResult {
   stems: string[];
 }
 
+/** A clip in the service's cache: enough to rip it again without the download. */
+export interface ClipInfo {
+  url: string;
+  start: number;
+  end: number;
+  title: string;
+  /** Seconds since the epoch, from the service. */
+  fetched_at: number;
+}
+
 export type Stage = 'download' | 'separate' | 'analyse' | 'generate' | 'tidy';
 
 export interface JobStatus {
@@ -123,6 +133,11 @@ export class RipClient {
   /** The stem's wav bytes. */
   async stem(id: string, name: string): Promise<ArrayBuffer> {
     return (await this.call('GET', `/rip/${encodeURIComponent(id)}/stem/${encodeURIComponent(name)}`)).arrayBuffer();
+  }
+
+  /** The cached clips, newest first. */
+  async clips(): Promise<ClipInfo[]> {
+    return (await this.call('GET', '/clips')).json() as Promise<ClipInfo[]>;
   }
 
   async models(): Promise<ModelStatus> {

@@ -11,6 +11,7 @@
   font: inherit;
 }
 .rip-url { flex: 1; min-width: 240px; }
+.rip-recent { max-width: 220px; }
 .rip-time { width: 90px; }
 .rip-tidy { display: flex; gap: 4px; align-items: center; color: #cfd3dc; }
 .rip-tidy.disabled { color: #5a5f6e; cursor: help; }

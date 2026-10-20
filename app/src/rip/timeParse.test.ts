@@ -1,4 +1,4 @@
-import { formatTime, MAX_CLIP_SECONDS, parseTime, validateUrl, validateWindow } from './timeParse';
+import { formatTimeExact, formatTime, MAX_CLIP_SECONDS, parseTime, validateUrl, validateWindow } from './timeParse';
 
 test('parses minutes:seconds and plain seconds', () => {
   expect(parseTime('1:12')).toBe(72);
@@ -49,4 +49,11 @@ test('url rules (review focus 2)', () => {
   expect(validateUrl('   ')).toBe('Enter a YouTube link');
   expect(validateUrl('https://www.youtube.com/watch?v=x')).toBeNull();
   expect(validateUrl('http://example.com/a')).toBeNull();
+});
+
+test('formatTimeExact keeps fractions and round-trips through parseTime', () => {
+  expect(formatTimeExact(72)).toBe('1:12');
+  expect(formatTimeExact(20.5)).toBe('0:20.5');
+  expect(formatTimeExact(3661.25)).toBe('1:01:01.25');
+  expect(parseTime(formatTimeExact(20.5))).toBe(20.5);
 });
