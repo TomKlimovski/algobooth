@@ -38,15 +38,21 @@ _PAD_GAIN = 0.3
 
 
 def bass_events(loop: BassLoop | None) -> list[dict]:
-    """The loop's notes as {cycle, step, length, note}, cycle being the phase; [] with no loop."""
+    """The loop's notes as {line, cycle, step, length, note}; [] with no loop.
+
+    line is the Strudel line that plays them: "bass" for the loop's templates, "_bass2" for its layer
+    (only when there is one); cycle is the phase within that line's own alternation.
+    """
     if loop is None:
         return []
+    lines = [("bass", loop.templates)] + ([("_bass2", loop.layer)] if loop.layer else [])
     events = [
-        {"cycle": p, "step": n.step, "length": n.length, "note": note_name(n.midi)}
-        for p, template in enumerate(loop.templates)
+        {"line": line, "cycle": p, "step": n.step, "length": n.length, "note": note_name(n.midi)}
+        for line, phases in lines
+        for p, template in enumerate(phases)
         for n in template
     ]
-    return sorted(events, key=lambda e: (e["cycle"], e["step"]))
+    return sorted(events, key=lambda e: (e["line"], e["cycle"], e["step"]))
 
 
 def bass_grid_of(stems: dict[str, Path], analysis: Analysis) -> BassGrid:

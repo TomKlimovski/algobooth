@@ -28,6 +28,15 @@ def test_octaves_are_ignored_but_wrong_pitch_classes_and_missed_onsets_count():
     assert score(truth, g, half).onset_f1 == pytest.approx(2 / 3)
 
 
+def test_an_onset_a_semitone_off_does_not_match():
+    g = Grid(bpm=120, first_downbeat=0.0, bars=1)
+    truth = grid_of([[31, None, 31, None] + [None] * 12], [[True, False, True, False] + [False] * 12])
+    sharp = [Note(bar=0, step=0, length=1, midi=32), Note(bar=0, step=2, length=1, midi=32)]
+    assert score(truth, g, sharp).onset_f1 == 0.0
+    flat = [Note(bar=0, step=0, length=1, midi=42), Note(bar=0, step=2, length=1, midi=42)]  # F#2, folded a semitone below G
+    assert score(truth, g, flat).onset_f1 == 0.0
+
+
 def test_a_layer_adds_pitch_classes_and_onsets():
     g = Grid(bpm=120, first_downbeat=0.0, bars=1)
     truth = grid_of([[31, 31, 31, 31] + [None] * 12], [[True] * 4 + [False] * 12])

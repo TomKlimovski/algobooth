@@ -1,35 +1,41 @@
 [
   {
+    "line": "bass",
     "cycle": 0,
     "step": 2,
     "length": 2,
     "note": "g1"
   },
   {
+    "line": "bass",
     "cycle": 0,
     "step": 5,
     "length": 1,
     "note": "g1"
   },
   {
+    "line": "bass",
     "cycle": 0,
     "step": 7,
     "length": 1,
     "note": "g1"
   },
   {
+    "line": "bass",
     "cycle": 0,
     "step": 10,
     "length": 2,
     "note": "g1"
   },
   {
+    "line": "bass",
     "cycle": 0,
     "step": 13,
     "length": 2,
     "note": "g1"
   },
   {
+    "line": "bass",
     "cycle": 0,
     "step": 15,
     "length": 1,

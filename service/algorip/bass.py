@@ -62,7 +62,8 @@ def _eighths(line: list[Note]) -> list[Note]:
             if there is None:
                 placed[target] = note.model_copy(update={"step": target})
             elif there.midi == note.midi:  # both now start on target: keep the longer-reaching end
-                placed[target] = there.model_copy(update={"length": max(there.length, note.length)})
+                end = max(there.step + there.length, note.step + note.length)
+                placed[target] = there.model_copy(update={"length": end - there.step})
             else:
                 continue
             break
@@ -93,10 +94,17 @@ def candidates(templates: list[list[Note]]) -> list[tuple[str, list[list[Note]]]
 
 
 def _phase_notes(heard: list[dict[int, Note]], templates: list[dict[int, int]]) -> list[list[Note]]:
-    """Each phase's template as notes, from the bars at that phase (commonest midi and length)."""
+    """Each phase's template as notes, from the bars at that phase (commonest midi and length).
+
+    A template step no bar at that phase plays (template_note gives None) is dropped.
+    """
     period = len(templates)
     return [
-        [template_note(heard[phase::period], step, pc) for step, pc in sorted(template.items())]
+        [
+            n
+            for step, pc in sorted(template.items())
+            if (n := template_note(heard[phase::period], step, pc)) is not None
+        ]
         for phase, template in enumerate(templates)
     ]
 

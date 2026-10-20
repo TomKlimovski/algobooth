@@ -27,6 +27,13 @@ def test_bass_events_of_no_loop_is_empty():
     assert bass_events(None) == []
 
 
+def test_bass_events_tag_each_line_and_the_layer_only_when_there_is_one():
+    build = Analysis.model_validate_json((GOLDEN / "build.analysis.json").read_text()).bass_loop
+    assert {e["line"] for e in bass_events(build)} == {"bass", "_bass2"}
+    solomun = Analysis.model_validate_json((GOLDEN / "solomun.analysis.json").read_text()).bass_loop
+    assert {e["line"] for e in bass_events(solomun)} == {"bass"}
+
+
 # Held, not retriggered: the edges 2|3, 10|11 and 13|14 have no level dip (and no phase reset) in the
 # audio; the plan's retriggered `[~ ~ g1 g1] ...` was the spike's guess. No layer: the build bars 5-9
 # are a gradual fill the grid reads as fewer, longer notes (2.8 extra starts a bar, not repeating);
@@ -57,3 +64,6 @@ def test_build_fixture_round_trips(tmp_path):
     code = generate(a, choose_sounds(a), "Build", 0, 16)
     bass2 = [line for line in code.splitlines() if line.startswith("_bass2:")]
     assert len(bass2) == 1 and "*4" in bass2[0]
+    # End to end: the fresh run through _analyse is the committed golden, analysis and code.
+    assert a == Analysis.model_validate_json((GOLDEN / "build.analysis.json").read_text())
+    assert code == (GOLDEN / "build.strudel").read_text()

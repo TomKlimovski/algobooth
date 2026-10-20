@@ -9,6 +9,7 @@ from algorip.mini import (
     notes_bar_mini,
     notes_mini,
     period,
+    template_note,
     voice_mini,
 )
 from algorip.notes import Note
@@ -203,3 +204,11 @@ def test_retriggered_sixteenths_use_star():
     assert notes_bar_mini(four + [Note(bar=0, step=8, length=1, midi=31)]) == "g1*4 ~ [g1 ~ ~ ~] ~"
     assert notes_bar_mini([Note(bar=0, step=s, length=1, midi=31) for s in range(16)]) == "g1*16"
     assert notes_bar_mini([Note(bar=0, step=s, length=1, midi=31 + (s % 2)) for s in range(4)]) == "[g1 g#1 g1 g#1] ~ ~ ~"
+
+
+def test_template_note_is_none_when_no_bar_plays_the_step():
+    heard = [{0: Note(bar=0, step=0, length=2, midi=31)}, {4: Note(bar=1, step=4, length=1, midi=33)}]
+    assert template_note(heard, 0, 7) == Note(bar=0, step=0, length=2, midi=31)
+    assert template_note(heard, 8, 7) is None   # nobody plays step 8
+    assert template_note(heard, 4, 7) is None   # step 4 is played, but as A, not G
+    assert template_note([], 0, 7) is None

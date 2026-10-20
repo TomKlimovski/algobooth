@@ -40,15 +40,24 @@ const names = Object.keys(events).sort();
 if (names.length === 0) throw new Error('no golden .bass-events.json files in service/tests/golden'); // never pass vacuously
 
 type Row = [string, number, number];
+type Event = { line: string; cycle: number; step: number; length: number; note: string };
 const byStart = (a: Row, b: Row) => a[1] - b[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
 
-// For each name with a bass-events file: the `bass:` line of <name>.strudel, evaluated and queried over
-// `cycles` cycles (1 + the last event's cycle), plays exactly those events.
-test.each(names)('%s: the bass line plays its loop', async (name: string) => {
-  const expectedEvents = JSON.parse(events[name]) as { cycle: number; step: number; length: number; note: string }[];
-  const line = strudel[name].split('\n').find((l) => l.startsWith('bass: '))!.slice('bass: '.length);
+// One case per (golden, Strudel line) its events name: `bass` for the loop, `_bass2` for its layer.
+// An empty events file is a golden with no loop: it has nothing to play, so it has no case.
+const cases: [string, string][] = names.flatMap((name) => {
+  const lines = [...new Set((JSON.parse(events[name]) as Event[]).map((e) => e.line))].sort();
+  return lines.map((line): [string, string] => [name, line]);
+});
+
+// The `<line>: ` line of <name>.strudel, evaluated and queried over `cycles` cycles (1 + that line's last
+// event's cycle), plays exactly that line's events.
+test.each(cases)('%s: the %s line plays its loop', async (name: string, line: string) => {
+  const expectedEvents = (JSON.parse(events[name]) as Event[]).filter((e) => e.line === line);
+  const code = strudel[name].split('\n').find((l) => l.startsWith(`${line}: `));
+  expect(code, `${name}.strudel has a ${line}: line`).toBeDefined();
   const r = core.repl({ transpiler, defaultOutput: async () => {}, getTime: () => 0 });
-  const pat = await r.evaluate(line, false);
+  const pat = await r.evaluate(code!.slice(`${line}: `.length), false);
   const cycles = 1 + Math.max(0, ...expectedEvents.map((e) => e.cycle));
   const haps = (pat ?? r.scheduler.pattern).queryArc(0, cycles);
   const played = haps
@@ -63,5 +72,6 @@ test.each(names)('%s: the bass line plays its loop', async (name: string) => {
 
 test('every bass-events file has a strudel file and the glob is not empty', () => {
   expect(names.length).toBeGreaterThan(0);
+  expect(cases.length).toBeGreaterThan(0);
   for (const name of names) expect(strudel[name], `${name}.strudel`).toBeDefined();
 });

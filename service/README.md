@@ -18,7 +18,7 @@ Every dependency is pinned with `==` in `pyproject.toml`.
 
 ```sh
 uv run pytest                 # everything (what CI runs)
-uv run pytest -m "not slow"   # skip the slow tests: real Basic Pitch inference and the timing budget
+uv run pytest -m "not slow"   # skip the slow test: the 60-second pitch-tracking timing budget
 ```
 
 Tests never touch the network: `pytest-socket` runs with `--disable-socket`, and the
@@ -82,7 +82,7 @@ app's models folder the first time you rip a clip, so `uv sync` stays small.
 Basic Pitch still transcribes the melody; the bass goes through these modules instead.
 `mir_eval` is a direct dependency, used for the onset score.
 
-- `algorip/bassgrid.py`: a per-16th-step pitch grid from `librosa.pyin` (stem resampled to 11025 Hz, 30 to 400 Hz), with note starts. Steps quieter than a tenth of the loudest step are rests.
+- `algorip/bassgrid.py`: a per-16th-step pitch grid from `librosa.pyin` (stem resampled to 11025 Hz, 30 to 400 Hz), with note starts. Steps quieter than a tenth of the loudest step are rests. The pyin frame is fixed at 2048 samples (186 ms), so the grid is reliable up to roughly 160 bpm and smears 16ths above that (a tempo-adaptive frame is a follow-up).
 - `algorip/loop.py`: finds the period (1, 2, 4 or 8 bars) the bars repeat at with a two-pass majority vote, so deviating bars do not veto it. Their extra notes become a layer when they repeat and are dense enough.
 - `algorip/score.py`: scores a candidate against the grid, combining a per-step pitch-class frame score with mir_eval's onset F1 into a `match` in 0 to 1.
 - `algorip/bass.py`: `choose_bass_loop` tries four notations (as heard, on an 8th grid, sustained, both) and keeps the shortest within 0.05 of the best match.

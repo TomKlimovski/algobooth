@@ -1,83 +1,146 @@
 [
   {
+    "line": "_bass2",
+    "cycle": 0,
+    "step": 1,
+    "length": 1,
+    "note": "a1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 0,
+    "step": 2,
+    "length": 1,
+    "note": "a1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 0,
+    "step": 3,
+    "length": 1,
+    "note": "a1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 0,
+    "step": 4,
+    "length": 1,
+    "note": "a1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 0,
+    "step": 5,
+    "length": 1,
+    "note": "a1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 0,
+    "step": 6,
+    "length": 1,
+    "note": "a1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 0,
+    "step": 7,
+    "length": 1,
+    "note": "a1"
+  },
+  {
+    "line": "bass",
     "cycle": 0,
     "step": 0,
     "length": 8,
     "note": "a1"
   },
   {
+    "line": "bass",
     "cycle": 0,
     "step": 8,
     "length": 1,
     "note": "c2"
   },
   {
+    "line": "bass",
     "cycle": 0,
     "step": 10,
     "length": 1,
     "note": "e2"
   },
   {
+    "line": "bass",
     "cycle": 0,
     "step": 11,
     "length": 1,
     "note": "a1"
   },
   {
+    "line": "bass",
     "cycle": 0,
     "step": 12,
     "length": 1,
     "note": "g1"
   },
   {
+    "line": "bass",
     "cycle": 0,
     "step": 14,
     "length": 1,
     "note": "e2"
   },
   {
+    "line": "bass",
     "cycle": 0,
     "step": 15,
     "length": 1,
     "note": "d2"
   },
   {
+    "line": "bass",
     "cycle": 1,
     "step": 0,
     "length": 8,
     "note": "a1"
   },
   {
+    "line": "bass",
     "cycle": 1,
     "step": 8,
     "length": 1,
     "note": "g1"
   },
   {
+    "line": "bass",
     "cycle": 1,
     "step": 9,
     "length": 1,
     "note": "a1"
   },
   {
+    "line": "bass",
     "cycle": 1,
     "step": 10,
     "length": 1,
     "note": "d2"
   },
   {
+    "line": "bass",
     "cycle": 1,
     "step": 12,
     "length": 1,
     "note": "e2"
   },
   {
+    "line": "bass",
     "cycle": 1,
     "step": 13,
     "length": 1,
     "note": "c2"
   },
   {
+    "line": "bass",
     "cycle": 1,
     "step": 14,
     "length": 1,

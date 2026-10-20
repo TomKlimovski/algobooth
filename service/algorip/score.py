@@ -5,8 +5,8 @@ candidate sounds the right pitch class where the bass is pitched, and stays quie
 The onset score is mir_eval's transcription F1: do the candidate's note starts land on the bass's
 within half a step, on the same pitch class. Pitches are folded to one octave (midi % 12 + 36)
 before comparing, because pyin and a transcriber disagree about octaves often and a bassline
-written an octave off still plays the same line; the pitch tolerance then only has to tell
-semitones apart.
+written an octave off still plays the same line. The frame score already demands the same pitch
+class, so the onset match wants the same pitch class too: the pitch tolerance is half a semitone.
 """
 
 from collections.abc import Sequence
@@ -85,7 +85,9 @@ def _onset_f1(truth: BassGrid, grid: Grid, notes: Sequence[Note]) -> float:
         np.array(est_intervals),
         _hz([n.midi for n in notes]),
         onset_tolerance=grid.step_seconds / 2,
-        pitch_tolerance=100.0,
+        # Half a semitone, not one: adjacent folded semitones measure 100.00000000000007 cents, so a
+        # tolerance of 100 rejected them only by rounding. The frame score demands the same pitch class.
+        pitch_tolerance=50.0,
         offset_ratio=None,
     )[2]
     return float(f1)

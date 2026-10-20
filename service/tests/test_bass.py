@@ -88,6 +88,7 @@ def test_candidates():
     t = [[Note(bar=0, step=0, length=1, midi=31), Note(bar=0, step=1, length=1, midi=31), Note(bar=0, step=8, length=1, midi=31)]]
     named = dict(candidates(t))
     assert [n.step for n in named["b"][0]] == [0, 8]            # the odd 16th merged into its even neighbour
+    assert [n.length for n in named["b"][0]] == [2, 1]          # reaching to where the moved note ended
     assert [(n.step, n.length) for n in named["c"][0]] == [(0, 2), (8, 1)]
 
 
