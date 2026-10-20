@@ -70,7 +70,9 @@ validation get FastAPI's `422`. One rip runs at a time.
 
 The types are in `algorip/schema.py`; `app/src/rip/ripApi.ts` mirrors them. `Analysis`
 carries `bass_loop` (`BassLoop`: `period`, `templates`, `layer`, `layer_bars`, `match`,
-`match_with_layer`), null when no loop is found. It also carries `drum_summary` (`DrumSummary`: `period`, `match`, `fill_bars`), null when there are no drum hits.
+`match_with_layer`), null when no loop is found.
+It also carries `drum_summary` (`DrumSummary`: `period`, `match`, `fill_bars`), null when
+there are no drum hits.
 
 ## PyTorch and Demucs
 
