@@ -60,6 +60,15 @@ def snap_to_key(notes: list[Note], key: Key) -> list[Note]:
     return out
 
 
+def fold_octaves(midi: int, low: int, high: int) -> int:
+    """midi moved by octaves into low..high (high - low must be at least 11)."""
+    while midi < low:
+        midi += 12
+    while midi > high:
+        midi -= 12
+    return midi
+
+
 def _index(note: Note) -> int:
     return note.bar * STEPS_PER_BAR + note.step
 

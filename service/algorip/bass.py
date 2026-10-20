@@ -6,25 +6,24 @@ import numpy as np
 
 from algorip.grid import Grid
 from algorip.key import Key
-from algorip.notes import Note, Predictor, basic_pitch_predict, monophonic, quantise, snap_to_key
+from algorip.notes import (
+    Note,
+    Predictor,
+    basic_pitch_predict,
+    fold_octaves,
+    monophonic,
+    quantise,
+    snap_to_key,
+)
 
 BASS_LOW = 24  # C1
 BASS_HIGH = 60  # C4
 
 
-def _fold(midi: int) -> int:
-    """midi moved by octaves into BASS_LOW..BASS_HIGH."""
-    while midi < BASS_LOW:
-        midi += 12
-    while midi > BASS_HIGH:
-        midi -= 12
-    return midi
-
-
 def transcribe_bass(stem: Path, grid: Grid, key: Key, predict: Predictor = basic_pitch_predict) -> list[Note]:
     """The bass stem as a monophonic, in-key line on the grid, every note folded into the bass register."""
     notes = monophonic(snap_to_key(quantise(predict(stem), grid), key))
-    return [n.model_copy(update={"midi": _fold(n.midi)}) for n in notes]
+    return [n.model_copy(update={"midi": fold_octaves(n.midi, BASS_LOW, BASS_HIGH)}) for n in notes]
 
 
 def _midi_hz(midi: int) -> float:
