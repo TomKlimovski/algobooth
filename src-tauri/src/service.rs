@@ -30,6 +30,7 @@ const POLL_INTERVAL: Duration = Duration::from_millis(200);
 
 const NOT_FOUND: &str = "Python service not found: run `uv sync` in service/";
 const KEEPS_CRASHING: &str = "service keeps crashing; see the log";
+const SERVICE_STOPPED: &str = "service stopped";
 
 /// 16 random bytes as 32 lowercase hex characters.
 pub fn generate_token(rng: &mut impl rand::RngCore) -> String {
@@ -138,9 +139,10 @@ pub struct ServiceInfo {
   pub token: String,
 }
 
-/// True when a setting the service reads at launch changed.
+/// True when a setting the service reads at launch changed. Only the cache folder: "keep downloaded
+/// audio" travels with each rip request, so toggling it never kills a running rip.
 pub fn restart_needed(old: &Settings, new: &Settings) -> bool {
-  old.rip_cache_dir != new.rip_cache_dir || old.keep_downloads != new.keep_downloads
+  old.rip_cache_dir != new.rip_cache_dir
 }
 
 /// The crash-restart rule: at most `MAX_RESTARTS` restarts in any `RESTART_WINDOW`.
@@ -430,20 +432,24 @@ impl ServiceState {
     }
   }
 
-  /// Kills the child (if any) and waits for it to exit.
+  /// Kills the child (if any), waits for it to exit and emits `stopped`, so a rip in flight ends with
+  /// "Analysis service stopped" instead of a failed poll.
   pub fn stop(&self) {
-    let child = {
+    let (child, app) = {
       let mut inner = self.lock();
       inner.generation += 1;
-      self.set_status(&mut inner, Status::Down("service stopped".into()));
+      self.set_status(&mut inner, Status::Down(SERVICE_STOPPED.into()));
       if let Some(pidfile) = inner.pidfile.take() {
         let _ = std::fs::remove_file(pidfile);
       }
-      inner.child.take()
+      (inner.child.take(), inner.app.clone())
     };
     if let Some(mut child) = child {
       let _ = child.kill();
       let _ = child.wait();
+      if let Some(app) = app {
+        emit(&app, "stopped", None, Some(SERVICE_STOPPED.into()));
+      }
     }
   }
 
@@ -586,7 +592,7 @@ mod tests {
   #[test]
   fn restart_only_when_service_settings_change() {
     let old = default_settings();
-    assert!(restart_needed(&old, &Settings { keep_downloads: true, ..old.clone() }));
+    assert!(!restart_needed(&old, &Settings { keep_downloads: true, ..old.clone() }));
     assert!(restart_needed(&old, &Settings { rip_cache_dir: "/elsewhere".into(), ..old.clone() }));
     assert!(!restart_needed(
       &old,

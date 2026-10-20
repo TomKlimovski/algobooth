@@ -40,6 +40,7 @@ class RipRequest(BaseModel):
     end: float
     tidy: bool = False
     claude_api_key: str | None = None
+    keep_downloads: bool | None = None  # None: the service's launch setting (ALGOBOOTH_KEEP_DOWNLOADS)
 
     @model_validator(mode="after")
     def _check(self) -> "RipRequest":

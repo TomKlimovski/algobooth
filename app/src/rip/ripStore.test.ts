@@ -99,8 +99,19 @@ test('start refuses a long clip, a missing start and a non-http link (review foc
 
 test('request builds the wire request from the fields', () => {
   const { store } = setup();
-  expect(store.request()).toEqual({ url: 'https://www.youtube.com/watch?v=x', start: 72, end: 88, tidy: false });
+  expect(store.request()).toEqual({
+    url: 'https://www.youtube.com/watch?v=x',
+    start: 72,
+    end: 88,
+    tidy: false,
+    keep_downloads: false,
+  });
   expect(store.state.error).toBeNull();
+});
+
+test('request carries "keep downloaded audio" from Settings, read at each rip', () => {
+  const kept = setup([], { keep_downloads: true });
+  expect(kept.store.request()).toMatchObject({ keep_downloads: true });
 });
 
 test('start polls to done and loads the generated code', async () => {
@@ -111,7 +122,13 @@ test('start polls to done and loads the generated code', async () => {
     job({ status: 'done', stage: 'generate', progress: 1, result: done }),
   ]);
   await store.start();
-  expect(fake.start).toHaveBeenCalledWith({ url: 'https://www.youtube.com/watch?v=x', start: 72, end: 88, tidy: false });
+  expect(fake.start).toHaveBeenCalledWith({
+    url: 'https://www.youtube.com/watch?v=x',
+    start: 72,
+    end: 88,
+    tidy: false,
+    keep_downloads: false,
+  });
   expect(store.state.busy).toBe(true);
   await q.drain();
   expect(fake.status).toHaveBeenCalledTimes(3);

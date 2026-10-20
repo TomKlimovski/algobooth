@@ -60,7 +60,8 @@ def run_rip(req: RipRequest, paths: Paths, progress: Progress, deps: Deps) -> Ri
         progress(stage, 0.0)
 
     enter("download")
-    clip, title = fetch_clip(req.url, req.start, req.end, paths.cache_dir, paths.keep_downloads,
+    keep = paths.keep_downloads if req.keep_downloads is None else req.keep_downloads
+    clip, title = fetch_clip(req.url, req.start, req.end, paths.cache_dir, keep,
                              fetch=deps.fetch, run=deps.run)
     progress("download", 1.0)
 

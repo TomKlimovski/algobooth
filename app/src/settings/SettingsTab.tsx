@@ -53,6 +53,7 @@ export function SettingsTab() {
           <span class="settings-label">Cache folder</span>
           <input class="settings-input" type="text" readOnly value={settings().rip_cache_dir} />
           <button type="button" class="deck-btn ghost" onClick={() => chooseFolder('rip_cache_dir')}>Choose…</button>
+          <span class="settings-hint">Changing the cache folder restarts the analysis service</span>
         </label>
         <label class="settings-row">
           <span class="settings-label" />

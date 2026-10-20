@@ -116,3 +116,11 @@ def test_run_rip_honours_cancel_between_stages(tmp_path, tmp_wav):
                 lambda s, f: stages.append((s, f)), deps)
     assert "separator" not in calls
     assert stages == [("download", 0.0), ("download", 1.0)]
+
+
+@pytest.mark.parametrize("request_keep, kept", [(None, False), (True, True), (False, False)])
+def test_the_request_decides_whether_downloads_are_kept(tmp_path, tmp_wav, request_keep, kept):
+    deps = make_deps(tmp_wav)
+    req = RipRequest(url="https://x/v", start=0, end=8, keep_downloads=request_keep)
+    run_rip(req, paths(tmp_path), lambda s, f: None, deps)  # the service was launched with keep_downloads off
+    assert any((tmp_path / "cache" / "sources").glob("*/src.wav")) is kept

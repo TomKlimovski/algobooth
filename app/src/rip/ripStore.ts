@@ -86,9 +86,9 @@ export function createRipStore(deps: RipDeps) {
       return null;
     }
     setState('error', null);
-    const key = deps.settings().claude_api_key;
+    const { claude_api_key: key, keep_downloads } = deps.settings();
     const tidy = state.tidy && key !== '';
-    const req: RipRequest = { url, start: parseTime(state.startText)!, end: parseTime(state.endText)!, tidy };
+    const req: RipRequest = { url, start: parseTime(state.startText)!, end: parseTime(state.endText)!, tidy, keep_downloads };
     if (tidy) req.claude_api_key = key;
     return req;
   }

@@ -44,7 +44,7 @@ The Rust shell (`src-tauri/src/service.rs`) sets these when it starts the servic
 | `ALGOBOOTH_TOKEN` | Bearer token every request but `GET /health` must carry. A fresh random one per launch. | none: the service exits with status 2 |
 | `ALGOBOOTH_CACHE_DIR` | Downloads, stems and analysis results. The app passes the Settings value, `~/Algobooth/cache` by default. | `~/.algobooth/cache` |
 | `ALGOBOOTH_MODELS_DIR` | Where PyTorch, Demucs (`site/`) and the htdemucs weights (`torch/`) are installed. The app passes `<app data>/models`. | `~/.algobooth/models` |
-| `ALGOBOOTH_KEEP_DOWNLOADS` | `1` keeps the downloaded source audio after a rip; anything else deletes it. | delete |
+| `ALGOBOOTH_KEEP_DOWNLOADS` | `1` keeps the downloaded source audio after a rip; anything else deletes it. A request's `keep_downloads` wins. | delete |
 | `PYTORCH_ENABLE_MPS_FALLBACK` | Always `1`, so torch ops Metal lacks fall back to the CPU. | unset |
 
 `ALGOBOOTH_PYTHON` is read by the Rust shell, not the service: it overrides which
@@ -62,7 +62,7 @@ validation get FastAPI's `422`. One rip runs at a time.
 | `GET /health` | | `200 {"ok": true}` (no auth) | |
 | `GET /models` | | `200 ModelStatus` | `401` |
 | `POST /models/install` | | `202 ModelStatus`; starts the first-run download, a no-op while one is running | `401` |
-| `POST /rip` | `RipRequest`: `url`, `start`, `end` (seconds), `tidy`, `claude_api_key` | `202 {"id": "..."}` | `401`; `422` bad URL, start not before end, or a clip over 60 s; `503` models not installed; `409` a rip is already running |
+| `POST /rip` | `RipRequest`: `url`, `start`, `end` (seconds), `tidy`, `claude_api_key`, `keep_downloads` (overrides `ALGOBOOTH_KEEP_DOWNLOADS` for this rip; the app always sends it) | `202 {"id": "..."}` | `401`; `422` bad URL, start not before end, or a clip over 60 s; `503` models not installed; `409` a rip is already running |
 | `GET /rip/{id}` | | `200 JobStatus`: `status` (`queued`, `running`, `done`, `failed`, `cancelled`), `stage` (`download`, `separate`, `analyse`, `generate`, `tidy`), `progress` 0..1 within the stage, `result` (`RipResult`) once done, `error` | `401`; `404` unknown id |
 | `DELETE /rip/{id}` | | `204`; cancels the rip at the next stage boundary | `401`; `404` unknown id |
 | `GET /rip/{id}/stem/{name}` | | `200 audio/wav`; `name` is `drums`, `bass`, `other`, `vocals` or `mix` | `401`; `404` unknown id, rip not done, or no such stem |
