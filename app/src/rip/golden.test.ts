@@ -34,7 +34,9 @@ test('the glob sees every golden on disk (a cached glob would skip new files)', 
   const cwd: string = (globalThis as unknown as { process: { cwd(): string } }).process.cwd();
   const onDisk = fs.readdirSync(`${cwd}/service/tests/golden`).filter((f) => f.endsWith('.strudel'));
   expect(onDisk.length).toBeGreaterThan(0);
-  expect(files.length).toBe(onDisk.length);
+  // vitest 5 keeps transformed modules in node_modules/.vitest-cache, keyed by file: after a golden is added
+  // this file's cached transform still lists the old set. `pnpm exec vitest run --clearCache` fixes it.
+  expect(files.length, 'stale glob: run `pnpm exec vitest run --clearCache`').toBe(onDisk.length);
 });
 
 test.each(files)('%s evaluates headlessly and plays in its first cycle', async (file: string) => {
