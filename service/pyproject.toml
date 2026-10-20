@@ -27,7 +27,9 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "--disable-socket"
+# Unix sockets stay allowed: asyncio (FastAPI's TestClient) builds its event loop on a socketpair.
+# Every inet socket is still blocked, so no test touches the network.
+addopts = "--disable-socket --allow-unix-socket"
 testpaths = ["tests"]
 markers = ["slow: runs a real Basic Pitch inference"]
 filterwarnings = [
