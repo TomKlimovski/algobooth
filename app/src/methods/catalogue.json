@@ -1,0 +1,4828 @@
+{
+  "versions": {
+    "@strudel/core": "1.2.6",
+    "@strudel/tonal": "1.2.6"
+  },
+  "methods": [
+    {
+      "name": "bank",
+      "synonyms": [],
+      "description": "Select the sound bank to use. To be used together with `s`. The bank name (+ \"_\") will be prepended to the value of `s`.",
+      "params": [
+        {
+          "name": "bank",
+          "type": "string | Pattern",
+          "description": "the name of the bank"
+        }
+      ],
+      "snippet": ".bank(\"RolandTR808\")",
+      "argRange": [
+        7,
+        18
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "begin",
+      "synonyms": [],
+      "description": "A pattern of numbers from 0 to 1. Skips the beginning of each sample, e.g. `0.25` to cut off the first quarter from each sample.",
+      "params": [
+        {
+          "name": "amount",
+          "type": "number | Pattern",
+          "description": "between 0 and 1, where 1 is the length of the sample"
+        }
+      ],
+      "snippet": ".begin(0.25)",
+      "argRange": [
+        7,
+        11
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "byteBeatExpression",
+      "synonyms": [
+        "bbexpr"
+      ],
+      "description": "Create byte beats with custom expressions",
+      "params": [
+        {
+          "name": "byteBeatExpression",
+          "type": "number | Pattern",
+          "description": "bitwise expression for creating bytebeat"
+        }
+      ],
+      "snippet": ".byteBeatExpression('t*(t>>15^t>>66)')",
+      "argRange": [
+        21,
+        36
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": "for s(\"bytebeat\")",
+      "base": "s(\"bytebeat\")"
+    },
+    {
+      "name": "byteBeatStartTime",
+      "synonyms": [
+        "bbst"
+      ],
+      "description": "Create byte beats with custom expressions",
+      "params": [
+        {
+          "name": "byteBeatStartTime",
+          "type": "number | Pattern",
+          "description": "in samples (t)"
+        }
+      ],
+      "snippet": ".byteBeatStartTime(10000)",
+      "argRange": [
+        19,
+        24
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": "for s(\"bytebeat\")",
+      "base": "s(\"bytebeat\")"
+    },
+    {
+      "name": "clip",
+      "synonyms": [
+        "legato"
+      ],
+      "description": "Multiplies the duration with the given number. Also cuts samples off at the end if they exceed the duration.",
+      "params": [
+        {
+          "name": "factor",
+          "type": "number | Pattern",
+          "description": ">= 0"
+        }
+      ],
+      "snippet": ".clip(0.5)",
+      "argRange": [
+        6,
+        9
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "cut",
+      "synonyms": [],
+      "description": "In the style of classic drum-machines, `cut` will stop a playing sample as soon as another samples with in same cutgroup is to be played. An example would be an open hi-hat followed by a closed one, essentially muting the open.",
+      "params": [
+        {
+          "name": "group",
+          "type": "number | Pattern",
+          "description": "cut group number"
+        }
+      ],
+      "snippet": ".cut(1)",
+      "argRange": [
+        5,
+        6
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "density",
+      "synonyms": [],
+      "description": "Noise crackle density",
+      "params": [
+        {
+          "name": "density",
+          "type": "number | Pattern",
+          "description": "between 0 and x"
+        }
+      ],
+      "snippet": ".density(0.1)",
+      "argRange": [
+        9,
+        12
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": "for s(\"crackle\")",
+      "base": "s(\"crackle*4\")"
+    },
+    {
+      "name": "duration",
+      "synonyms": [
+        "dur"
+      ],
+      "description": "Sets the duration of the event in cycles. Similar to clip / legato, it also cuts samples off at the end if they exceed the duration.",
+      "params": [
+        {
+          "name": "seconds",
+          "type": "number | Pattern",
+          "description": ">= 0"
+        }
+      ],
+      "snippet": ".duration(0.25)",
+      "argRange": [
+        10,
+        14
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "end",
+      "synonyms": [],
+      "description": "The same as .begin, but cuts off the end off each sample.",
+      "params": [
+        {
+          "name": "length",
+          "type": "number | Pattern",
+          "description": "1 = whole sample, .5 = half sample, .25 = quarter sample etc.."
+        }
+      ],
+      "snippet": ".end(0.5)",
+      "argRange": [
+        5,
+        8
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "fit",
+      "synonyms": [],
+      "description": "Makes the sample fit its event duration. Good for rhythmical loops like drum breaks. Similar to `loopAt`.",
+      "params": [],
+      "snippet": ".fit()",
+      "argRange": null,
+      "group": "Sound",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "loop",
+      "synonyms": [],
+      "description": "Loops the sample. Note that the tempo of the loop is not synced with the cycle tempo. To change the loop region, use loopBegin / loopEnd.",
+      "params": [
+        {
+          "name": "on",
+          "type": "number | Pattern",
+          "description": "If 1, the sample is looped"
+        }
+      ],
+      "snippet": ".loop(1)",
+      "argRange": [
+        6,
+        7
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "loopAt",
+      "synonyms": [],
+      "description": "Makes the sample fit the given number of cycles by changing the speed.",
+      "params": [],
+      "snippet": ".loopAt(2)",
+      "argRange": [
+        8,
+        9
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "loopAtCps",
+      "synonyms": [],
+      "description": "Makes the sample fit the given number of cycles and cps value, by changing the speed. Please note that at some point cps will be given by a global clock and this function will be deprecated/removed.",
+      "params": [],
+      "snippet": ".loopAtCps(2, 0.5)",
+      "argRange": [
+        11,
+        12
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "loopBegin",
+      "synonyms": [
+        "loopb"
+      ],
+      "description": "Begin to loop at a specific point in the sample (inbetween `begin` and `end`). Note that the loop point must be inbetween `begin` and `end`, and before `loopEnd`! Note: Samples starting with wt_ will automatically loop! (wt = wavetable)",
+      "params": [
+        {
+          "name": "time",
+          "type": "number | Pattern",
+          "description": "between 0 and 1, where 1 is the length of the sample"
+        }
+      ],
+      "snippet": ".loopBegin(0.25)",
+      "argRange": [
+        11,
+        15
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .loop(1)",
+      "base": "s(\"bd*4\").bank(\"tr909\").loop(1)"
+    },
+    {
+      "name": "loopEnd",
+      "synonyms": [
+        "loope"
+      ],
+      "description": "End the looping section at a specific point in the sample (inbetween `begin` and `end`). Note that the loop point must be inbetween `begin` and `end`, and after `loopBegin`!",
+      "params": [
+        {
+          "name": "time",
+          "type": "number | Pattern",
+          "description": "between 0 and 1, where 1 is the length of the sample"
+        }
+      ],
+      "snippet": ".loopEnd(0.75)",
+      "argRange": [
+        9,
+        13
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .loop(1)",
+      "base": "s(\"bd*4\").bank(\"tr909\").loop(1)"
+    },
+    {
+      "name": "n",
+      "synonyms": [],
+      "description": "Selects the given index from the sample map. Numbers too high will wrap around. `n` can also be used to play midi numbers, but it is recommended to use `note` instead.",
+      "params": [
+        {
+          "name": "value",
+          "type": "number | Pattern",
+          "description": "sample index starting from 0"
+        }
+      ],
+      "snippet": ".n(1)",
+      "argRange": [
+        3,
+        4
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "noise",
+      "synonyms": [],
+      "description": "Adds pink noise to the mix",
+      "params": [
+        {
+          "name": "wet",
+          "type": "number | Pattern",
+          "description": "wet amount"
+        }
+      ],
+      "snippet": ".noise(0.3)",
+      "argRange": [
+        7,
+        10
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\")"
+    },
+    {
+      "name": "note",
+      "synonyms": [],
+      "description": "Plays the given note name or midi number. A note name consists of",
+      "params": [],
+      "snippet": ".note(\"c3 e3 g3\")",
+      "argRange": [
+        7,
+        15
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "partials",
+      "synonyms": [],
+      "description": "Scale the magnitude of the harmonics of one of the core synths ('sine', 'tri', 'saw', ..)",
+      "params": [
+        {
+          "name": "magnitudes",
+          "type": "number[] | Pattern",
+          "description": "List of [0, 1] magnitudes for partials. 0th entry is the fundamental harmonic (i.e. DC offset is skipped)"
+        }
+      ],
+      "snippet": ".partials([1, 0.5, 0.3, 0.2])",
+      "argRange": null,
+      "group": "Sound",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\")"
+    },
+    {
+      "name": "phases",
+      "synonyms": [],
+      "description": "Rotates the harmonics of one of the core synths ('sine', 'tri', 'saw', 'user', ..) by a list of phases",
+      "params": [
+        {
+          "name": "phases",
+          "type": "number[] | Pattern",
+          "description": "List of [0, 1) phases for partials. 0th entry is the fundamental phase (i.e. DC offset is skipped)"
+        }
+      ],
+      "snippet": ".phases([0, 0.5, 0, 0.25])",
+      "argRange": null,
+      "group": "Sound",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\")"
+    },
+    {
+      "name": "pw",
+      "synonyms": [],
+      "description": "Controls the pulsewidth of the pulse oscillator",
+      "params": [
+        {
+          "name": "pulsewidth",
+          "type": "number | Pattern",
+          "description": ""
+        }
+      ],
+      "snippet": ".pw(0.3)",
+      "argRange": [
+        4,
+        7
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": "for s(\"pulse\")",
+      "base": "note(\"c3 e3 g3 c4\").s(\"pulse\")"
+    },
+    {
+      "name": "pwrate",
+      "synonyms": [],
+      "description": "Controls the lfo rate for the pulsewidth of the pulse oscillator",
+      "params": [
+        {
+          "name": "rate",
+          "type": "number | Pattern",
+          "description": ""
+        }
+      ],
+      "snippet": ".pwrate(2)",
+      "argRange": [
+        8,
+        9
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": "for s(\"pulse\")",
+      "base": "note(\"c3 e3 g3 c4\").s(\"pulse\")"
+    },
+    {
+      "name": "pwsweep",
+      "synonyms": [],
+      "description": "Controls the lfo sweep for the pulsewidth of the pulse oscillator",
+      "params": [
+        {
+          "name": "sweep",
+          "type": "number | Pattern",
+          "description": ""
+        }
+      ],
+      "snippet": ".pwsweep(0.3)",
+      "argRange": [
+        9,
+        12
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": "for s(\"pulse\")",
+      "base": "note(\"c3 e3 g3 c4\").s(\"pulse\")"
+    },
+    {
+      "name": "s",
+      "synonyms": [
+        "sound"
+      ],
+      "description": "Select a sound / sample by name. When using mininotation, you can also optionally supply 'n' and 'gain' parameters separated by ':'.",
+      "params": [
+        {
+          "name": "sound",
+          "type": "string | Pattern",
+          "description": "The sound / pattern of sounds to pick"
+        }
+      ],
+      "snippet": ".s(\"hh\")",
+      "argRange": [
+        4,
+        6
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "scrub",
+      "synonyms": [],
+      "description": "Allows you to scrub an audio file like a tape loop by passing values that represents the position in the audio file in the optional array syntax ex: \"0.5:2\", the second value controls the speed of playback",
+      "params": [],
+      "snippet": ".scrub(\"0.25\")",
+      "argRange": [
+        8,
+        12
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "slice",
+      "synonyms": [],
+      "description": "Chops samples into the given number of slices, triggering those slices with a given pattern of slice numbers. Instead of a number, it also accepts a list of numbers from 0 to 1 to slice at specific points.",
+      "params": [],
+      "snippet": ".slice(4, \"0 2 1 3\")",
+      "argRange": [
+        7,
+        8
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "speed",
+      "synonyms": [],
+      "description": "Changes the speed of sample playback, i.e. a cheap way of changing pitch.",
+      "params": [
+        {
+          "name": "speed",
+          "type": "number | Pattern",
+          "description": "-inf to inf, negative numbers play the sample backwards."
+        }
+      ],
+      "snippet": ".speed(1.5)",
+      "argRange": [
+        7,
+        10
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "splice",
+      "synonyms": [],
+      "description": "Works the same as slice, but changes the playback speed of each slice to match the duration of its step.",
+      "params": [],
+      "snippet": ".splice(4, \"0 2 1 3\")",
+      "argRange": [
+        8,
+        9
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "stretch",
+      "synonyms": [],
+      "description": "Changes the speed of sample playback, i.e. a cheap way of changing pitch.",
+      "params": [
+        {
+          "name": "factor",
+          "type": "number | Pattern",
+          "description": "-inf to inf, negative numbers play the sample backwards."
+        }
+      ],
+      "snippet": ".stretch(1.5)",
+      "argRange": [
+        9,
+        12
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "unison",
+      "synonyms": [],
+      "description": "Set number of stacked voices for supported oscillators",
+      "params": [
+        {
+          "name": "numvoices",
+          "type": "number | Pattern",
+          "description": ""
+        }
+      ],
+      "snippet": ".unison(5)",
+      "argRange": [
+        8,
+        9
+      ],
+      "group": "Sound",
+      "source": "@strudel/core/controls.mjs",
+      "note": "for s(\"supersaw\")",
+      "base": "note(\"c3 e3 g3 c4\").s(\"supersaw\")"
+    },
+    {
+      "name": "add",
+      "synonyms": [],
+      "description": "Assumes a pattern of numbers. Adds the given number to each item in the pattern.",
+      "params": [],
+      "snippet": ".add(note(12))",
+      "argRange": [
+        10,
+        12
+      ],
+      "group": "Pitch",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "detune",
+      "synonyms": [
+        "det"
+      ],
+      "description": "Set detune for stacked voices of supported oscillators",
+      "params": [
+        {
+          "name": "amount",
+          "type": "number | Pattern",
+          "description": ""
+        }
+      ],
+      "snippet": ".detune(0.3)",
+      "argRange": [
+        8,
+        11
+      ],
+      "group": "Pitch",
+      "source": "@strudel/core/controls.mjs",
+      "note": "for s(\"supersaw\")",
+      "base": "note(\"c3 e3 g3 c4\").s(\"supersaw\")"
+    },
+    {
+      "name": "freq",
+      "synonyms": [],
+      "description": "Set frequency of sound.",
+      "params": [
+        {
+          "name": "frequency",
+          "type": "number | Pattern",
+          "description": "in Hz. the audible range is between 20 and 20000 Hz"
+        }
+      ],
+      "snippet": ".freq(220)",
+      "argRange": [
+        6,
+        9
+      ],
+      "group": "Pitch",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "octave",
+      "synonyms": [
+        "oct"
+      ],
+      "description": "Sets the default octave of a synth.",
+      "params": [
+        {
+          "name": "octave",
+          "type": "number | Pattern",
+          "description": "octave number"
+        }
+      ],
+      "snippet": ".octave(4)",
+      "argRange": [
+        8,
+        9
+      ],
+      "group": "Pitch",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "panchor",
+      "synonyms": [],
+      "description": "Sets the range anchor of the envelope: - anchor 0: range = [note, note + penv] - anchor 1: range = [note - penv, note] If you don't set an anchor, the value will default to the psustain value.",
+      "params": [
+        {
+          "name": "anchor",
+          "type": "number | Pattern",
+          "description": "anchor offset"
+        }
+      ],
+      "snippet": ".panchor(0.5)",
+      "argRange": [
+        9,
+        12
+      ],
+      "group": "Pitch",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .penv()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").penv(12)"
+    },
+    {
+      "name": "pattack",
+      "synonyms": [
+        "patt"
+      ],
+      "description": "Attack time of pitch envelope.",
+      "params": [
+        {
+          "name": "time",
+          "type": "number | Pattern",
+          "description": "time in seconds"
+        }
+      ],
+      "snippet": ".pattack(0.1)",
+      "argRange": [
+        9,
+        12
+      ],
+      "group": "Pitch",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .penv()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").penv(12)"
+    },
+    {
+      "name": "pcurve",
+      "synonyms": [],
+      "description": "Curve of envelope. Defaults to linear. exponential is good for kicks",
+      "params": [
+        {
+          "name": "type",
+          "type": "number | Pattern",
+          "description": "0 = linear, 1 = exponential"
+        }
+      ],
+      "snippet": ".pcurve(1)",
+      "argRange": [
+        8,
+        9
+      ],
+      "group": "Pitch",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .penv()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").penv(12)"
+    },
+    {
+      "name": "pdecay",
+      "synonyms": [
+        "pdec"
+      ],
+      "description": "Decay time of pitch envelope.",
+      "params": [
+        {
+          "name": "time",
+          "type": "number | Pattern",
+          "description": "time in seconds"
+        }
+      ],
+      "snippet": ".pdecay(0.1)",
+      "argRange": [
+        8,
+        11
+      ],
+      "group": "Pitch",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .penv()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").penv(12)"
+    },
+    {
+      "name": "penv",
+      "synonyms": [],
+      "description": "Amount of pitch envelope. Negative values will flip the envelope. If you don't set other pitch envelope controls, `pattack:.2` will be the default.",
+      "params": [
+        {
+          "name": "semitones",
+          "type": "number | Pattern",
+          "description": "change in semitones"
+        }
+      ],
+      "snippet": ".penv(12)",
+      "argRange": [
+        6,
+        8
+      ],
+      "group": "Pitch",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "prelease",
+      "synonyms": [
+        "prel"
+      ],
+      "description": "Release time of pitch envelope",
+      "params": [
+        {
+          "name": "time",
+          "type": "number | Pattern",
+          "description": "time in seconds"
+        }
+      ],
+      "snippet": ".prelease(0.1)",
+      "argRange": [
+        10,
+        13
+      ],
+      "group": "Pitch",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .penv()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").penv(12)"
+    },
+    {
+      "name": "rootNotes",
+      "synonyms": [],
+      "description": "Maps the chords of the incoming pattern to root notes in the given octave.",
+      "params": [
+        {
+          "name": "octave",
+          "type": "octave",
+          "description": "octave to use"
+        }
+      ],
+      "snippet": ".rootNotes(2)",
+      "argRange": [
+        11,
+        12
+      ],
+      "group": "Pitch",
+      "source": "@strudel/tonal/voicings.mjs",
+      "note": "needs a chord() pattern",
+      "base": "chord(\"<C^7 Dm7>\")"
+    },
+    {
+      "name": "scale",
+      "synonyms": [],
+      "description": "Turns numbers into notes in the scale (zero indexed) or quantizes notes to a scale.",
+      "params": [
+        {
+          "name": "scale",
+          "type": "string",
+          "description": "Name of scale"
+        }
+      ],
+      "snippet": ".scale(\"C:minor\")",
+      "argRange": [
+        8,
+        15
+      ],
+      "group": "Pitch",
+      "source": "@strudel/tonal/tonal.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "scaleTranspose",
+      "synonyms": [
+        "scaleTrans",
+        "strans"
+      ],
+      "description": "Transposes notes inside the scale by the number of steps. Expected to be called on a Pattern which already has a scale",
+      "params": [
+        {
+          "name": "offset",
+          "type": "offset",
+          "description": "number of steps inside the scale"
+        }
+      ],
+      "snippet": ".scaleTranspose(2)",
+      "argRange": [
+        16,
+        17
+      ],
+      "group": "Pitch",
+      "source": "@strudel/tonal/tonal.mjs",
+      "note": "needs a scale() pattern",
+      "base": "n(\"0 2 4 6\").scale(\"C:minor\").s(\"sawtooth\")"
+    },
+    {
+      "name": "sub",
+      "synonyms": [],
+      "description": "Like add, but the given numbers are subtracted.",
+      "params": [],
+      "snippet": ".sub(note(12))",
+      "argRange": [
+        10,
+        12
+      ],
+      "group": "Pitch",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "transpose",
+      "synonyms": [
+        "trans"
+      ],
+      "description": "Change the pitch of each value by the given amount. Expects numbers or note strings as values. The amount can be given as a number of semitones or as a string in interval short notation. If you don't care about enharmonic correctness, just use numbers. Otherwise, pass the interval of the form: ST where S is the degree number and T the type of interval with",
+      "params": [
+        {
+          "name": "amount",
+          "type": "string | number",
+          "description": "Either number of semitones or interval string."
+        }
+      ],
+      "snippet": ".transpose(7)",
+      "argRange": [
+        11,
+        12
+      ],
+      "group": "Pitch",
+      "source": "@strudel/tonal/tonal.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "voicing",
+      "synonyms": [],
+      "description": "Turns chord symbols into voicings. You can use the following control params:",
+      "params": [],
+      "snippet": ".voicing()",
+      "argRange": null,
+      "group": "Pitch",
+      "source": "@strudel/tonal/voicings.mjs",
+      "note": "needs a chord() pattern",
+      "base": "chord(\"<C^7 Dm7>\")"
+    },
+    {
+      "name": "vowel",
+      "synonyms": [],
+      "description": "Formant filter to make things sound like vowels.",
+      "params": [
+        {
+          "name": "vowel",
+          "type": "string | Pattern",
+          "description": "You can use a e i o u ae aa oe ue y uh un en an on, corresponding to [a] [e] [i] [o] [u] [æ] [ɑ] [ø] [y] [ɯ] [ʌ] [œ̃] [ɛ̃] [ɑ̃] [ɔ̃]. Aliases: aa = å = ɑ, oe = ø = ö, y = ı, ae = æ."
+        }
+      ],
+      "snippet": ".vowel(\"a\")",
+      "argRange": [
+        8,
+        9
+      ],
+      "group": "Pitch",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "bpattack",
+      "synonyms": [
+        "bpa"
+      ],
+      "description": "Sets the attack duration for the bandpass filter envelope.",
+      "params": [
+        {
+          "name": "attack",
+          "type": "number | Pattern",
+          "description": "time of the bandpass filter envelope"
+        }
+      ],
+      "snippet": ".bpattack(0.1)",
+      "argRange": [
+        10,
+        13
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .bpf() and .bpenv()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").bpf(300).bpenv(4)"
+    },
+    {
+      "name": "bpdc",
+      "synonyms": [],
+      "description": "DC offset of the LFO for the bandpass filter",
+      "params": [
+        {
+          "name": "dcoffset",
+          "type": "number | Pattern",
+          "description": "dc offset. set to 0 for unipolar"
+        }
+      ],
+      "snippet": ".bpdc(0.5)",
+      "argRange": [
+        6,
+        9
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .bpf() and .bpsync() or .bprate()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").bpf(800).bpsync(4)"
+    },
+    {
+      "name": "bpdecay",
+      "synonyms": [
+        "bpd"
+      ],
+      "description": "Sets the decay duration for the bandpass filter envelope.",
+      "params": [
+        {
+          "name": "decay",
+          "type": "number | Pattern",
+          "description": "time of the bandpass filter envelope"
+        }
+      ],
+      "snippet": ".bpdecay(0.2)",
+      "argRange": [
+        9,
+        12
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .bpf() and .bpenv()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").bpf(300).bpenv(4)"
+    },
+    {
+      "name": "bpdepth",
+      "synonyms": [],
+      "description": "Depth of the LFO for the bandpass filter",
+      "params": [
+        {
+          "name": "depth",
+          "type": "number | Pattern",
+          "description": "depth of modulation"
+        }
+      ],
+      "snippet": ".bpdepth(0.5)",
+      "argRange": [
+        9,
+        12
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .bpf() and .bpsync() or .bprate()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").bpf(800).bpsync(4)"
+    },
+    {
+      "name": "bpdepthfrequency",
+      "synonyms": [
+        "bpdepthfreq"
+      ],
+      "description": "Depth of the LFO for the bandpass filter, in HZ",
+      "params": [
+        {
+          "name": "depth",
+          "type": "number | Pattern",
+          "description": "depth of modulation"
+        }
+      ],
+      "snippet": ".bpdepthfrequency(400)",
+      "argRange": [
+        18,
+        21
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .bpf() and .bpsync() or .bprate()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").bpf(800).bpsync(4)"
+    },
+    {
+      "name": "bpenv",
+      "synonyms": [
+        "bpe"
+      ],
+      "description": "Sets the bandpass filter envelope modulation depth.",
+      "params": [
+        {
+          "name": "modulation",
+          "type": "number | Pattern",
+          "description": "depth of the bandpass filter envelope between 0 and _n_"
+        }
+      ],
+      "snippet": ".bpenv(4)",
+      "argRange": [
+        7,
+        8
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .bpf()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").bpf(300)"
+    },
+    {
+      "name": "bpf",
+      "synonyms": [
+        "bandf",
+        "bp"
+      ],
+      "description": "Sets the center frequency of the band-pass filter. When using mininotation, you can also optionally supply the 'bpq' parameter separated by ':'.",
+      "params": [
+        {
+          "name": "frequency",
+          "type": "number | Pattern",
+          "description": "center frequency"
+        }
+      ],
+      "snippet": ".bpf(800)",
+      "argRange": [
+        5,
+        8
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "bpq",
+      "synonyms": [
+        "bandq"
+      ],
+      "description": "Sets the band-pass q-factor (resonance).",
+      "params": [
+        {
+          "name": "q",
+          "type": "number | Pattern",
+          "description": "q factor"
+        }
+      ],
+      "snippet": ".bpq(5)",
+      "argRange": [
+        5,
+        6
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "bprate",
+      "synonyms": [],
+      "description": "Rate of the LFO for the bandpass filter",
+      "params": [
+        {
+          "name": "rate",
+          "type": "number | Pattern",
+          "description": "rate in hertz"
+        }
+      ],
+      "snippet": ".bprate(4)",
+      "argRange": [
+        8,
+        9
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .bpf()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").bpf(800)"
+    },
+    {
+      "name": "bprelease",
+      "synonyms": [
+        "bpr"
+      ],
+      "description": "Sets the release time for the bandpass filter envelope.",
+      "params": [
+        {
+          "name": "release",
+          "type": "number | Pattern",
+          "description": "time of the bandpass filter envelope"
+        }
+      ],
+      "snippet": ".bprelease(0.3)",
+      "argRange": [
+        11,
+        14
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .bpf() and .bpenv()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").bpf(300).bpenv(4)"
+    },
+    {
+      "name": "bpshape",
+      "synonyms": [],
+      "description": "Shape of the LFO for the bandpass filter",
+      "params": [
+        {
+          "name": "shape",
+          "type": "number | Pattern",
+          "description": "Shape of the lfo (0, 1, 2, ..)"
+        }
+      ],
+      "snippet": ".bpshape(1)",
+      "argRange": [
+        9,
+        10
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .bpf() and .bpsync() or .bprate()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").bpf(800).bpsync(4)"
+    },
+    {
+      "name": "bpskew",
+      "synonyms": [],
+      "description": "Skew of the LFO for the bandpass filter",
+      "params": [
+        {
+          "name": "skew",
+          "type": "number | Pattern",
+          "description": "How much to bend the LFO shape"
+        }
+      ],
+      "snippet": ".bpskew(0.5)",
+      "argRange": [
+        8,
+        11
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .bpf() and .bpsync() or .bprate()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").bpf(800).bpsync(4)"
+    },
+    {
+      "name": "bpsustain",
+      "synonyms": [
+        "bps"
+      ],
+      "description": "Sets the sustain amplitude for the bandpass filter envelope.",
+      "params": [
+        {
+          "name": "sustain",
+          "type": "number | Pattern",
+          "description": "amplitude of the bandpass filter envelope"
+        }
+      ],
+      "snippet": ".bpsustain(0.5)",
+      "argRange": [
+        11,
+        14
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .bpf() and .bpenv()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").bpf(300).bpenv(4)"
+    },
+    {
+      "name": "bpsync",
+      "synonyms": [],
+      "description": "Cycle-synced rate of the LFO for the bandpass filter",
+      "params": [
+        {
+          "name": "rate",
+          "type": "number | Pattern",
+          "description": "rate in cycles"
+        }
+      ],
+      "snippet": ".bpsync(4)",
+      "argRange": [
+        8,
+        9
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .bpf()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").bpf(800)"
+    },
+    {
+      "name": "djf",
+      "synonyms": [],
+      "description": "DJ filter, below 0.5 is low pass filter, above is high pass filter.",
+      "params": [
+        {
+          "name": "cutoff",
+          "type": "number | Pattern",
+          "description": "below 0.5 is low pass filter, above is high pass filter"
+        }
+      ],
+      "snippet": ".djf(0.3)",
+      "argRange": [
+        5,
+        8
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "fanchor",
+      "synonyms": [],
+      "description": "controls the center of the filter envelope. 0 is unipolar positive, .5 is bipolar, 1 is unipolar negative",
+      "params": [
+        {
+          "name": "center",
+          "type": "number | Pattern",
+          "description": "0 to 1"
+        }
+      ],
+      "snippet": ".fanchor(0.5)",
+      "argRange": [
+        9,
+        12
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .lpf() and .lpenv()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").lpf(500).lpenv(4)"
+    },
+    {
+      "name": "ftype",
+      "synonyms": [],
+      "description": "Sets the filter type. The ladder filter is more aggressive. More types might be added in the future.",
+      "params": [
+        {
+          "name": "type",
+          "type": "number | Pattern",
+          "description": "12db (0), ladder (1), or 24db (2)"
+        }
+      ],
+      "snippet": ".ftype(\"ladder\")",
+      "argRange": [
+        8,
+        14
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .lpf()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").lpf(500)"
+    },
+    {
+      "name": "hpattack",
+      "synonyms": [
+        "hpa"
+      ],
+      "description": "Sets the attack duration for the highpass filter envelope.",
+      "params": [
+        {
+          "name": "attack",
+          "type": "number | Pattern",
+          "description": "time of the highpass filter envelope"
+        }
+      ],
+      "snippet": ".hpattack(0.1)",
+      "argRange": [
+        10,
+        13
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .hpf() and .hpenv()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").hpf(300).hpenv(4)"
+    },
+    {
+      "name": "hpdc",
+      "synonyms": [],
+      "description": "DC offset of the LFO for the highpass filter",
+      "params": [
+        {
+          "name": "dcoffset",
+          "type": "number | Pattern",
+          "description": "dc offset. set to 0 for unipolar"
+        }
+      ],
+      "snippet": ".hpdc(0.5)",
+      "argRange": [
+        6,
+        9
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .hpf() and .hpsync() or .hprate()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").hpf(800).hpsync(4)"
+    },
+    {
+      "name": "hpdecay",
+      "synonyms": [
+        "hpd"
+      ],
+      "description": "Sets the decay duration for the highpass filter envelope.",
+      "params": [
+        {
+          "name": "decay",
+          "type": "number | Pattern",
+          "description": "time of the highpass filter envelope"
+        }
+      ],
+      "snippet": ".hpdecay(0.2)",
+      "argRange": [
+        9,
+        12
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .hpf() and .hpenv()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").hpf(300).hpenv(4)"
+    },
+    {
+      "name": "hpdepth",
+      "synonyms": [],
+      "description": "Depth of the LFO for the highpass filter",
+      "params": [
+        {
+          "name": "depth",
+          "type": "number | Pattern",
+          "description": "depth of modulation"
+        }
+      ],
+      "snippet": ".hpdepth(0.5)",
+      "argRange": [
+        9,
+        12
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .hpf() and .hpsync() or .hprate()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").hpf(800).hpsync(4)"
+    },
+    {
+      "name": "hpdepthfrequency",
+      "synonyms": [
+        "hpdepthfreq"
+      ],
+      "description": "Depth of the LFO for the hipass filter, in hz",
+      "params": [
+        {
+          "name": "depth",
+          "type": "number | Pattern",
+          "description": "depth of modulation"
+        }
+      ],
+      "snippet": ".hpdepthfrequency(400)",
+      "argRange": [
+        18,
+        21
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .hpf() and .hpsync() or .hprate()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").hpf(800).hpsync(4)"
+    },
+    {
+      "name": "hpenv",
+      "synonyms": [
+        "hpe"
+      ],
+      "description": "Sets the highpass filter envelope modulation depth.",
+      "params": [
+        {
+          "name": "modulation",
+          "type": "number | Pattern",
+          "description": "depth of the highpass filter envelope between 0 and _n_"
+        }
+      ],
+      "snippet": ".hpenv(4)",
+      "argRange": [
+        7,
+        8
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .hpf()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").hpf(300)"
+    },
+    {
+      "name": "hpf",
+      "synonyms": [
+        "hp",
+        "hcutoff"
+      ],
+      "description": "Applies the cutoff frequency of the high-pass filter.",
+      "params": [
+        {
+          "name": "frequency",
+          "type": "number | Pattern",
+          "description": "audible between 0 and 20000"
+        }
+      ],
+      "snippet": ".hpf(800)",
+      "argRange": [
+        5,
+        8
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "hpq",
+      "synonyms": [
+        "hresonance"
+      ],
+      "description": "Controls the high-pass q-value.",
+      "params": [
+        {
+          "name": "q",
+          "type": "number | Pattern",
+          "description": "resonance factor between 0 and 50"
+        }
+      ],
+      "snippet": ".hpq(5)",
+      "argRange": [
+        5,
+        6
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "hprate",
+      "synonyms": [],
+      "description": "Rate of the LFO for the highpass filter",
+      "params": [
+        {
+          "name": "rate",
+          "type": "number | Pattern",
+          "description": "rate in hertz"
+        }
+      ],
+      "snippet": ".hprate(4)",
+      "argRange": [
+        8,
+        9
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .hpf()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").hpf(800)"
+    },
+    {
+      "name": "hprelease",
+      "synonyms": [
+        "hpr"
+      ],
+      "description": "Sets the release time for the highpass filter envelope.",
+      "params": [
+        {
+          "name": "release",
+          "type": "number | Pattern",
+          "description": "time of the highpass filter envelope"
+        }
+      ],
+      "snippet": ".hprelease(0.3)",
+      "argRange": [
+        11,
+        14
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .hpf() and .hpenv()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").hpf(300).hpenv(4)"
+    },
+    {
+      "name": "hpshape",
+      "synonyms": [],
+      "description": "Shape of the LFO for the highpass filter",
+      "params": [
+        {
+          "name": "shape",
+          "type": "number | Pattern",
+          "description": "Shape of the lfo (0, 1, 2, ..)"
+        }
+      ],
+      "snippet": ".hpshape(1)",
+      "argRange": [
+        9,
+        10
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .hpf() and .hpsync() or .hprate()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").hpf(800).hpsync(4)"
+    },
+    {
+      "name": "hpskew",
+      "synonyms": [],
+      "description": "Skew of the LFO for the highpass filter",
+      "params": [
+        {
+          "name": "skew",
+          "type": "number | Pattern",
+          "description": "How much to bend the LFO shape"
+        }
+      ],
+      "snippet": ".hpskew(0.5)",
+      "argRange": [
+        8,
+        11
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .hpf() and .hpsync() or .hprate()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").hpf(800).hpsync(4)"
+    },
+    {
+      "name": "hpsustain",
+      "synonyms": [
+        "hps"
+      ],
+      "description": "Sets the sustain amplitude for the highpass filter envelope.",
+      "params": [
+        {
+          "name": "sustain",
+          "type": "number | Pattern",
+          "description": "amplitude of the highpass filter envelope"
+        }
+      ],
+      "snippet": ".hpsustain(0.5)",
+      "argRange": [
+        11,
+        14
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .hpf() and .hpenv()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").hpf(300).hpenv(4)"
+    },
+    {
+      "name": "hpsync",
+      "synonyms": [],
+      "description": "Cycle-synced rate of the LFO for the highpass filter",
+      "params": [
+        {
+          "name": "rate",
+          "type": "number | Pattern",
+          "description": "rate in cycles"
+        }
+      ],
+      "snippet": ".hpsync(4)",
+      "argRange": [
+        8,
+        9
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .hpf()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").hpf(800)"
+    },
+    {
+      "name": "lpattack",
+      "synonyms": [
+        "lpa"
+      ],
+      "description": "Sets the attack duration for the lowpass filter envelope.",
+      "params": [
+        {
+          "name": "attack",
+          "type": "number | Pattern",
+          "description": "time of the filter envelope"
+        }
+      ],
+      "snippet": ".lpattack(0.1)",
+      "argRange": [
+        10,
+        13
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .lpf() and .lpenv()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").lpf(300).lpenv(4)"
+    },
+    {
+      "name": "lpdc",
+      "synonyms": [],
+      "description": "DC offset of the LFO for the lowpass filter",
+      "params": [
+        {
+          "name": "dcoffset",
+          "type": "number | Pattern",
+          "description": "dc offset. set to 0 for unipolar"
+        }
+      ],
+      "snippet": ".lpdc(0.5)",
+      "argRange": [
+        6,
+        9
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .lpf() and .lpsync() or .lprate()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").lpf(800).lpsync(4)"
+    },
+    {
+      "name": "lpdecay",
+      "synonyms": [
+        "lpd"
+      ],
+      "description": "Sets the decay duration for the lowpass filter envelope.",
+      "params": [
+        {
+          "name": "decay",
+          "type": "number | Pattern",
+          "description": "time of the filter envelope"
+        }
+      ],
+      "snippet": ".lpdecay(0.2)",
+      "argRange": [
+        9,
+        12
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .lpf() and .lpenv()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").lpf(300).lpenv(4)"
+    },
+    {
+      "name": "lpdepth",
+      "synonyms": [],
+      "description": "Depth of the LFO for the lowpass filter",
+      "params": [
+        {
+          "name": "depth",
+          "type": "number | Pattern",
+          "description": "depth of modulation"
+        }
+      ],
+      "snippet": ".lpdepth(0.5)",
+      "argRange": [
+        9,
+        12
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .lpf() and .lpsync() or .lprate()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").lpf(800).lpsync(4)"
+    },
+    {
+      "name": "lpdepthfrequency",
+      "synonyms": [
+        "lpdepthfreq"
+      ],
+      "description": "Depth of the LFO for the lowpass filter, in HZ",
+      "params": [
+        {
+          "name": "depth",
+          "type": "number | Pattern",
+          "description": "depth of modulation"
+        }
+      ],
+      "snippet": ".lpdepthfrequency(400)",
+      "argRange": [
+        18,
+        21
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .lpf() and .lpsync() or .lprate()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").lpf(800).lpsync(4)"
+    },
+    {
+      "name": "lpenv",
+      "synonyms": [
+        "lpe"
+      ],
+      "description": "Sets the lowpass filter envelope modulation depth.",
+      "params": [
+        {
+          "name": "modulation",
+          "type": "number | Pattern",
+          "description": "depth of the lowpass filter envelope between 0 and _n_"
+        }
+      ],
+      "snippet": ".lpenv(4)",
+      "argRange": [
+        7,
+        8
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .lpf()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").lpf(300)"
+    },
+    {
+      "name": "lpf",
+      "synonyms": [
+        "cutoff",
+        "ctf",
+        "lp"
+      ],
+      "description": "Applies the cutoff frequency of the low-pass filter.",
+      "params": [
+        {
+          "name": "frequency",
+          "type": "number | Pattern",
+          "description": "audible between 0 and 20000"
+        }
+      ],
+      "snippet": ".lpf(800)",
+      "argRange": [
+        5,
+        8
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "lpq",
+      "synonyms": [
+        "resonance"
+      ],
+      "description": "Controls the low-pass q-value.",
+      "params": [
+        {
+          "name": "q",
+          "type": "number | Pattern",
+          "description": "resonance factor between 0 and 50"
+        }
+      ],
+      "snippet": ".lpq(5)",
+      "argRange": [
+        5,
+        6
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "lprate",
+      "synonyms": [],
+      "description": "Rate of the LFO for the lowpass filter",
+      "params": [
+        {
+          "name": "rate",
+          "type": "number | Pattern",
+          "description": "rate in hertz"
+        }
+      ],
+      "snippet": ".lprate(4)",
+      "argRange": [
+        8,
+        9
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .lpf()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").lpf(800)"
+    },
+    {
+      "name": "lprelease",
+      "synonyms": [
+        "lpr"
+      ],
+      "description": "Sets the release time for the lowpass filter envelope.",
+      "params": [
+        {
+          "name": "release",
+          "type": "number | Pattern",
+          "description": "time of the filter envelope"
+        }
+      ],
+      "snippet": ".lprelease(0.3)",
+      "argRange": [
+        11,
+        14
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .lpf() and .lpenv()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").lpf(300).lpenv(4)"
+    },
+    {
+      "name": "lpshape",
+      "synonyms": [],
+      "description": "Shape of the LFO for the lowpass filter",
+      "params": [
+        {
+          "name": "shape",
+          "type": "number | Pattern",
+          "description": "Shape of the lfo (0, 1, 2, ..)"
+        }
+      ],
+      "snippet": ".lpshape(1)",
+      "argRange": [
+        9,
+        10
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .lpf() and .lpsync() or .lprate()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").lpf(800).lpsync(4)"
+    },
+    {
+      "name": "lpskew",
+      "synonyms": [],
+      "description": "Skew of the LFO for the lowpass filter",
+      "params": [
+        {
+          "name": "skew",
+          "type": "number | Pattern",
+          "description": "How much to bend the LFO shape"
+        }
+      ],
+      "snippet": ".lpskew(0.5)",
+      "argRange": [
+        8,
+        11
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .lpf() and .lpsync() or .lprate()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").lpf(800).lpsync(4)"
+    },
+    {
+      "name": "lpsustain",
+      "synonyms": [
+        "lps"
+      ],
+      "description": "Sets the sustain amplitude for the lowpass filter envelope.",
+      "params": [
+        {
+          "name": "sustain",
+          "type": "number | Pattern",
+          "description": "amplitude of the lowpass filter envelope"
+        }
+      ],
+      "snippet": ".lpsustain(0.5)",
+      "argRange": [
+        11,
+        14
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .lpf() and .lpenv()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").lpf(300).lpenv(4)"
+    },
+    {
+      "name": "lpsync",
+      "synonyms": [],
+      "description": "Cycle-synced rate of the LFO for the lowpass filter",
+      "params": [
+        {
+          "name": "rate",
+          "type": "number | Pattern",
+          "description": "rate in cycles"
+        }
+      ],
+      "snippet": ".lpsync(4)",
+      "argRange": [
+        8,
+        9
+      ],
+      "group": "Filter",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .lpf()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").lpf(800)"
+    },
+    {
+      "name": "adsr",
+      "synonyms": [],
+      "description": "ADSR envelope: Combination of Attack, Decay, Sustain, and Release.",
+      "params": [
+        {
+          "name": "time",
+          "type": "number | Pattern",
+          "description": "attack time in seconds"
+        },
+        {
+          "name": "time",
+          "type": "number | Pattern",
+          "description": "decay time in seconds"
+        },
+        {
+          "name": "gain",
+          "type": "number | Pattern",
+          "description": "sustain level (0 to 1)"
+        },
+        {
+          "name": "time",
+          "type": "number | Pattern",
+          "description": "release time in seconds"
+        }
+      ],
+      "snippet": ".adsr(\".01:.2:.5:.3\")",
+      "argRange": [
+        7,
+        19
+      ],
+      "group": "Envelope",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "attack",
+      "synonyms": [
+        "att"
+      ],
+      "description": "Amplitude envelope attack time: Specifies how long it takes for the sound to reach its peak value, relative to the onset.",
+      "params": [
+        {
+          "name": "attack",
+          "type": "number | Pattern",
+          "description": "time in seconds."
+        }
+      ],
+      "snippet": ".attack(0.05)",
+      "argRange": [
+        8,
+        12
+      ],
+      "group": "Envelope",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "decay",
+      "synonyms": [
+        "dec"
+      ],
+      "description": "Amplitude envelope decay time: the time it takes after the attack time to reach the sustain level. Note that the decay is only audible if the sustain value is lower than 1.",
+      "params": [
+        {
+          "name": "time",
+          "type": "number | Pattern",
+          "description": "decay time in seconds"
+        }
+      ],
+      "snippet": ".decay(0.2)",
+      "argRange": [
+        7,
+        10
+      ],
+      "group": "Envelope",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "release",
+      "synonyms": [
+        "rel"
+      ],
+      "description": "Amplitude envelope release time: The time it takes after the offset to go from sustain level to zero.",
+      "params": [
+        {
+          "name": "time",
+          "type": "number | Pattern",
+          "description": "release time in seconds"
+        }
+      ],
+      "snippet": ".release(0.3)",
+      "argRange": [
+        9,
+        12
+      ],
+      "group": "Envelope",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "sustain",
+      "synonyms": [
+        "sus"
+      ],
+      "description": "Amplitude envelope sustain level: The level which is reached after attack / decay, being sustained until the offset.",
+      "params": [
+        {
+          "name": "gain",
+          "type": "number | Pattern",
+          "description": "sustain level between 0 and 1"
+        }
+      ],
+      "snippet": ".sustain(0.5)",
+      "argRange": [
+        9,
+        12
+      ],
+      "group": "Envelope",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "compressor",
+      "synonyms": [],
+      "description": "Dynamics Compressor. The params are `compressor(\"threshold:ratio:knee:attack:release\")` More info here",
+      "params": [],
+      "snippet": ".compressor(\"-20:20:10:.002:.02\")",
+      "argRange": [
+        12,
+        32
+      ],
+      "group": "Dynamics",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "gain",
+      "synonyms": [],
+      "description": "Controls the gain by an exponential amount.",
+      "params": [
+        {
+          "name": "amount",
+          "type": "number | Pattern",
+          "description": "gain."
+        }
+      ],
+      "snippet": ".gain(0.8)",
+      "argRange": [
+        6,
+        9
+      ],
+      "group": "Dynamics",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "postgain",
+      "synonyms": [],
+      "description": "Gain applied after all effects have been processed.",
+      "params": [],
+      "snippet": ".postgain(0.8)",
+      "argRange": [
+        10,
+        13
+      ],
+      "group": "Dynamics",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "transient",
+      "synonyms": [],
+      "description": "Transient shaper. Gives independent control over the emphasis on transients and sustains",
+      "params": [
+        {
+          "name": "attack",
+          "type": "number | Pattern",
+          "description": "Emphasis on transients; between -1 (deaccentuate) and 1 (accentuate)"
+        },
+        {
+          "name": "sustain",
+          "type": "number | Pattern",
+          "description": "Emphasis on the sustains; between -1 (deaccentuate) and 1 (accentuate)"
+        }
+      ],
+      "snippet": ".transient(0.5)",
+      "argRange": [
+        11,
+        14
+      ],
+      "group": "Dynamics",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "velocity",
+      "synonyms": [
+        "vel"
+      ],
+      "description": "Sets the velocity from 0 to 1. Is multiplied together with gain.",
+      "params": [],
+      "snippet": ".velocity(0.8)",
+      "argRange": [
+        10,
+        13
+      ],
+      "group": "Dynamics",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "duckattack",
+      "synonyms": [
+        "duckatt"
+      ],
+      "description": "The time required for the ducked signal(s) to return to their normal volume.",
+      "params": [
+        {
+          "name": "time",
+          "type": "number | Pattern",
+          "description": "The attack time in seconds"
+        }
+      ],
+      "snippet": ".duckattack(0.2)",
+      "argRange": [
+        12,
+        15
+      ],
+      "group": "Ducking",
+      "source": "@strudel/core/controls.mjs",
+      "note": "orbits here are decks: 1 = deck A, 2 = deck B",
+      "base": "s(\"bd*4\").bank(\"tr909\").duckorbit(2)"
+    },
+    {
+      "name": "duckdepth",
+      "synonyms": [],
+      "description": "The amount of ducking applied to target orbit",
+      "params": [
+        {
+          "name": "depth",
+          "type": "number | Pattern",
+          "description": "depth of modulation from 0 to 1"
+        }
+      ],
+      "snippet": ".duckdepth(0.8)",
+      "argRange": [
+        11,
+        14
+      ],
+      "group": "Ducking",
+      "source": "@strudel/core/controls.mjs",
+      "note": "orbits here are decks: 1 = deck A, 2 = deck B",
+      "base": "s(\"bd*4\").bank(\"tr909\").duckorbit(2)"
+    },
+    {
+      "name": "duckonset",
+      "synonyms": [
+        "duckons"
+      ],
+      "description": "The time required for the ducked signal(s) to reach their lowest volume. Can be used to prevent clicking or for creative rhythmic effects.",
+      "params": [
+        {
+          "name": "time",
+          "type": "number | Pattern",
+          "description": "The onset time in seconds"
+        }
+      ],
+      "snippet": ".duckonset(0.01)",
+      "argRange": [
+        11,
+        15
+      ],
+      "group": "Ducking",
+      "source": "@strudel/core/controls.mjs",
+      "note": "orbits here are decks: 1 = deck A, 2 = deck B",
+      "base": "s(\"bd*4\").bank(\"tr909\").duckorbit(2)"
+    },
+    {
+      "name": "duckorbit",
+      "synonyms": [
+        "duck"
+      ],
+      "description": "Modulate the amplitude of an orbit to create a \"sidechain\" like effect.",
+      "params": [
+        {
+          "name": "orbit",
+          "type": "number | Pattern",
+          "description": "target orbit"
+        }
+      ],
+      "snippet": ".duckorbit(2)",
+      "argRange": [
+        11,
+        12
+      ],
+      "group": "Ducking",
+      "source": "@strudel/core/controls.mjs",
+      "note": "orbits here are decks: 1 = deck A, 2 = deck B",
+      "base": null
+    },
+    {
+      "name": "delay",
+      "synonyms": [],
+      "description": "Sets the level of the delay signal.",
+      "params": [
+        {
+          "name": "level",
+          "type": "number | Pattern",
+          "description": "between 0 and 1"
+        }
+      ],
+      "snippet": ".delay(0.5)",
+      "argRange": [
+        7,
+        10
+      ],
+      "group": "Delay and Reverb",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "delayfeedback",
+      "synonyms": [
+        "delayfb",
+        "dfb"
+      ],
+      "description": "Sets the level of the signal that is fed back into the delay. Caution: Values >= 1 will result in a signal that gets louder and louder! Don't do it",
+      "params": [
+        {
+          "name": "feedback",
+          "type": "number | Pattern",
+          "description": "between 0 and 1"
+        }
+      ],
+      "snippet": ".delayfeedback(0.5)",
+      "argRange": [
+        15,
+        18
+      ],
+      "group": "Delay and Reverb",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .delay()",
+      "base": "s(\"bd*4\").bank(\"tr909\").delay(0.5)"
+    },
+    {
+      "name": "delayspeed",
+      "synonyms": [
+        "delayt",
+        "dt"
+      ],
+      "description": "Sets the time of the delay effect.",
+      "params": [
+        {
+          "name": "delayspeed",
+          "type": "number | Pattern",
+          "description": "controls the pitch of the delay feedback"
+        }
+      ],
+      "snippet": ".delayspeed(2)",
+      "argRange": [
+        12,
+        13
+      ],
+      "group": "Delay and Reverb",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .delay()",
+      "base": "s(\"bd*4\").bank(\"tr909\").delay(0.5)"
+    },
+    {
+      "name": "delaysync",
+      "synonyms": [
+        "delayt",
+        "dt"
+      ],
+      "description": "Sets the time of the delay effect in cycles.",
+      "params": [
+        {
+          "name": "cycles",
+          "type": "number | Pattern",
+          "description": "delay length in cycles"
+        }
+      ],
+      "snippet": ".delaysync(0.25)",
+      "argRange": [
+        11,
+        15
+      ],
+      "group": "Delay and Reverb",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .delay()",
+      "base": "s(\"bd*4\").bank(\"tr909\").delay(0.5)"
+    },
+    {
+      "name": "irbegin",
+      "synonyms": [
+        "ir"
+      ],
+      "description": "Sets the beginning of the IR response sample",
+      "params": [
+        {
+          "name": "begin",
+          "type": "string | Pattern",
+          "description": "between 0 and 1"
+        }
+      ],
+      "snippet": ".irbegin(0.25)",
+      "argRange": [
+        9,
+        13
+      ],
+      "group": "Delay and Reverb",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .room()",
+      "base": "s(\"bd*4\").bank(\"tr909\").room(0.4)"
+    },
+    {
+      "name": "iresponse",
+      "synonyms": [
+        "ir"
+      ],
+      "description": "Sets the sample to use as an impulse response for the reverb.",
+      "params": [
+        {
+          "name": "sample",
+          "type": "string | Pattern",
+          "description": "to use as an impulse response"
+        }
+      ],
+      "snippet": ".iresponse(\"RolandTR909_oh\")",
+      "argRange": [
+        12,
+        26
+      ],
+      "group": "Delay and Reverb",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .room()",
+      "base": "s(\"bd*4\").bank(\"tr909\").room(0.4)"
+    },
+    {
+      "name": "irspeed",
+      "synonyms": [],
+      "description": "Sets speed of the sample for the impulse response.",
+      "params": [
+        {
+          "name": "speed",
+          "type": "string | Pattern",
+          "description": ""
+        }
+      ],
+      "snippet": ".irspeed(0.5)",
+      "argRange": [
+        9,
+        12
+      ],
+      "group": "Delay and Reverb",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .room()",
+      "base": "s(\"bd*4\").bank(\"tr909\").room(0.4)"
+    },
+    {
+      "name": "room",
+      "synonyms": [],
+      "description": "Sets the level of reverb.",
+      "params": [
+        {
+          "name": "level",
+          "type": "number | Pattern",
+          "description": "between 0 and 1"
+        }
+      ],
+      "snippet": ".room(0.4)",
+      "argRange": [
+        6,
+        9
+      ],
+      "group": "Delay and Reverb",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "roomdim",
+      "synonyms": [
+        "rdim"
+      ],
+      "description": "Reverb lowpass frequency at -60dB (in hertz). When this property is changed, the reverb will be recaculated, so only change this sparsely..",
+      "params": [
+        {
+          "name": "frequency",
+          "type": "number",
+          "description": "between 0 and 20000hz"
+        }
+      ],
+      "snippet": ".roomdim(2000)",
+      "argRange": [
+        9,
+        13
+      ],
+      "group": "Delay and Reverb",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .room()",
+      "base": "s(\"bd*4\").bank(\"tr909\").room(0.4)"
+    },
+    {
+      "name": "roomfade",
+      "synonyms": [
+        "rfade"
+      ],
+      "description": "Reverb fade time (in seconds). When this property is changed, the reverb will be recaculated, so only change this sparsely..",
+      "params": [
+        {
+          "name": "seconds",
+          "type": "number",
+          "description": "for the reverb to fade"
+        }
+      ],
+      "snippet": ".roomfade(1)",
+      "argRange": [
+        10,
+        11
+      ],
+      "group": "Delay and Reverb",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .room()",
+      "base": "s(\"bd*4\").bank(\"tr909\").room(0.4)"
+    },
+    {
+      "name": "roomlp",
+      "synonyms": [
+        "rlp"
+      ],
+      "description": "Reverb lowpass starting frequency (in hertz). When this property is changed, the reverb will be recaculated, so only change this sparsely..",
+      "params": [
+        {
+          "name": "frequency",
+          "type": "number",
+          "description": "between 0 and 20000hz"
+        }
+      ],
+      "snippet": ".roomlp(4000)",
+      "argRange": [
+        8,
+        12
+      ],
+      "group": "Delay and Reverb",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .room()",
+      "base": "s(\"bd*4\").bank(\"tr909\").room(0.4)"
+    },
+    {
+      "name": "roomsize",
+      "synonyms": [
+        "rsize",
+        "sz",
+        "size"
+      ],
+      "description": "Sets the room size of the reverb, see `room`. When this property is changed, the reverb will be recaculated, so only change this sparsely..",
+      "params": [
+        {
+          "name": "size",
+          "type": "number | Pattern",
+          "description": "between 0 and 10"
+        }
+      ],
+      "snippet": ".roomsize(2)",
+      "argRange": [
+        10,
+        11
+      ],
+      "group": "Delay and Reverb",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .room()",
+      "base": "s(\"bd*4\").bank(\"tr909\").room(0.4)"
+    },
+    {
+      "name": "chorus",
+      "synonyms": [],
+      "description": "mix control for the chorus effect",
+      "params": [
+        {
+          "name": "chorus",
+          "type": "string | Pattern",
+          "description": "mix amount between 0 and 1"
+        }
+      ],
+      "snippet": ".chorus(.5)",
+      "argRange": [
+        8,
+        10
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "env",
+      "synonyms": [],
+      "description": "Configures an envelope. Can be called in sequence like pat.env(...).env(...) to set up multiple envelopes There are two ways to declare which control will be modulated: 1. Explicitly put `control` in the config (e.g. `env({ c: \"lpf\" })`) 2. If the control parameter is absent, the control _immediately before_ the `env` call will be used (e.g. `s(\"saw\").lpf(500).env({ a: 1 })` to modulate `lpf`)",
+      "params": [
+        {
+          "name": "config",
+          "type": "Object",
+          "description": "Envelope configuration."
+        },
+        {
+          "name": "[config.control]",
+          "type": "string | Pattern",
+          "description": "Node to modulate. Aliases: c"
+        },
+        {
+          "name": "[config.subControl]",
+          "type": "string | Pattern",
+          "description": "Sub-control name to append to the control key. Aliases: sc"
+        },
+        {
+          "name": "[config.depth]",
+          "type": "number | Pattern",
+          "description": "Relative modulation depth. Aliases: dep, dr"
+        },
+        {
+          "name": "[config.depthabs]",
+          "type": "number | Pattern",
+          "description": "Absolute modulation depth. Aliases: da"
+        },
+        {
+          "name": "[config.attack]",
+          "type": "number | Pattern",
+          "description": "Time to reach depth. Aliases: att, a"
+        },
+        {
+          "name": "[config.decay]",
+          "type": "number | Pattern",
+          "description": "Time to reach sustain. Aliases: dec, d"
+        },
+        {
+          "name": "[config.sustain]",
+          "type": "number | Pattern",
+          "description": "Sustain depth. Aliases: sus, s"
+        },
+        {
+          "name": "[config.release]",
+          "type": "number | Pattern",
+          "description": "Time to return to nominal value. Aliases: rel, r"
+        },
+        {
+          "name": "[config.acurve]",
+          "type": "number | Pattern",
+          "description": "Snappiness of attack curve (-1 = relaxed, 1 = snappy). Aliases: ac"
+        },
+        {
+          "name": "[config.dcurve]",
+          "type": "number | Pattern",
+          "description": "Snappiness of decay curve (-1 = relaxed, 1 = snappy). Aliases: dc"
+        },
+        {
+          "name": "[config.rcurve]",
+          "type": "number | Pattern",
+          "description": "Snappiness of release curve (-1 = relaxed, 1 = snappy). Aliases: rc"
+        },
+        {
+          "name": "[config.fxi]",
+          "type": "number | Pattern",
+          "description": "FX index to target"
+        },
+        {
+          "name": "id",
+          "type": "string | Pattern",
+          "description": "ID to use for this modulator"
+        }
+      ],
+      "snippet": ".env({ c: \"lpf\", a: 0.1 })",
+      "argRange": [
+        20,
+        23
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").lpf(800)"
+    },
+    {
+      "name": "fmattack",
+      "synonyms": [
+        "fmatt"
+      ],
+      "description": "Attack time for the FM envelope: time it takes to reach maximum modulation",
+      "params": [
+        {
+          "name": "time",
+          "type": "number | Pattern",
+          "description": "attack time"
+        }
+      ],
+      "snippet": ".fmattack(0.1)",
+      "argRange": [
+        10,
+        13
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .fm()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").fm(4)"
+    },
+    {
+      "name": "fmdecay",
+      "synonyms": [
+        "fmdec"
+      ],
+      "description": "Decay time for the FM envelope: seconds until the sustain level is reached after the attack phase.",
+      "params": [
+        {
+          "name": "time",
+          "type": "number | Pattern",
+          "description": "decay time"
+        }
+      ],
+      "snippet": ".fmdecay(0.2)",
+      "argRange": [
+        9,
+        12
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .fm()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").fm(4)"
+    },
+    {
+      "name": "fmenv",
+      "synonyms": [],
+      "description": "Ramp type of fm envelope. Exp might be a bit broken..",
+      "params": [
+        {
+          "name": "type",
+          "type": "number | Pattern",
+          "description": "lin | exp"
+        }
+      ],
+      "snippet": ".fmenv(\"lin\")",
+      "argRange": [
+        8,
+        11
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .fm()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").fm(4)"
+    },
+    {
+      "name": "fmh",
+      "synonyms": [],
+      "description": "Sets the Frequency Modulation Harmonicity Ratio. Controls the timbre of the sound. Whole numbers and simple ratios sound more natural, while decimal numbers and complex ratios sound metallic.",
+      "params": [
+        {
+          "name": "harmonicity",
+          "type": "number | Pattern",
+          "description": ""
+        }
+      ],
+      "snippet": ".fmh(2)",
+      "argRange": [
+        5,
+        6
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .fm()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").fm(4)"
+    },
+    {
+      "name": "fmi",
+      "synonyms": [
+        "fm"
+      ],
+      "description": "Sets the Frequency Modulation of the synth. Controls the modulation index, which defines the brightness of the sound.",
+      "params": [
+        {
+          "name": "brightness",
+          "type": "number | Pattern",
+          "description": "modulation index"
+        }
+      ],
+      "snippet": ".fmi(4)",
+      "argRange": [
+        5,
+        6
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\")"
+    },
+    {
+      "name": "fmrelease",
+      "synonyms": [
+        "fmrel"
+      ],
+      "description": "Release time for the FM envelope: how much modulation is applied after the note is released",
+      "params": [
+        {
+          "name": "time",
+          "type": "number | Pattern",
+          "description": "release time"
+        }
+      ],
+      "snippet": ".fmrelease(0.2)",
+      "argRange": [
+        11,
+        14
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .fm()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").fm(4)"
+    },
+    {
+      "name": "fmsustain",
+      "synonyms": [
+        "fmsus"
+      ],
+      "description": "Sustain level for the FM envelope: how much modulation is applied after the decay phase",
+      "params": [
+        {
+          "name": "level",
+          "type": "number | Pattern",
+          "description": "sustain level"
+        }
+      ],
+      "snippet": ".fmsustain(0.5)",
+      "argRange": [
+        11,
+        14
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .fm()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").fm(4)"
+    },
+    {
+      "name": "fmwave",
+      "synonyms": [],
+      "description": "Waveform of the fm modulator",
+      "params": [
+        {
+          "name": "wave",
+          "type": "number | Pattern",
+          "description": "waveform"
+        }
+      ],
+      "snippet": ".fmwave(\"square\")",
+      "argRange": [
+        9,
+        15
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .fm()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").fm(4)"
+    },
+    {
+      "name": "lfo",
+      "synonyms": [],
+      "description": "Configures an LFO. Can be called in sequence like pat.lfo(...).lfo(...) to set up multiple LFOs. There are two ways to declare which control will be modulated: 1. Explicitly put `control` in the config (e.g. `lfo({ c: \"lpf\" })`) 2. If the control parameter is absent, the control _immediately before_ the `lfo` call will be used (e.g. `s(\"saw\").lpf(500).lfo()` to modulate `lpf`)",
+      "params": [
+        {
+          "name": "config",
+          "type": "Object",
+          "description": "LFO configuration."
+        },
+        {
+          "name": "[config.control]",
+          "type": "string | Pattern",
+          "description": "Node to modulate. Aliases: c"
+        },
+        {
+          "name": "[config.subControl]",
+          "type": "string | Pattern",
+          "description": "Sub-control name to append to the control key. Aliases: sc"
+        },
+        {
+          "name": "[config.rate]",
+          "type": "number | Pattern",
+          "description": "Modulation rate. Aliases: r"
+        },
+        {
+          "name": "[config.depth]",
+          "type": "number | Pattern",
+          "description": "Relative modulation depth. Aliases: dep, dr"
+        },
+        {
+          "name": "[config.depthabs]",
+          "type": "number | Pattern",
+          "description": "Absolute modulation depth. Aliases: da"
+        },
+        {
+          "name": "[config.dcoffset]",
+          "type": "number | Pattern",
+          "description": "DC offset / bias for the waveform. Aliases: dc"
+        },
+        {
+          "name": "[config.shape]",
+          "type": "number | Pattern",
+          "description": "Shape index. Aliases: sh"
+        },
+        {
+          "name": "[config.skew]",
+          "type": "number | Pattern",
+          "description": "Skew amount. Aliases: sk"
+        },
+        {
+          "name": "[config.curve]",
+          "type": "number | Pattern",
+          "description": "Exponential curve amount. Aliases: cu"
+        },
+        {
+          "name": "[config.sync]",
+          "type": "number | Pattern",
+          "description": "Tempo-synced modulation rate. Aliases: s"
+        },
+        {
+          "name": "[config.fxi]",
+          "type": "number | Pattern",
+          "description": "FX index to target"
+        },
+        {
+          "name": "id",
+          "type": "string | Pattern",
+          "description": "ID to use for this modulator"
+        }
+      ],
+      "snippet": ".lfo({ c: \"lpf\", r: 4 })",
+      "argRange": [
+        20,
+        21
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").lpf(800)"
+    },
+    {
+      "name": "phaser",
+      "synonyms": [
+        "ph"
+      ],
+      "description": "Phaser audio effect that approximates popular guitar pedals.",
+      "params": [
+        {
+          "name": "speed",
+          "type": "number | Pattern",
+          "description": "speed of modulation"
+        }
+      ],
+      "snippet": ".phaser(2)",
+      "argRange": [
+        8,
+        9
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "phasercenter",
+      "synonyms": [
+        "phc"
+      ],
+      "description": "The center frequency of the phaser in HZ. Defaults to 1000",
+      "params": [
+        {
+          "name": "centerfrequency",
+          "type": "number | Pattern",
+          "description": "in HZ"
+        }
+      ],
+      "snippet": ".phasercenter(1000)",
+      "argRange": [
+        14,
+        18
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .phaser()",
+      "base": "s(\"bd*4\").bank(\"tr909\").phaser(2)"
+    },
+    {
+      "name": "phaserdepth",
+      "synonyms": [
+        "phd",
+        "phasdp"
+      ],
+      "description": "The amount the signal is affected by the phaser effect. Defaults to 0.75",
+      "params": [
+        {
+          "name": "depth",
+          "type": "number | Pattern",
+          "description": "number between 0 and 1"
+        }
+      ],
+      "snippet": ".phaserdepth(0.75)",
+      "argRange": [
+        13,
+        17
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .phaser()",
+      "base": "s(\"bd*4\").bank(\"tr909\").phaser(2)"
+    },
+    {
+      "name": "phasersweep",
+      "synonyms": [
+        "phs"
+      ],
+      "description": "The frequency sweep range of the lfo for the phaser effect. Defaults to 2000",
+      "params": [
+        {
+          "name": "phasersweep",
+          "type": "number | Pattern",
+          "description": "most useful values are between 0 and 4000"
+        }
+      ],
+      "snippet": ".phasersweep(2000)",
+      "argRange": [
+        13,
+        17
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .phaser()",
+      "base": "s(\"bd*4\").bank(\"tr909\").phaser(2)"
+    },
+    {
+      "name": "tremolo",
+      "synonyms": [
+        "trem"
+      ],
+      "description": "Modulate the amplitude of a sound with a continuous waveform",
+      "params": [
+        {
+          "name": "speed",
+          "type": "number | Pattern",
+          "description": "modulation speed in HZ"
+        }
+      ],
+      "snippet": ".tremolo(4)",
+      "argRange": [
+        9,
+        10
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "tremolodepth",
+      "synonyms": [
+        "tremdepth"
+      ],
+      "description": "Depth of amplitude modulation",
+      "params": [
+        {
+          "name": "depth",
+          "type": "number | Pattern",
+          "description": ""
+        }
+      ],
+      "snippet": ".tremolodepth(0.8)",
+      "argRange": [
+        14,
+        17
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .tremolo() or .tremolosync()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").tremolosync(4)"
+    },
+    {
+      "name": "tremolophase",
+      "synonyms": [
+        "tremphase"
+      ],
+      "description": "Alter the phase of the modulation waveform",
+      "params": [
+        {
+          "name": "offset",
+          "type": "number | Pattern",
+          "description": "the offset in cycles of the modulation"
+        }
+      ],
+      "snippet": ".tremolophase(0.25)",
+      "argRange": [
+        14,
+        18
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .tremolo() or .tremolosync()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").tremolosync(4)"
+    },
+    {
+      "name": "tremoloshape",
+      "synonyms": [
+        "tremshape"
+      ],
+      "description": "Shape of amplitude modulation",
+      "params": [
+        {
+          "name": "shape",
+          "type": "number | Pattern",
+          "description": "tri | square | sine | saw | ramp"
+        }
+      ],
+      "snippet": ".tremoloshape(\"tri\")",
+      "argRange": [
+        15,
+        18
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .tremolo() or .tremolosync()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").tremolosync(4)"
+    },
+    {
+      "name": "tremoloskew",
+      "synonyms": [
+        "tremskew"
+      ],
+      "description": "Alter the shape of the modulation waveform",
+      "params": [
+        {
+          "name": "amount",
+          "type": "number | Pattern",
+          "description": "between 0 & 1, the shape of the waveform"
+        }
+      ],
+      "snippet": ".tremoloskew(0.5)",
+      "argRange": [
+        13,
+        16
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .tremolo() or .tremolosync()",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").tremolosync(4)"
+    },
+    {
+      "name": "tremolosync",
+      "synonyms": [
+        "tremsync"
+      ],
+      "description": "Modulate the amplitude of a sound with a continuous waveform",
+      "params": [
+        {
+          "name": "cycles",
+          "type": "number | Pattern",
+          "description": "modulation speed in cycles"
+        }
+      ],
+      "snippet": ".tremolosync(4)",
+      "argRange": [
+        13,
+        14
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "vib",
+      "synonyms": [
+        "vibrato",
+        "v"
+      ],
+      "description": "Applies a vibrato to the frequency of the oscillator.",
+      "params": [
+        {
+          "name": "frequency",
+          "type": "number | Pattern",
+          "description": "of the vibrato in hertz"
+        }
+      ],
+      "snippet": ".vib(4)",
+      "argRange": [
+        5,
+        6
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "vibmod",
+      "synonyms": [
+        "vmod"
+      ],
+      "description": "Sets the vibrato depth in semitones. Only has an effect if `vibrato` | `vib` | `v` is is also set",
+      "params": [
+        {
+          "name": "depth",
+          "type": "number | Pattern",
+          "description": "of vibrato (in semitones)"
+        }
+      ],
+      "snippet": ".vibmod(0.5)",
+      "argRange": [
+        8,
+        11
+      ],
+      "group": "Modulation",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .vib()",
+      "base": "s(\"bd*4\").bank(\"tr909\").vib(4)"
+    },
+    {
+      "name": "asym",
+      "synonyms": [],
+      "description": "Asymmetrical diode distortion",
+      "params": [
+        {
+          "name": "distortion",
+          "type": "number | Pattern",
+          "description": "amount of distortion to apply"
+        },
+        {
+          "name": "volume",
+          "type": "number | Pattern",
+          "description": "linear postgain of the distortion"
+        }
+      ],
+      "snippet": ".asym(1)",
+      "argRange": [
+        6,
+        7
+      ],
+      "group": "Distortion",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "chebyshev",
+      "synonyms": [],
+      "description": "Distortion via Chebyshev polynomials",
+      "params": [
+        {
+          "name": "distortion",
+          "type": "number | Pattern",
+          "description": "amount of distortion to apply"
+        },
+        {
+          "name": "volume",
+          "type": "number | Pattern",
+          "description": "linear postgain of the distortion"
+        }
+      ],
+      "snippet": ".chebyshev(1)",
+      "argRange": [
+        11,
+        12
+      ],
+      "group": "Distortion",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "coarse",
+      "synonyms": [],
+      "description": "Fake-resampling for lowering the sample rate. Caution: This effect seems to only work in chromium based browsers",
+      "params": [
+        {
+          "name": "factor",
+          "type": "number | Pattern",
+          "description": "1 for original 2 for half, 3 for a third and so on."
+        }
+      ],
+      "snippet": ".coarse(4)",
+      "argRange": [
+        8,
+        9
+      ],
+      "group": "Distortion",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "crush",
+      "synonyms": [],
+      "description": "Bit crusher effect.",
+      "params": [
+        {
+          "name": "depth",
+          "type": "number | Pattern",
+          "description": "between 1 (for drastic reduction in bit-depth) to 16 (for barely no reduction)."
+        }
+      ],
+      "snippet": ".crush(6)",
+      "argRange": [
+        7,
+        8
+      ],
+      "group": "Distortion",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "cubic",
+      "synonyms": [],
+      "description": "Cubic polynomial distortion",
+      "params": [
+        {
+          "name": "distortion",
+          "type": "number | Pattern",
+          "description": "amount of distortion to apply"
+        },
+        {
+          "name": "volume",
+          "type": "number | Pattern",
+          "description": "linear postgain of the distortion"
+        }
+      ],
+      "snippet": ".cubic(1)",
+      "argRange": [
+        7,
+        8
+      ],
+      "group": "Distortion",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "diode",
+      "synonyms": [],
+      "description": "Diode-emulating distortion",
+      "params": [
+        {
+          "name": "distortion",
+          "type": "number | Pattern",
+          "description": "amount of distortion to apply"
+        },
+        {
+          "name": "volume",
+          "type": "number | Pattern",
+          "description": "linear postgain of the distortion"
+        }
+      ],
+      "snippet": ".diode(1)",
+      "argRange": [
+        7,
+        8
+      ],
+      "group": "Distortion",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "distort",
+      "synonyms": [
+        "dist"
+      ],
+      "description": "Wave shaping distortion. CAUTION: it can get loud. Second option in optional array syntax (ex: \".9:.5\") applies a postgain to the output. Third option sets the waveshaping type. Most useful values are usually between 0 and 10 (depending on source gain). If you are feeling adventurous, you can turn it up to 11 and beyond ;)",
+      "params": [
+        {
+          "name": "distortion",
+          "type": "number | Pattern",
+          "description": "amount of distortion to apply"
+        },
+        {
+          "name": "volume",
+          "type": "number | Pattern",
+          "description": "linear postgain of the distortion"
+        },
+        {
+          "name": "type",
+          "type": "number | string | Pattern",
+          "description": "type of distortion to apply"
+        }
+      ],
+      "snippet": ".distort(1)",
+      "argRange": [
+        9,
+        10
+      ],
+      "group": "Distortion",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "distorttype",
+      "synonyms": [
+        "disttype"
+      ],
+      "description": "Type of waveshaping distortion to apply.",
+      "params": [
+        {
+          "name": "type",
+          "type": "number | string | Pattern",
+          "description": "type of distortion to apply"
+        }
+      ],
+      "snippet": ".distorttype(1)",
+      "argRange": [
+        13,
+        14
+      ],
+      "group": "Distortion",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .distort()",
+      "base": "s(\"bd*4\").bank(\"tr909\").distort(1)"
+    },
+    {
+      "name": "distortvol",
+      "synonyms": [
+        "distvol"
+      ],
+      "description": "Postgain for waveshaping distortion.",
+      "params": [
+        {
+          "name": "volume",
+          "type": "number | Pattern",
+          "description": "linear postgain of the distortion"
+        }
+      ],
+      "snippet": ".distortvol(0.8)",
+      "argRange": [
+        12,
+        15
+      ],
+      "group": "Distortion",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .distort()",
+      "base": "s(\"bd*4\").bank(\"tr909\").distort(1)"
+    },
+    {
+      "name": "drive",
+      "synonyms": [],
+      "description": "Filter overdrive for supported filter types",
+      "params": [
+        {
+          "name": "amount",
+          "type": "number | Pattern",
+          "description": ""
+        }
+      ],
+      "snippet": ".drive(2)",
+      "argRange": [
+        7,
+        8
+      ],
+      "group": "Distortion",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .ftype(\"ladder\")",
+      "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").lpf(500).ftype(\"ladder\")"
+    },
+    {
+      "name": "fold",
+      "synonyms": [],
+      "description": "Wavefolding distortion",
+      "params": [
+        {
+          "name": "distortion",
+          "type": "number | Pattern",
+          "description": "amount of distortion to apply"
+        },
+        {
+          "name": "volume",
+          "type": "number | Pattern",
+          "description": "linear postgain of the distortion"
+        }
+      ],
+      "snippet": ".fold(1)",
+      "argRange": [
+        6,
+        7
+      ],
+      "group": "Distortion",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "hard",
+      "synonyms": [],
+      "description": "Hard-clipping distortion",
+      "params": [
+        {
+          "name": "distortion",
+          "type": "number | Pattern",
+          "description": "amount of distortion to apply"
+        },
+        {
+          "name": "volume",
+          "type": "number | Pattern",
+          "description": "linear postgain of the distortion"
+        }
+      ],
+      "snippet": ".hard(1)",
+      "argRange": [
+        6,
+        7
+      ],
+      "group": "Distortion",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "shape",
+      "synonyms": [],
+      "description": "(Deprecated) Wave shaping distortion. WARNING: can suddenly get unpredictably loud. Please use distort instead, which has a more predictable response curve second option in optional array syntax (ex: \".9:.5\") applies a postgain to the output",
+      "params": [
+        {
+          "name": "distortion",
+          "type": "number | Pattern",
+          "description": "between 0 and 1"
+        }
+      ],
+      "snippet": ".shape(0.4)",
+      "argRange": [
+        7,
+        10
+      ],
+      "group": "Distortion",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "sinefold",
+      "synonyms": [],
+      "description": "Wavefolding distortion composed with sinusoid",
+      "params": [
+        {
+          "name": "distortion",
+          "type": "number | Pattern",
+          "description": "amount of distortion to apply"
+        },
+        {
+          "name": "volume",
+          "type": "number | Pattern",
+          "description": "linear postgain of the distortion"
+        }
+      ],
+      "snippet": ".sinefold(1)",
+      "argRange": [
+        10,
+        11
+      ],
+      "group": "Distortion",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "soft",
+      "synonyms": [],
+      "description": "Soft-clipping distortion",
+      "params": [
+        {
+          "name": "distortion",
+          "type": "number | Pattern",
+          "description": "amount of distortion to apply"
+        },
+        {
+          "name": "volume",
+          "type": "number | Pattern",
+          "description": "linear postgain of the distortion"
+        }
+      ],
+      "snippet": ".soft(1)",
+      "argRange": [
+        6,
+        7
+      ],
+      "group": "Distortion",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "juxBy",
+      "synonyms": [
+        "juxby"
+      ],
+      "description": "Jux with adjustable stereo width. 0 = mono, 1 = full stereo.",
+      "params": [],
+      "snippet": ".juxBy(0.5, rev)",
+      "argRange": [
+        7,
+        10
+      ],
+      "group": "Pan and Space",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "pan",
+      "synonyms": [],
+      "description": "Sets position in stereo.",
+      "params": [
+        {
+          "name": "pan",
+          "type": "number | Pattern",
+          "description": "between 0 and 1, from left to right (assuming stereo), once round a circle (assuming multichannel)"
+        }
+      ],
+      "snippet": ".pan(0.25)",
+      "argRange": [
+        5,
+        9
+      ],
+      "group": "Pan and Space",
+      "source": "@strudel/core/controls.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "spread",
+      "synonyms": [],
+      "description": "Set the stereo pan spread for supported oscillators",
+      "params": [
+        {
+          "name": "spread",
+          "type": "number | Pattern",
+          "description": "between 0 and 1"
+        }
+      ],
+      "snippet": ".spread(0.5)",
+      "argRange": [
+        8,
+        11
+      ],
+      "group": "Pan and Space",
+      "source": "@strudel/core/controls.mjs",
+      "note": "for s(\"supersaw\")",
+      "base": "note(\"c3 e3 g3 c4\").s(\"supersaw\")"
+    },
+    {
+      "name": "chop",
+      "synonyms": [],
+      "description": "Cuts each sample into the given number of parts, allowing you to explore a technique known as 'granular synthesis'. It turns a pattern of samples into a pattern of parts of samples.",
+      "params": [],
+      "snippet": ".chop(4)",
+      "argRange": [
+        6,
+        7
+      ],
+      "group": "Time",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "early",
+      "synonyms": [],
+      "description": "Nudge a pattern to start earlier in time. Equivalent of Tidal's <~ operator",
+      "params": [
+        {
+          "name": "cycles",
+          "type": "number | Pattern",
+          "description": "number of cycles to nudge left"
+        }
+      ],
+      "snippet": ".early(.1)",
+      "argRange": [
+        7,
+        9
+      ],
+      "group": "Time",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "echo",
+      "synonyms": [],
+      "description": "Superimpose and offset multiple times, gradually decreasing the velocity",
+      "params": [
+        {
+          "name": "times",
+          "type": "number",
+          "description": "how many times to repeat"
+        },
+        {
+          "name": "time",
+          "type": "number",
+          "description": "cycle offset between iterations"
+        },
+        {
+          "name": "feedback",
+          "type": "number",
+          "description": "velocity multiplicator for each iteration"
+        }
+      ],
+      "snippet": ".echo(3, 1/8, 0.8)",
+      "argRange": [
+        6,
+        7
+      ],
+      "group": "Time",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "echoWith",
+      "synonyms": [
+        "echowith",
+        "stutWith",
+        "stutwith"
+      ],
+      "description": "Superimpose and offset multiple times, applying the given function each time.",
+      "params": [
+        {
+          "name": "times",
+          "type": "number",
+          "description": "how many times to repeat"
+        },
+        {
+          "name": "time",
+          "type": "number",
+          "description": "cycle offset between iterations"
+        },
+        {
+          "name": "func",
+          "type": "function",
+          "description": "function to apply, given the pattern and the iteration index"
+        }
+      ],
+      "snippet": ".echoWith(3, 1/8, (p) => p.speed(1.5))",
+      "argRange": [
+        10,
+        11
+      ],
+      "group": "Time",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "fast",
+      "synonyms": [
+        "density"
+      ],
+      "description": "Speed up a pattern by the given factor. Used by \"*\" in mini notation.",
+      "params": [
+        {
+          "name": "factor",
+          "type": "number | Pattern",
+          "description": "speed up factor"
+        }
+      ],
+      "snippet": ".fast(2)",
+      "argRange": [
+        6,
+        7
+      ],
+      "group": "Time",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "fastGap",
+      "synonyms": [
+        "fastgap"
+      ],
+      "description": "speeds up a pattern like fast, but rather than it playing multiple times as fast would it instead leaves a gap in the remaining space of the cycle. For example, the following will play the sound pattern \"bd sn\" only once but compressed into the first half of the cycle, i.e. twice as fast.",
+      "params": [],
+      "snippet": ".fastGap(2)",
+      "argRange": [
+        9,
+        10
+      ],
+      "group": "Time",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "iter",
+      "synonyms": [],
+      "description": "Divides a pattern into a given number of subdivisions, plays the subdivisions in order, but increments the starting subdivision each cycle. The pattern wraps to the first subdivision after the last subdivision is played.",
+      "params": [],
+      "snippet": ".iter(4)",
+      "argRange": [
+        6,
+        7
+      ],
+      "group": "Time",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "iterBack",
+      "synonyms": [
+        "iterback"
+      ],
+      "description": "Like `iter`, but plays the subdivisions in reverse order. Known as iter' in tidalcycles",
+      "params": [],
+      "snippet": ".iterBack(4)",
+      "argRange": [
+        10,
+        11
+      ],
+      "group": "Time",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "late",
+      "synonyms": [],
+      "description": "Nudge a pattern to start later in time. Equivalent of Tidal's ~> operator",
+      "params": [
+        {
+          "name": "cycles",
+          "type": "number | Pattern",
+          "description": "number of cycles to nudge right"
+        }
+      ],
+      "snippet": ".late(.1)",
+      "argRange": [
+        6,
+        8
+      ],
+      "group": "Time",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "off",
+      "synonyms": [],
+      "description": "Superimposes the function result on top of the original pattern, delayed by the given time.",
+      "params": [
+        {
+          "name": "time",
+          "type": "Pattern | number",
+          "description": "offset time"
+        },
+        {
+          "name": "func",
+          "type": "function",
+          "description": "function to apply"
+        }
+      ],
+      "snippet": ".off(1/8, x => x.speed(2))",
+      "argRange": [
+        5,
+        8
+      ],
+      "group": "Time",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "plyForEach",
+      "synonyms": [
+        "plyforeach"
+      ],
+      "description": "The plyForEach function repeats each event the given number of times, applying the given function to each event. This version of ply uses the iteration index as an argument to the function, similar to echoWith.",
+      "params": [
+        {
+          "name": "factor",
+          "type": "number",
+          "description": "how many times to repeat"
+        },
+        {
+          "name": "func",
+          "type": "function",
+          "description": "function to apply, given the pattern and the iteration index"
+        }
+      ],
+      "snippet": ".plyForEach(3, (p, n) => p.speed(1 + n * 0.5))",
+      "argRange": [
+        12,
+        13
+      ],
+      "group": "Time",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "plyWith",
+      "synonyms": [
+        "plywith"
+      ],
+      "description": "The plyWith function repeats each event the given number of times, applying the given function to each event.",
+      "params": [
+        {
+          "name": "factor",
+          "type": "number",
+          "description": "how many times to repeat"
+        },
+        {
+          "name": "func",
+          "type": "function",
+          "description": "function to apply, given the pattern"
+        }
+      ],
+      "snippet": ".plyWith(2, (p) => p.gain(0.8))",
+      "argRange": [
+        9,
+        10
+      ],
+      "group": "Time",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "repeatCycles",
+      "synonyms": [],
+      "description": "Repeats each cycle the given number of times.",
+      "params": [],
+      "snippet": ".repeatCycles(2)",
+      "argRange": [
+        14,
+        15
+      ],
+      "group": "Time",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "rev",
+      "synonyms": [],
+      "description": "Reverse all cycles in a pattern. See also `revv` for reversing a whole pattern.",
+      "params": [],
+      "snippet": ".rev()",
+      "argRange": null,
+      "group": "Time",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "revv",
+      "synonyms": [],
+      "description": "Reverse a whole pattern. See also `rev` for reversing each cycle.",
+      "params": [],
+      "snippet": ".revv()",
+      "argRange": null,
+      "group": "Time",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "ribbon",
+      "synonyms": [
+        "rib"
+      ],
+      "description": "Loops the pattern inside an `offset` for `cycles`. If you think of the entire span of time in cycles as a ribbon, you can cut a single piece and loop it.",
+      "params": [
+        {
+          "name": "offset",
+          "type": "number",
+          "description": "start point of loop in cycles"
+        },
+        {
+          "name": "cycles",
+          "type": "number",
+          "description": "loop length in cycles"
+        }
+      ],
+      "snippet": ".ribbon(1, 2)",
+      "argRange": [
+        8,
+        9
+      ],
+      "group": "Time",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "scramble",
+      "synonyms": [],
+      "description": "Slices a pattern into the given number of parts, then plays those parts at random. Similar to `shuffle`, but parts might be played more than once, or not at all, per cycle.",
+      "params": [],
+      "snippet": ".scramble(4)",
+      "argRange": [
+        10,
+        11
+      ],
+      "group": "Time",
+      "source": "@strudel/core/signal.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "segment",
+      "synonyms": [
+        "seg"
+      ],
+      "description": "Samples the pattern at a rate of n events per cycle. Useful for turning a continuous pattern into a discrete one.",
+      "params": [
+        {
+          "name": "segments",
+          "type": "number",
+          "description": "number of segments per cycle"
+        }
+      ],
+      "snippet": ".segment(8)",
+      "argRange": [
+        9,
+        10
+      ],
+      "group": "Time",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "shuffle",
+      "synonyms": [],
+      "description": "Slices a pattern into the given number of parts, then plays those parts in random order. Each part will be played exactly once per cycle.",
+      "params": [],
+      "snippet": ".shuffle(4)",
+      "argRange": [
+        9,
+        10
+      ],
+      "group": "Time",
+      "source": "@strudel/core/signal.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "slow",
+      "synonyms": [
+        "sparsity"
+      ],
+      "description": "Slow down a pattern over the given number of cycles. Like the \"/\" operator in mini notation.",
+      "params": [
+        {
+          "name": "factor",
+          "type": "number | Pattern",
+          "description": "slow down factor"
+        }
+      ],
+      "snippet": ".slow(2)",
+      "argRange": [
+        6,
+        7
+      ],
+      "group": "Time",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "striate",
+      "synonyms": [],
+      "description": "Cuts each sample into the given number of parts, triggering progressive portions of each sample at each loop.",
+      "params": [],
+      "snippet": ".striate(4)",
+      "argRange": [
+        9,
+        10
+      ],
+      "group": "Time",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "stut",
+      "synonyms": [],
+      "description": "Deprecated. Like echo, but the last 2 parameters are flipped.",
+      "params": [
+        {
+          "name": "times",
+          "type": "number",
+          "description": "how many times to repeat"
+        },
+        {
+          "name": "feedback",
+          "type": "number",
+          "description": "velocity multiplicator for each iteration"
+        },
+        {
+          "name": "time",
+          "type": "number",
+          "description": "cycle offset between iterations"
+        }
+      ],
+      "snippet": ".stut(3, 0.8, 1/8)",
+      "argRange": [
+        6,
+        7
+      ],
+      "group": "Time",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "almostAlways",
+      "synonyms": [],
+      "description": "Shorthand for `.sometimesBy(0.9, fn)`",
+      "params": [],
+      "snippet": ".almostAlways(x => x.speed(2))",
+      "argRange": null,
+      "group": "Structure",
+      "source": "@strudel/core/signal.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "almostNever",
+      "synonyms": [],
+      "description": "Shorthand for `.sometimesBy(0.1, fn)`",
+      "params": [],
+      "snippet": ".almostNever(x => x.speed(2))",
+      "argRange": null,
+      "group": "Structure",
+      "source": "@strudel/core/signal.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "always",
+      "synonyms": [],
+      "description": "Shorthand for `.sometimesBy(1, fn)` (always calls fn)",
+      "params": [],
+      "snippet": ".always(x => x.speed(2))",
+      "argRange": null,
+      "group": "Structure",
+      "source": "@strudel/core/signal.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "beat",
+      "synonyms": [],
+      "description": "creates a structure pattern from divisions of a cycle especially useful for creating rhythms",
+      "params": [],
+      "snippet": ".beat(\"0,7,10\", 16)",
+      "argRange": [
+        7,
+        13
+      ],
+      "group": "Structure",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "chunk",
+      "synonyms": [
+        "slowChunk",
+        "slowchunk"
+      ],
+      "description": "Divides a pattern into a given number of parts, then cycles through those parts in turn, applying the given function to each part in turn (one part per cycle).",
+      "params": [],
+      "snippet": ".chunk(4, x => x.fast(2))",
+      "argRange": [
+        7,
+        8
+      ],
+      "group": "Structure",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "chunkBack",
+      "synonyms": [
+        "chunkback"
+      ],
+      "description": "Like `chunk`, but cycles through the parts in reverse order. Known as chunk' in tidalcycles",
+      "params": [],
+      "snippet": ".chunkBack(4, x => x.fast(2))",
+      "argRange": [
+        11,
+        12
+      ],
+      "group": "Structure",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "chunkBackInto",
+      "synonyms": [
+        "chunkbackinto"
+      ],
+      "description": "Like `chunkInto`, but moves backwards through the chunks.",
+      "params": [],
+      "snippet": ".chunkBackInto(4, hurry(2))",
+      "argRange": [
+        15,
+        16
+      ],
+      "group": "Structure",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "chunkInto",
+      "synonyms": [
+        "chunkinto"
+      ],
+      "description": "Like `chunk`, but the function is applied to a looped subcycle of the source pattern.",
+      "params": [],
+      "snippet": ".chunkInto(4, hurry(2))",
+      "argRange": [
+        11,
+        12
+      ],
+      "group": "Structure",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "degrade",
+      "synonyms": [],
+      "description": "Randomly removes 50% of events from the pattern. Shorthand for `.degradeBy(0.5)`",
+      "params": [],
+      "snippet": ".degrade()",
+      "argRange": null,
+      "group": "Structure",
+      "source": "@strudel/core/signal.mjs",
+      "note": null,
+      "base": "s(\"hh*8\").bank(\"tr909\")"
+    },
+    {
+      "name": "degradeBy",
+      "synonyms": [],
+      "description": "Randomly removes events from the pattern by a given amount. 0 = 0% chance of removal 1 = 100% chance of removal",
+      "params": [
+        {
+          "name": "amount",
+          "type": "number",
+          "description": "- a number between 0 and 1"
+        }
+      ],
+      "snippet": ".degradeBy(0.3)",
+      "argRange": [
+        11,
+        14
+      ],
+      "group": "Structure",
+      "source": "@strudel/core/signal.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "every",
+      "synonyms": [],
+      "description": "An alias for `firstOf`",
+      "params": [
+        {
+          "name": "n",
+          "type": "number",
+          "description": "how many cycles"
+        },
+        {
+          "name": "func",
+          "type": "function",
+          "description": "function to apply"
+        }
+      ],
+      "snippet": ".every(4, x => x.fast(2))",
+      "argRange": [
+        7,
+        8
+      ],
+      "group": "Structure",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "fastChunk",
+      "synonyms": [
+        "fastchunk"
+      ],
+      "description": "Like `chunk`, but the cycles of the source pattern aren't repeated for each set of chunks.",
+      "params": [],
+      "snippet": ".fastChunk(4, x => x.fast(2))",
+      "argRange": [
+        11,
+        12
+      ],
+      "group": "Structure",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "filter",
+      "synonyms": [],
+      "description": "Filters haps using the given function",
+      "params": [
+        {
+          "name": "test",
+          "type": "Function",
+          "description": "function to test Hap"
+        }
+      ],
+      "snippet": ".filter((hap) => hap.value.s !== \"hh\")",
+      "argRange": null,
+      "group": "Structure",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "filterWhen",
+      "synonyms": [],
+      "description": "Filters haps by their begin time",
+      "params": [
+        {
+          "name": "test",
+          "type": "Function",
+          "description": "function to test Hap.whole.begin"
+        }
+      ],
+      "snippet": ".filterWhen((t) => t % 1 < 0.5)",
+      "argRange": null,
+      "group": "Structure",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "firstOf",
+      "synonyms": [],
+      "description": "Applies the given function every n cycles, starting from the first cycle.",
+      "params": [
+        {
+          "name": "n",
+          "type": "number",
+          "description": "how many cycles"
+        },
+        {
+          "name": "func",
+          "type": "function",
+          "description": "function to apply"
+        }
+      ],
+      "snippet": ".firstOf(4, x => x.fast(2))",
+      "argRange": [
+        9,
+        10
+      ],
+      "group": "Structure",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "lastOf",
+      "synonyms": [],
+      "description": "Applies the given function every n cycles, starting from the last cycle.",
+      "params": [
+        {
+          "name": "n",
+          "type": "number",
+          "description": "how many cycles"
+        },
+        {
+          "name": "func",
+          "type": "function",
+          "description": "function to apply"
+        }
+      ],
+      "snippet": ".lastOf(4, x => x.fast(2))",
+      "argRange": [
+        8,
+        9
+      ],
+      "group": "Structure",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "never",
+      "synonyms": [],
+      "description": "Shorthand for `.sometimesBy(0, fn)` (never calls fn)",
+      "params": [],
+      "snippet": ".never(x => x.speed(2))",
+      "argRange": null,
+      "group": "Structure",
+      "source": "@strudel/core/signal.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "often",
+      "synonyms": [],
+      "description": "Shorthand for `.sometimesBy(0.75, fn)`",
+      "params": [],
+      "snippet": ".often(x => x.speed(2))",
+      "argRange": null,
+      "group": "Structure",
+      "source": "@strudel/core/signal.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "rarely",
+      "synonyms": [],
+      "description": "Shorthand for `.sometimesBy(0.25, fn)`",
+      "params": [],
+      "snippet": ".rarely(x => x.speed(2))",
+      "argRange": null,
+      "group": "Structure",
+      "source": "@strudel/core/signal.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "seed",
+      "synonyms": [],
+      "description": "Change the seed for random signals. Normally, random signals depend on time, so two patterns at the same time will have the same random values. Specifying a new seed changes the signal output by `rand`. This also affects other functions that use randomness, like `shuffle` and `sometimes`.",
+      "params": [
+        {
+          "name": "n",
+          "type": "number",
+          "description": "A new seed. Can be any number."
+        }
+      ],
+      "snippet": ".seed(1)",
+      "argRange": [
+        6,
+        7
+      ],
+      "group": "Structure",
+      "source": "@strudel/core/signal.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "someCycles",
+      "synonyms": [],
+      "description": "Shorthand for `.someCyclesBy(0.5, fn)`",
+      "params": [],
+      "snippet": ".someCycles(x => x.speed(2))",
+      "argRange": null,
+      "group": "Structure",
+      "source": "@strudel/core/signal.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "someCyclesBy",
+      "synonyms": [],
+      "description": "Randomly applies the given function by the given probability on a cycle by cycle basis. Similar to `sometimesBy`",
+      "params": [
+        {
+          "name": "probability",
+          "type": "number | Pattern",
+          "description": "- a number between 0 and 1"
+        },
+        {
+          "name": "function",
+          "type": "function",
+          "description": "- the transformation to apply"
+        }
+      ],
+      "snippet": ".someCyclesBy(0.5, x => x.speed(2))",
+      "argRange": [
+        14,
+        17
+      ],
+      "group": "Structure",
+      "source": "@strudel/core/signal.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "sometimes",
+      "synonyms": [],
+      "description": "Applies the given function with a 50% chance",
+      "params": [
+        {
+          "name": "function",
+          "type": "function",
+          "description": "- the transformation to apply"
+        }
+      ],
+      "snippet": ".sometimes(x => x.speed(2))",
+      "argRange": null,
+      "group": "Structure",
+      "source": "@strudel/core/signal.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "sometimesBy",
+      "synonyms": [],
+      "description": "Randomly applies the given function by the given probability. Similar to `someCyclesBy`",
+      "params": [
+        {
+          "name": "probability",
+          "type": "number | Pattern",
+          "description": "- a number between 0 and 1"
+        },
+        {
+          "name": "function",
+          "type": "function",
+          "description": "- the transformation to apply"
+        }
+      ],
+      "snippet": ".sometimesBy(0.5, x => x.speed(2))",
+      "argRange": [
+        13,
+        16
+      ],
+      "group": "Structure",
+      "source": "@strudel/core/signal.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "undegrade",
+      "synonyms": [],
+      "description": "Inverse of `degrade`: Randomly removes 50% of events from the pattern. Shorthand for `.undegradeBy(0.5)` Events that would be removed by degrade are let through by undegrade and vice versa (see second example).",
+      "params": [],
+      "snippet": ".undegrade()",
+      "argRange": null,
+      "group": "Structure",
+      "source": "@strudel/core/signal.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "undegradeBy",
+      "synonyms": [],
+      "description": "Inverse of `degradeBy`: Randomly removes events from the pattern by a given amount. 0 = 100% chance of removal 1 = 0% chance of removal Events that would be removed by degradeBy are let through by undegradeBy and vice versa (see second example).",
+      "params": [
+        {
+          "name": "amount",
+          "type": "number",
+          "description": "- a number between 0 and 1"
+        }
+      ],
+      "snippet": ".undegradeBy(0.8)",
+      "argRange": [
+        13,
+        16
+      ],
+      "group": "Structure",
+      "source": "@strudel/core/signal.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "when",
+      "synonyms": [],
+      "description": "Applies the given function whenever the given pattern is in a true state.",
+      "params": [
+        {
+          "name": "binary_pat",
+          "type": "Pattern",
+          "description": ""
+        },
+        {
+          "name": "func",
+          "type": "function",
+          "description": ""
+        }
+      ],
+      "snippet": ".when(\"<0 1>\", x => x.speed(2))",
+      "argRange": [
+        7,
+        12
+      ],
+      "group": "Structure",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "within",
+      "synonyms": [],
+      "description": "Use within to apply a function to only a part of a pattern.",
+      "params": [
+        {
+          "name": "start",
+          "type": "number",
+          "description": "start within cycle (0 - 1)"
+        },
+        {
+          "name": "end",
+          "type": "number",
+          "description": "end within cycle (0 - 1). Must be > start"
+        },
+        {
+          "name": "func",
+          "type": "Function",
+          "description": "function to be applied to the sub-pattern"
+        }
+      ],
+      "snippet": ".within(0, 0.5, x => x.fast(2))",
+      "argRange": [
+        11,
+        14
+      ],
+      "group": "Structure",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "FX",
+      "synonyms": [],
+      "description": "Establishes an FX chain. Can be called by chaining .FX(fx1).FX(fx2).. calls and/or in a single .FX(fx1, fx2, ..) call. The fx1, .. are _patterns_ which establish the controls of the given effect. See examples.",
+      "params": [],
+      "snippet": ".FX(phaser(2))",
+      "argRange": [
+        11,
+        12
+      ],
+      "group": "Other",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "apply",
+      "synonyms": [],
+      "description": "Like layer, but with a single function:",
+      "params": [],
+      "snippet": ".apply(x => x.fast(2))",
+      "argRange": null,
+      "group": "Other",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "as",
+      "synonyms": [],
+      "description": "Sets properties in a batch.",
+      "params": [
+        {
+          "name": "mapping",
+          "type": "String | Array",
+          "description": "the control names that are set"
+        }
+      ],
+      "snippet": ".as(\"note:clip\")",
+      "argRange": [
+        5,
+        14
+      ],
+      "group": "Other",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs a pattern of plain values, e.g. \"c3:.5 e3:1\"",
+      "base": "\"c3:.5 e3:1 g3:.25 c4:.8\""
+    },
+    {
+      "name": "bmod",
+      "synonyms": [],
+      "description": "Modulates with the output from a given `bus`. Can be called in sequence like pat.bmod(...).bmod(...) to set up multiple modulators",
+      "params": [
+        {
+          "name": "config",
+          "type": "Object",
+          "description": "Bus modulation configuration."
+        },
+        {
+          "name": "[config.bus]",
+          "type": "string | Pattern",
+          "description": "Bus to get modulation signal from"
+        },
+        {
+          "name": "[config.control]",
+          "type": "string | Pattern",
+          "description": "Node to modulate. Aliases: c"
+        },
+        {
+          "name": "[config.subControl]",
+          "type": "string | Pattern",
+          "description": "Sub-control name to append to the control key. Aliases: sc"
+        },
+        {
+          "name": "[config.depth]",
+          "type": "number | Pattern",
+          "description": "Relative modulation depth. Aliases: dep, dr"
+        },
+        {
+          "name": "[config.depthabs]",
+          "type": "number | Pattern",
+          "description": "Absolute modulation depth. Aliases: da"
+        },
+        {
+          "name": "[config.dc]",
+          "type": "number | Pattern",
+          "description": "DC offset prior to application"
+        },
+        {
+          "name": "[config.fxi]",
+          "type": "number | Pattern",
+          "description": "FX index to target"
+        },
+        {
+          "name": "id",
+          "type": "string | Pattern",
+          "description": "ID to use for this modulator"
+        }
+      ],
+      "snippet": ".bmod({ b: 1, c: \"lpf\" })",
+      "argRange": [
+        11,
+        12
+      ],
+      "group": "Other",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs a pattern sending to that bus with .bus()",
+      "base": "stack(s(\"one\").seg(16).bus(1), note(\"c3 e3 g3 c4\").s(\"sawtooth\").lpf(800))"
+    },
+    {
+      "name": "bus",
+      "synonyms": [],
+      "description": "A `bus` is a send which can be used for mixing patterns. It combines with.. s(\"bus\") to play that bus through another pattern (for, say, applying non-linear effects like distortion to multiple signals)",
+      "params": [
+        {
+          "name": "number",
+          "type": "number | Pattern",
+          "description": ""
+        }
+      ],
+      "snippet": ".bus(1)",
+      "argRange": [
+        5,
+        6
+      ],
+      "group": "Other",
+      "source": "@strudel/core/controls.mjs",
+      "note": "heard through a pattern that plays s(\"bus\")",
+      "base": null
+    },
+    {
+      "name": "busgain",
+      "synonyms": [
+        "bgain"
+      ],
+      "description": "Postgain multiplier prior to sending the signal to the audio bus.",
+      "params": [
+        {
+          "name": "number",
+          "type": "number | Pattern",
+          "description": ""
+        }
+      ],
+      "snippet": ".busgain(0.8)",
+      "argRange": [
+        9,
+        12
+      ],
+      "group": "Other",
+      "source": "@strudel/core/controls.mjs",
+      "note": "needs .bus()",
+      "base": "s(\"bd*4\").bank(\"tr909\").bus(1)"
+    },
+    {
+      "name": "div",
+      "synonyms": [],
+      "description": "Divides each number by the given factor.",
+      "params": [],
+      "snippet": ".div(speed(2))",
+      "argRange": [
+        11,
+        12
+      ],
+      "group": "Other",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "into",
+      "synonyms": [],
+      "description": "Breaks a pattern into pieces according to the structure of a given pattern. True values in the given pattern cause the corresponding subcycle of the source pattern to be looped, and for an (optional) given function to be applied. False values result in the corresponding part of the source pattern to be played unchanged.",
+      "params": [],
+      "snippet": ".into(\"1 0\", hurry(2))",
+      "argRange": [
+        7,
+        10
+      ],
+      "group": "Other",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "layer",
+      "synonyms": [
+        "apply"
+      ],
+      "description": "Layers the result of the given function(s). Like `superimpose`, but without the original pattern:",
+      "params": [],
+      "snippet": ".layer(x => x.fast(2))",
+      "argRange": null,
+      "group": "Other",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "mul",
+      "synonyms": [],
+      "description": "Multiplies each number by the given factor.",
+      "params": [],
+      "snippet": ".mul(speed(1.5))",
+      "argRange": [
+        11,
+        14
+      ],
+      "group": "Other",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "superimpose",
+      "synonyms": [],
+      "description": "Superimposes the result of the given function(s) on top of the original pattern:",
+      "params": [],
+      "snippet": ".superimpose(x => x.speed(2))",
+      "argRange": null,
+      "group": "Other",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    },
+    {
+      "name": "xfade",
+      "synonyms": [],
+      "description": "Cross-fades between left and right from 0 to 1: - 0 = (full left, no right) - .5 = (both equal) - 1 = (no left, full right)",
+      "params": [],
+      "snippet": ".xfade(0.5, s(\"hh*8\").bank(\"tr909\"))",
+      "argRange": [
+        7,
+        10
+      ],
+      "group": "Other",
+      "source": "@strudel/core/pattern.mjs",
+      "note": null,
+      "base": null
+    }
+  ]
+}
