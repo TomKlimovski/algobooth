@@ -1,8 +1,11 @@
 import { expect, test } from 'vitest';
 import core from '@strudel/core/package.json';
 import tonal from '@strudel/tonal/package.json';
-import { catalogue, GROUPS } from './catalogue';
-import { GROUP_OF } from './groups';
+import { catalogue, FUNCTION_GROUPS, GROUPS } from './catalogue';
+import { FUNCTION_GROUP_OF, GROUP_OF } from './groups';
+
+const methods = catalogue.methods.filter((m) => m.kind === 'method');
+const functions = catalogue.methods.filter((m) => m.kind === 'function');
 
 test('the catalogue matches the installed Strudel', () => {
   expect(catalogue.versions, 'run `pnpm build-methods`').toEqual({
@@ -12,10 +15,10 @@ test('the catalogue matches the installed Strudel', () => {
 });
 
 test('orbit is never offered and every row is complete', () => {
-  const names = catalogue.methods.map((m) => m.name);
+  const names = methods.map((m) => m.name);
   expect(names).not.toContain('orbit');
-  expect(new Set(names).size, 'one row per name').toBe(names.length);
-  for (const m of catalogue.methods) {
+  expect(new Set(names).size, 'one method row per name').toBe(names.length);
+  for (const m of methods) {
     expect(m.description.length, m.name).toBeGreaterThan(0);
     expect(m.snippet.startsWith(`.${m.name}(`) && m.snippet.endsWith(')'), m.snippet).toBe(true);
     expect(GROUPS, m.name).toContain(m.group);
@@ -23,8 +26,29 @@ test('orbit is never offered and every row is complete', () => {
   }
 });
 
+test('function rows are complete expressions, one per name, and samples is never offered', () => {
+  const names = functions.map((m) => m.name);
+  expect(functions.length).toBeGreaterThan(0);
+  expect(names).not.toContain('samples');
+  expect(names).not.toContain('silence');
+  expect(new Set(names).size, 'one function row per name').toBe(names.length);
+  for (const m of functions) {
+    expect(m.description.length, m.name).toBeGreaterThan(0);
+    expect(m.snippet.includes(m.name) && !m.snippet.startsWith('.'), m.snippet).toBe(true);
+    expect(FUNCTION_GROUPS, m.name).toContain(m.group);
+    if (m.argRange) expect(m.snippet.slice(...m.argRange).length, m.snippet).toBeGreaterThan(0);
+  }
+  for (const n of Object.keys(FUNCTION_GROUP_OF)) expect(names, n).toContain(n);
+  // The ones Tom could not find, in both forms
+  expect(functions.find((m) => m.name === 'seq')?.snippet).toBe('seq("bd*4", "hh*8")');
+  expect(functions.find((m) => m.name === 'stack')?.snippet).toBe('stack(s("bd*4"), s("hh*8"))');
+  expect(methods.find((m) => m.name === 'stack')?.snippet).toBe('.stack(s("hh*8"))');
+  expect(functions.find((m) => m.name === 'sine')?.snippet).toBe('sine.range(200, 2000).slow(4)');
+  expect(functions.find((m) => m.name === 'setcpm')?.snippet).toBe('setcpm(120/4)');
+});
+
 test('every grouped name exists and the voicing family carries its note', () => {
-  const names = new Set(catalogue.methods.map((m) => m.name));
+  const names = new Set(methods.map((m) => m.name));
   for (const n of Object.keys(GROUP_OF)) expect(names.has(n), n).toBe(true);
   expect(catalogue.methods.find((m) => m.name === 'voicing')?.note).toBe('needs a chord() pattern');
   expect(catalogue.methods.find((m) => m.name === 'duckorbit')?.note).toBe('orbits here are decks: 1 = deck A, 2 = deck B');
@@ -42,8 +66,9 @@ test('a hand default selects its marked literal, an example default selects the 
   expect(row('rev')).toMatchObject({ snippet: '.rev()', argRange: null }); // no parameters
 });
 
-test('the catalogue is sorted by group then name', () => {
-  const key = (m: { group: string; name: string }) => [GROUPS.indexOf(m.group), m.name] as const;
+test('the catalogue is sorted by kind, then group, then name', () => {
+  const key = (m: { kind: string; group: string; name: string }) =>
+    [m.kind === 'method' ? GROUPS.indexOf(m.group) : GROUPS.length + FUNCTION_GROUPS.indexOf(m.group), m.name] as const;
   const sorted = [...catalogue.methods].sort((a, b) => {
     const [ga, na] = key(a);
     const [gb, nb] = key(b);

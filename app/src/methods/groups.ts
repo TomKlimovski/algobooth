@@ -66,10 +66,42 @@ const MEMBERS: Record<string, string[]> = {
     'euclidLegatoRot', 'euclidish', 'reset', 'restart', 'inside', 'outside', 'chunk', 'chunkBack', 'fastChunk', 'chunkInto', 'chunkBackInto',
     'sometimes', 'sometimesBy', 'someCycles', 'someCyclesBy', 'often', 'rarely', 'almostNever', 'almostAlways',
     'never', 'always', 'degrade', 'degradeBy', 'undegrade', 'undegradeBy', 'seed', 'beat', 'filter', 'filterWhen',
+    'cat', 'pick', 'pickmod', 'pickF', 'pickOut', 'pickmodOut', 'pickRestart', 'pickmodRestart', 'pickReset',
+    'pickmodReset', 'inhabit', 'inhabitmod', 'squeeze', 'stack', 'seq', 'sequence', 'slowcat', 'tour',
   ],
 };
 
 /** Method name → its folder. */
 export const GROUP_OF: Record<string, string> = Object.fromEntries(
   Object.entries(MEMBERS).flatMap(([group, names]) => names.map((name) => [name, group])),
+);
+
+/** The Functions section's folders, in panel order; anything not in FUNCTION_GROUP_OF goes to Other. */
+export const FUNCTION_GROUPS = ['Combine', 'Signals', 'Random', 'Sources', 'Setup', 'Other'];
+
+/**
+ * Standalone functions by folder. A name here is offered as a function even when it is also a method
+ * (stack, seq, cat...: both uses are real); a documented name that is not a method is offered without
+ * being listed, in Other.
+ */
+const FUNCTION_MEMBERS: Record<string, string[]> = {
+  Combine: [
+    'stack', 'seq', 'sequence', 'cat', 'slowcat', 'slowcatPrime', 'arrange', 'seqPLoop', 'polymeter', 'stepcat', 'timecat',
+    'stepalt', 'zip', 'tour',
+  ],
+  Signals: [
+    'sine', 'sine2', 'cosine', 'cosine2', 'saw', 'saw2', 'isaw', 'isaw2', 'square', 'square2', 'tri', 'tri2', 'itri',
+    'itri2', 'perlin', 'berlin', 'mousex', 'mousey',
+  ],
+  Random: [
+    'rand', 'rand2', 'brand', 'brandBy', 'irand', 'choose', 'chooseCycles', 'wchoose', 'wchooseCycles',
+    'chooseWith', 'chooseInWith',
+  ],
+  Sources: ['run', 'binary', 'binaryN', 'pick', 'squeeze'],
+  Setup: ['setcpm'],
+};
+
+/** Function name → its folder. */
+export const FUNCTION_GROUP_OF: Record<string, string> = Object.fromEntries(
+  Object.entries(FUNCTION_MEMBERS).flatMap(([group, names]) => names.map((name) => [name, group])),
 );

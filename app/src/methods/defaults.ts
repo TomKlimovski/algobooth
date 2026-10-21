@@ -4,6 +4,8 @@ export const SOURCES: string[] = [
   'core/pattern.mjs',
   'core/signal.mjs',
   'core/euclid.mjs',
+  'core/repl.mjs',
+  'core/pick.mjs',
   'tonal/tonal.mjs',
   'tonal/voicings.mjs',
 ];
@@ -54,6 +56,7 @@ export const DENY: Record<string, string> = {
   invert: 'swaps 1s and 0s in a binary pattern, which does not sound',
   choose: 'reads the pattern it is called on as a 0..1 signal; on a sound pattern it picks nothing',
   choose2: 'reads the pattern it is called on as a -1..1 signal; on a sound pattern it picks nothing',
+  pickmodF: 'plays nothing with any default tried (pickF works)',
   ...Object.fromEntries(
     [
       'wt', 'wtenv', 'wtattack', 'wtdecay', 'wtsustain', 'wtrelease', 'wtrate', 'wtsync', 'wtdepth', 'wtshape',
@@ -71,7 +74,11 @@ export const DENY: Record<string, string> = {
   oscport: 'OSC output, not sound',
 };
 
-type Default = { args: string; base?: string; note?: string };
+/**
+ * `args` is the argument text with the selectable literal between § signs. A function row may give `expr`
+ * instead: the whole expression (a signal is an object, so `sine` needs `sine.range(§200§, 2000)`).
+ */
+type Default = { args?: string; expr?: string; base?: string; note?: string };
 
 const SYNTH = 'note("c3 e3 g3 c4").s("sawtooth")';
 const DRUMS = 's("bd*4").bank("tr909")';
@@ -116,7 +123,22 @@ function filterFamily(f: 'lp' | 'hp' | 'bp'): Record<string, Default> {
  * name → argument text with the selectable literal between § signs; optional base for the evaluate test,
  * optional tooltip note. Beats the JSDoc example's argument, so this is also where a poor example is fixed.
  */
+const INDICES = { base: '"0 1"', note: 'chain onto a pattern of indices, e.g. "0 1"' };
+
 export const DEFAULTS: Record<string, Default> = {
+  // Picking: the pattern it is chained onto supplies the indices
+  cat: { args: '§s("hh*8")§' },
+  stack: { args: '§s("hh*8")§' },
+  seq: { args: '§s("hh*8")§' },
+  sequence: { args: '§s("hh*8")§' },
+  slowcat: { args: '§s("hh*8")§' },
+  ...Object.fromEntries(
+    ['pick', 'pickmod', 'pickOut', 'pickmodOut', 'pickRestart', 'pickmodRestart', 'pickReset', 'pickmodReset', 'inhabit', 'inhabitmod'].map(
+      (n) => [n, { args: '[§s("bd*4")§, s("hh*8")]', ...INDICES }],
+    ),
+  ),
+  squeeze: { args: '[§s("bd*4")§, s("hh*8")]', ...INDICES },
+  pickF: { args: '"§0§ 1", [x => x.fast(2), x => x.rev()]', base: 's("bd*4")' },
   // Sound
   s: { args: '"§hh§"' },
   bank: { args: '"§RolandTR808§"' },
@@ -341,4 +363,89 @@ export const DEFAULTS: Record<string, Default> = {
     base: `stack(s("one").seg(16).bus(1), ${SYNTH}.lpf(800))`,
     note: 'needs a pattern sending to that bus with .bus()',
   },
+};
+
+const LIST = 'returns a plain list, not a pattern';
+const META = 'measures event length; nothing to play';
+
+/** Standalone functions the panel never offers: name → one-line reason. */
+export const FUNCTION_DENY: Record<string, string> = {
+  samples: 'loads samples from a URL; the app is offline and bundles its banks',
+  silence: 'plays nothing; mute a line with an underscore instead',
+  gap: 'plays nothing; mute a line with an underscore instead',
+  nothing: 'plays nothing',
+  K: 'the Kabelsalat engine, which the app does not run',
+  useRNG: 'a global setting',
+  addVoicings: 'a global setting',
+  ref: 'needs a hand-written accessor',
+  withSeed: 'takes a function',
+  morph: 'takes binary lists; no sound of its own',
+  parray: 'returns list-valued events; no sound of its own',
+  binaryL: LIST,
+  binaryNL: LIST,
+  randL: LIST,
+  time: 'the cycle count; not a usable modulation',
+  cyclesPer: META,
+  per: META,
+  perx: META,
+  mini: 'the mini-notation parser; a double-quoted string already is one',
+  register: 'defines a new method; library code, not a pattern',
+  sequenceP: 'library code: a pattern of lists',
+};
+
+const PICKS = 's({})';
+// A continuous chooser has no events of its own: a pattern samples it.
+const SAMPLED = { base: 's("hh*8").s({})', note: 'continuous: sample it from a pattern, e.g. s("hh*8").s(...)' };
+const TWO = '"§bd*4§", "hh*8"';
+
+/**
+ * Function name → its expression (with § around the selectable literal), or its argument text; `base` is the
+ * evaluate test's carrier with `{}` where the snippet goes, when the folder's carrier will not do.
+ */
+export const FUNCTION_DEFAULTS: Record<string, Default> = {
+  // Combine
+  stack: { args: `§s("bd*4")§, s("hh*8")` },
+  seq: { args: TWO },
+  sequence: { args: TWO },
+  cat: { args: TWO },
+  slowcat: { args: TWO },
+  slowcatPrime: { args: TWO },
+  arrange: { args: `[§4§, s("bd*4")], [2, s("hh*8")]` },
+  seqPLoop: { args: `[§0§, 1, s("bd*4")], [1, 2, s("hh*8")]` },
+  polymeter: { args: `"§bd hh§", "sd sd sd"` },
+  stepcat: { args: `[§3§, "bd"], [1, "hh"]` },
+  timecat: { args: `[§3§, "bd"], [1, "hh"]` },
+  stepalt: { args: `["§bd§", "hh"], ["sd"]` },
+  zip: { args: `"§bd hh§", "sd cp"` },
+  tour: { args: `"§bd§", "hh", "sd"` },
+  // Signals: sized for a filter cutoff, the usual target
+  ...Object.fromEntries(
+    ['sine', 'cosine', 'saw', 'isaw', 'square', 'tri', 'itri', 'perlin', 'berlin', 'mousex', 'mousey'].map((n) => [
+      n,
+      { expr: `${n}.range(§200§, 2000).slow(4)` },
+    ]),
+  ),
+  ...Object.fromEntries(
+    ['sine2', 'cosine2', 'saw2', 'isaw2', 'square2', 'tri2', 'itri2'].map((n) => [n, { expr: `${n}.slow(§4§)`, note: 'bipolar: -1 to 1' }]),
+  ),
+  // Random
+  rand: { expr: 'rand.range(§0.5§, 1)' },
+  rand2: { expr: 'rand2.slow(§2§)', note: 'bipolar: -1 to 1' },
+  brand: { expr: 'brand.slow(§2§)' },
+  brandBy: { args: '§0.3§' },
+  irand: { args: '§8§' },
+  choose: { args: '"§bd§", "hh", "sd"', ...SAMPLED },
+  chooseCycles: { args: '"§bd§", "hh", "sd"', base: PICKS },
+  wchoose: { args: '["§bd§", 2], ["hh", 1]', ...SAMPLED },
+  wchooseCycles: { args: '["§bd§", 2], ["hh", 1]', base: PICKS },
+  chooseWith: { args: 'sine, ["§bd§", "hh"]', ...SAMPLED },
+  chooseInWith: { args: 'sine, ["§bd§", "hh"]', base: PICKS },
+  // Sources
+  run: { args: '§8§', base: 'n({}).s("hh")' },
+  binary: { args: '§5§', base: 's("hh*8").struct({})' },
+  binaryN: { args: '§5§, 8', base: 's("hh*8").struct({})' },
+  pick: { args: '["bd*4", "hh*8"], "§0§ 1"', base: PICKS },
+  squeeze: { args: '"§0§ 1", ["bd*4", "hh*8"]', base: PICKS },
+  // Setup: a repl global rather than a bundle export, so it is listed in FUNCTION_GROUP_OF to be offered
+  setcpm: { args: '§120§/4' },
 };

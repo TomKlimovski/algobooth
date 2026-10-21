@@ -24,12 +24,24 @@ if (catalogue.methods.length === 0) throw new Error('the catalogue is empty'); /
 const base = (m: MethodDoc) =>
   m.base ?? (m.group === 'Pitch' ? 'note("c3 e3 g3 c4").s("sawtooth")' : 's("bd*4").bank("tr909")');
 
-// What a drop promises: the method chained onto a playing pattern with its default evaluates and plays.
-test.each(catalogue.methods.map((m): [string, MethodDoc] => [m.name, m]))(
+/** A function's carrier: where its expression goes in a line that plays. */
+const CARRIER: Record<string, string> = {
+  Combine: '{}',
+  Sources: '{}',
+  Signals: 's("hh*8").lpf({})',
+  Random: 's("hh*8").lpf({})',
+  Setup: '{}\n$: s("bd*4")',
+  Other: '{}',
+};
+const carried = (m: MethodDoc) => (m.base ?? CARRIER[m.group]).replace('{}', m.snippet);
+
+// What a drop promises: the method chained onto a playing pattern with its default evaluates and plays, and a
+// function's expression plays in the place it is written for.
+test.each(catalogue.methods.map((m): [string, MethodDoc] => [`${m.kind} ${m.name}`, m]))(
   '%s evaluates and sounds with its default',
   async (_name: string, m: MethodDoc) => {
     const r = core.repl({ transpiler, defaultOutput: async () => {}, getTime: () => 0 });
-    const code = base(m) + m.snippet;
+    const code = m.kind === 'method' ? base(m) + m.snippet : carried(m);
     const pat = (await r.evaluate(code, false)) ?? r.scheduler.pattern;
     expect(pat, `${code} evaluates`).toBeDefined(); // the repl reports an error by returning nothing
     const haps = pat.queryArc(0, 1).filter((h: { whole?: unknown }) => h.whole);
