@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from algorip.drumloop import drum_loops, voice_loop
+from algorip.drumloop import FILL_MIN_HITS, drum_loops, voice_loop
 from algorip.schema import Analysis
 
 GOLDEN = Path(__file__).parent / "golden"
@@ -65,7 +65,7 @@ def test_drum_loops_over_an_analysis():
     a = analysis(drums={"bd": [(b, s) for b in range(4) for s in FOUR] + [(3, 10)], "sd": [(b, s) for b in range(4) for s in (4, 12)], "hh": [], "oh": []}, bars=4)
     d = drum_loops(a)
     assert set(d.voices) == {"bd", "sd"}
-    assert d.fill_bars == (4, 4)
+    assert d.fill_bars is None  # one stray is under FILL_MIN_HITS
     assert d.match == pytest.approx(round(2 * 24 / (24 + 25), 2))   # 24 played, 25 classified
     assert drum_loops(analysis(drums={}, bars=4)).voices == {} and drum_loops(analysis(drums={}, bars=4)).match == 1.0
 
@@ -82,3 +82,29 @@ def test_a_loop_with_an_empty_phase_has_no_regular_part():
     v = voice_loop(bars)
     assert v.period == 1 and v.templates == [set()]
     assert v.fills == bars
+
+
+def test_a_bar_needs_three_strays_over_the_looped_voices_to_be_a_fill():
+    assert FILL_MIN_HITS == 3
+    bd = [(b, s) for b in range(4) for s in FOUR] + [(1, 2), (1, 3)]  # two strays in bar 2
+    sd = [(b, s) for b in range(4) for s in (4, 12)] + [(1, 14), (3, 14), (3, 15)]  # one in bar 2, two in bar 4
+    d = drum_loops(analysis(drums={"bd": bd, "sd": sd, "hh": [], "oh": []}, bars=4))
+    assert d.voices["bd"].fills == [set(), {2, 3}, set(), set()]  # bar 2: 2 + 1 = 3, kept
+    assert d.voices["sd"].fills == [set(), {14}, set(), set()]  # bar 4: 0 + 2 = 2, dropped
+    assert d.fill_bars == (2, 2)
+
+
+def test_dropped_strays_still_count_as_unplayed():
+    bd = [(b, s) for b in range(4) for s in FOUR] + [(3, 10)]
+    d = drum_loops(analysis(drums={"bd": bd, "sd": [], "hh": [], "oh": []}, bars=4))
+    assert d.voices["bd"].fills == [set()] * 4 and d.fill_bars is None
+    assert d.match == pytest.approx(round(2 * 16 / (16 + 17), 2))
+
+
+def test_a_voice_with_no_regular_part_keeps_every_hit_as_a_fill():
+    bd = [(b, s) for b in range(9) for s in FOUR]
+    oh = [(b, s) for b in (0, 4, 8) for s in OFF]  # every fourth bar, as test_an_empty_phase_is_not_a_loop_for_a_drum_voice
+    d = drum_loops(analysis(drums={"bd": bd, "sd": [], "hh": [], "oh": oh}, bars=9))
+    assert d.voices["oh"].templates == [set()]
+    assert [bool(f) for f in d.voices["oh"].fills] == [True, False, False, False, True, False, False, False, True]
+    assert d.fill_bars == (1, 9)

@@ -20,6 +20,12 @@ from algorip.schema import Analysis
 
 VOICE_LINES: dict[str, tuple[str, ...]] = {"drums": ("bd", "sd"), "hats": ("hh", "oh")}
 
+# A bar's strays over the voices that have a loop are written as a fill only from this many hits; below it
+# they are dropped from the fills line (they still count as unplayed in `match`). Set on Solomun, where the
+# kick and clap stray 4, 2, 1, 2, 1, 2, 2, 1, 1 times per bar: 3 keeps the bar-1 pickup only. A voice with no
+# regular part has no loop to stray from, so every hit of it stays a fill.
+FILL_MIN_HITS = 3
+
 
 @dataclass
 class VoiceLoop:
@@ -80,6 +86,11 @@ def drum_loops(a: Analysis) -> DrumLoops:
             heard.add((voice, bar, step))
         v = voices[voice] = voice_loop(bars)
         played |= {(voice, b, s) for b in range(a.bars) for s in v.templates[b % v.period]}
+    looped = [v for v in voices.values() if any(v.templates)]
+    for b in range(a.bars):
+        if sum(len(v.fills[b]) for v in looped) < FILL_MIN_HITS:
+            for v in looped:
+                v.fills[b] = set()
     filled = [b for v in voices.values() for b, fill in enumerate(v.fills) if fill]
     fill_bars = (min(filled) + 1, max(filled) + 1) if filled else None
     return DrumLoops(voices, fill_bars, _f1(played, heard))
