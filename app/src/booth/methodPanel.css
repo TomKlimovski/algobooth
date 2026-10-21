@@ -1,0 +1,81 @@
+/* The Methods panel mirrors the library's tree (library.css) in colour and size. */
+.booth-methods { display: flex; flex-direction: column; min-width: 0; overflow: hidden; box-sizing: border-box; }
+
+.methods { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+
+.methods-header {
+  display: flex;
+  align-items: center;
+  height: 22px;
+  padding: 6px 4px 6px 8px;
+  border-bottom: 1px solid #2a2d36;
+  color: #8b90a0;
+}
+.methods-title { flex: 1; text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; }
+
+.method-search {
+  margin: 6px 8px 2px;
+  padding: 2px 4px;
+  border: 1px solid #2a2d36;
+  border-radius: 3px;
+  background: #0a0b0e;
+  color: #cfd3dc;
+  font: inherit;
+  outline: none;
+}
+.method-search:focus { border-color: #3a5a8a; }
+
+.methods-tree { flex: 1; min-height: 0; overflow: auto; padding: 4px; }
+
+.method-folder,
+.method-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  white-space: nowrap;
+  cursor: default;
+  user-select: none;
+}
+.method-folder {
+  width: 100%;
+  border: none;
+  background: none;
+  color: #ffb86c;
+  font: inherit;
+  text-align: left;
+}
+.method-folder:hover,
+.method-row:hover { background: #171a22; }
+.method-folder:focus-visible,
+.method-row:focus { outline: none; box-shadow: inset 0 0 0 1px #3a5a8a; }
+.method-disclosure { width: 10px; flex: none; color: #8b90a0; }
+.method-folder-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.method-count { color: #8b90a0; font-size: 9px; }
+.method-row { padding-left: 16px; overflow: hidden; text-overflow: ellipsis; cursor: grab; }
+
+.method-tip {
+  position: fixed;
+  z-index: 20;
+  width: max-content;
+  max-width: 320px;
+  padding: 6px 10px;
+  border: 1px solid #3a3e4a;
+  border-radius: 4px;
+  background: #0a0b0e;
+  color: #cfd3dc;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: normal;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  /* Anchored at the row's left edge, it opens leftwards by its own width. */
+  transform: translateX(-100%);
+}
+.method-tip p { margin: 4px 0 0; }
+.method-tip-snippet { color: #ffb86c; white-space: pre; }
+.method-tip-dim,
+.method-tip-param { color: #8b90a0; }
+.method-tip-param:first-of-type { margin-top: 4px; }
+.method-tip-note { color: #ffb86c; }

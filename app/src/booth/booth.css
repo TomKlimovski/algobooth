@@ -15,6 +15,15 @@ body {
   border-right: 1px solid #2a2d36;
 }
 
+.booth-methods {
+  flex: 0 0 210px;
+  border-left: 1px solid #2a2d36;
+  /* In a narrow window the footer's controls overflow .booth-main; keep them under the panel. */
+  position: relative;
+  z-index: 1;
+  background: #0e0f13;
+}
+
 .booth-main {
   flex: 1;
   min-width: 0;

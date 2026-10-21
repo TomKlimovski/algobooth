@@ -10,6 +10,7 @@ import { createBoothState, DEFAULT_KNOBS } from './boothState';
 import { cpmFromCps, createDeckState, type DeckId } from './deckState';
 import { Fader } from './Fader';
 import { MasterStrip } from './MasterStrip';
+import { MethodPanel } from './MethodPanel';
 import { isTransportKey, transportAction } from './spaceToggle';
 import { DECK_CONTROLS, MASTER_CONTROLS } from '../engine/controlMap';
 import './booth.css';
@@ -205,6 +206,10 @@ export function Booth(props: {
           </div>
         </footer>
       </main>
+      <aside class="booth-methods">
+        {/* Task 5: insert into the library's target deck */}
+        <MethodPanel onInsert={() => {}} />
+      </aside>
     </div>
   );
 }
