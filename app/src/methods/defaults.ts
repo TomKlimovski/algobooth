@@ -3,6 +3,7 @@ export const SOURCES: string[] = [
   'core/controls.mjs',
   'core/pattern.mjs',
   'core/signal.mjs',
+  'core/euclid.mjs',
   'tonal/tonal.mjs',
   'tonal/voicings.mjs',
 ];
@@ -51,6 +52,8 @@ export const DENY: Record<string, string> = {
   range2: BARE_VALUES,
   ratio: BARE_VALUES,
   invert: 'swaps 1s and 0s in a binary pattern, which does not sound',
+  choose: 'reads the pattern it is called on as a 0..1 signal; on a sound pattern it picks nothing',
+  choose2: 'reads the pattern it is called on as a -1..1 signal; on a sound pattern it picks nothing',
   ...Object.fromEntries(
     [
       'wt', 'wtenv', 'wtattack', 'wtdecay', 'wtsustain', 'wtrelease', 'wtrate', 'wtsync', 'wtdepth', 'wtshape',
@@ -75,6 +78,7 @@ const DRUMS = 's("bd*4").bank("tr909")';
 const DUCK_NOTE = 'orbits here are decks: 1 = deck A, 2 = deck B';
 const VOICING = { base: 'chord("<C^7 Dm7>")', note: 'needs a chord() pattern' };
 const CALLBACK = 'x => x.speed(2)';
+const CHORDS = { base: 'note("<[c3,e3,g3] [d3,f3,a3]>").s("sawtooth")', note: 'needs stacked notes, e.g. "[c,e,g]"' };
 
 /** A family's parts only sound once the family's switch is on, so their test base turns it on. */
 function needs(base: string, note: string, args: Record<string, string>): Record<string, Default> {
@@ -149,6 +153,8 @@ export const DEFAULTS: Record<string, Default> = {
   sub: { args: 'note(§12§)' },
   detune: { args: '§0.3§', base: 'note("c3 e3 g3 c4").s("supersaw")', note: 'for s("supersaw")' },
   vowel: { args: '"§a§"' },
+  arp: { args: '"§0 [0,2] 1 [0,2]§"', ...CHORDS },
+  arpWith: { args: '(haps) => haps[haps.length - 1]', ...CHORDS },
   octave: { args: '§4§' },
   freq: { args: '§220§' },
   penv: { args: '§12§' },
@@ -244,9 +250,6 @@ export const DEFAULTS: Record<string, Default> = {
     ['soft', 'hard', 'cubic', 'diode', 'asym', 'fold', 'sinefold', 'chebyshev'].map((name) => [name, { args: '§1§' }]),
   ),
 
-  // jux, ply, swingBy, struct, mask and euclid have no @name block in the five sources, so no row yet;
-  // the build prints them as defaults with no catalogue row.
-
   // Pan and Space
   pan: { args: '§0.25§' },
   jux: { args: 'rev' },
@@ -260,6 +263,13 @@ export const DEFAULTS: Record<string, Default> = {
   chop: { args: '§4§' },
   striate: { args: '§4§' },
   segment: { args: '§8§' },
+  hurry: { args: '§2§' },
+  linger: { args: '§0.25§' },
+  compress: { args: '§0.25§, 0.75' },
+  focus: { args: '§0.25§, 0.75' },
+  zoom: { args: '§0.25§, 0.75' },
+  bite: { args: '§4§, "0 2 1 3"' },
+  pressBy: { args: '§0.25§' },
   swingBy: { args: '§1/3§, 4' },
   ribbon: { args: '§1§, 2' },
   echo: { args: '§3§, 1/8, 0.8' },
@@ -277,6 +287,14 @@ export const DEFAULTS: Record<string, Default> = {
   struct: { args: '"§x ~ x x§"' },
   mask: { args: '"§1 0 1 1§"' },
   euclid: { args: '§3§, 8' },
+  euclidRot: { args: '§3§, 8, 2' },
+  euclidLegato: { args: '§3§, 8' },
+  euclidLegatoRot: { args: '§3§, 8, 2' },
+  euclidish: { args: '§3§, 8, 0.5' },
+  reset: { args: '"§x(3,8)§"' },
+  restart: { args: '"§x(3,8)§"' },
+  inside: { args: '§2§, rev' },
+  outside: { args: '§2§, rev' },
   chunk: { args: '§4§, x => x.fast(2)' },
   chunkBack: { args: '§4§, x => x.fast(2)' },
   fastChunk: { args: '§4§, x => x.fast(2)' },
@@ -308,6 +326,11 @@ export const DEFAULTS: Record<string, Default> = {
   as: { args: '"§note:clip§"', base: '"c3:.5 e3:1 g3:.25 c4:.8"', note: 'needs a pattern of plain values, e.g. "c3:.5 e3:1"' },
   xfade: { args: '§0.5§, s("hh*8").bank("tr909")' },
   FX: { args: 'phaser(§2§)' },
+  // bd*4 is one step, so dropping a step leaves nothing; four steps leave three.
+  drop: { args: '"§1§"', base: 's("bd hh sd hh").bank("tr909")' },
+  expand: { args: '§2§' },
+  contract: { args: '§2§' },
+  tour: { args: 's("§hh*2§").bank("tr909")' },
   bus: { args: '§1§', note: 'heard through a pattern that plays s("bus")' },
   busgain: { args: '§0.8§', base: `${DRUMS}.bus(1)`, note: 'needs .bus()' },
   bmod: {

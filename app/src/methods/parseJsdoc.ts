@@ -31,19 +31,35 @@ function firstParagraph(lines: string[]): string {
   const start = lines.findIndex((line) => line.trim() !== '');
   if (start === -1) return '';
   const paragraph: string[] = [];
-  for (const line of lines.slice(start)) {
-    if (line.trim() === '') break;
-    paragraph.push(line.trim());
-  }
-  return paragraph.join(' ');
+  let i = start;
+  for (; i < lines.length && lines[i].trim() !== ''; i++) paragraph.push(lines[i].trim());
+  const text = paragraph.join(' ');
+  // Strudel heads its stepwise functions with a lone `*Experimental*`; the description is the next paragraph.
+  if (text === '*Experimental*') return `${text} ${firstParagraph(lines.slice(i))}`.trim();
+  return text;
 }
 
-/** Every `/** ... *\/` block in `source` that has an @name. */
+/**
+ * The name the code line after a block defines, as Strudel's jsdoc infers it for blocks without @name:
+ * `register('x'` or `register(['x', ...]` (first name), `Pattern.prototype.x =`, or `export const x =`.
+ */
+function codeName(after: string): string | undefined {
+  const line = after.split('\n').find((l) => l.trim() !== '');
+  if (line === undefined) return undefined;
+  return (
+    /register\(\[?\s*['"]([\w$]+)['"]/.exec(line)?.[1] ??
+    /^\s*Pattern\.prototype\.([\w$]+)\s*=/.exec(line)?.[1] ??
+    /^\s*export\s+const\s+([\w$]+)\s*=/.exec(line)?.[1]
+  );
+}
+
+/** Every `/** ... *\/` block in `source` with a name: its @name, else the name its next code line defines. */
 export function parseJsdocBlocks(source: string): JsdocBlock[] {
   const blocks: JsdocBlock[] = [];
   for (const match of source.matchAll(BLOCK)) {
     const { description, tags } = splitBlock(match[1]);
-    const name = tags.find((t) => t.tag === 'name')?.text;
+    const end = match.index + match[0].length;
+    const name = tags.find((t) => t.tag === 'name')?.text ?? codeName(source.slice(end, end + 500));
     if (!name) continue;
     const params: JsdocBlock['params'] = [];
     for (const t of tags) {

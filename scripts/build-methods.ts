@@ -23,10 +23,11 @@ register(
     ),
 );
 
-/** JSDoc markup out of a description: bold, {@link X#name}, [text](url) and literal \n escapes. */
+/** JSDoc markup out of a description: bold, the *Experimental* label, {@link X#name}, [text](url), literal \n. */
 function plain(description: string): string {
   return description
     .replace(/\*\*([^*]*)\*\*/g, '$1')
+    .replace(/^\*Experimental\* /, 'Experimental: ')
     .replace(/\{@link\s+(?:[^}\s#]*#)?([^}\s]+)\s*\}/g, '$1')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/\\n/g, ' ')

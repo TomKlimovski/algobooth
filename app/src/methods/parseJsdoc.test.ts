@@ -53,8 +53,24 @@ test('parses name, synonyms, first paragraph, params and first example', () => {
   expect(rev.params).toEqual([]);
 });
 
-test('a block without @name is skipped and tags are collected', () => {
-  expect(parseJsdocBlocks(FIXTURE)).toHaveLength(2);
+test('a block without @name takes its name from the code line after it', () => {
+  const names = (source: string) => parseJsdocBlocks(source).map((b) => b.name);
+  expect(names("/** Repeats each event.\n * @example\n * s(\"bd\").ply(2)\n */\nexport const ply = register('ply', function (factor, pat) {});")).toEqual(['ply']);
+  expect(names("/** Rotated euclid. */\nexport const { euclidrot, euclidRot } = register(['euclidrot', 'euclidRot'], f);")).toEqual(['euclidrot']);
+  expect(names('/** Applies the given structure. */\n  Pattern.prototype.struct = function (...args) {};')).toEqual(['struct']);
+  expect(names('/** A sawtooth signal. */\nexport const saw = signal((t) => t % 1);')).toEqual(['saw']);
+  expect(names('/** Plays the pattern. */\n\nPattern.prototype.play = function () {};')).toEqual(['play']); // blank lines skipped
+});
+
+test('a lone *Experimental* label does not stand in for the description', () => {
+  const [pace] = parseJsdocBlocks('/**\n * *Experimental*\n *\n * Speeds a pattern up or down.\n * @example\n * s("bd").pace(4)\n */\nexport const pace = register(\'pace\', f);');
+  expect(pace.description).toBe('*Experimental* Speeds a pattern up or down.');
+});
+
+test('a block with neither @name nor a recognised code line is skipped, and tags are collected', () => {
+  expect(parseJsdocBlocks('/** A class method. */\n  withValue(func) {\n  }')).toHaveLength(0);
+  expect(parseJsdocBlocks('/** At the end. */')).toHaveLength(0);
+  expect(parseJsdocBlocks(FIXTURE).map((b) => b.name)).toEqual(['duckattack', 'rev', 'hidden']);
   expect(parseJsdocBlocks('/**\n * x\n * @name foo\n * @superdirtOnly\n */')[0].tags.has('superdirtOnly')).toBe(true);
 });
 

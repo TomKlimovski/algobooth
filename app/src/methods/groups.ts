@@ -1,5 +1,6 @@
 // `pnpm build-methods` prints the names that fall into Other. At Strudel 1.2.6 they are:
-// apply, as, bmod, bus, busgain, div, FX, into, layer, mul, superimpose, xfade.
+// apply, as, bmod, bus, busgain, div, FX, into, layer, mul, superimpose, xfade, and the experimental
+// stepwise functions contract, drop, expand, extend, grow, pace, replicate, shrink, take, tour.
 
 /** The Methods panel's folders, in panel order; anything not in GROUP_OF goes to Other. */
 export const GROUPS = [
@@ -25,7 +26,7 @@ const MEMBERS: Record<string, string[]> = {
     'pw', 'pwrate', 'pwsweep', 'unison', 'partials', 'phases', 'byteBeatExpression', 'byteBeatStartTime',
   ],
   Pitch: [
-    'transpose', 'scale', 'scaleTranspose', 'voicing', 'rootNotes', 'add', 'sub', 'detune', 'vowel',
+    'transpose', 'scale', 'scaleTranspose', 'voicing', 'rootNotes', 'arp', 'arpWith', 'add', 'sub', 'detune', 'vowel',
     'octave', 'freq', 'penv', 'pattack', 'pdecay', 'prelease', 'pcurve', 'panchor',
   ],
   Filter: [
@@ -54,13 +55,15 @@ const MEMBERS: Record<string, string[]> = {
     'distort', 'distortvol', 'distorttype', 'crush', 'coarse', 'shape', 'drive',
     'soft', 'hard', 'cubic', 'diode', 'asym', 'fold', 'sinefold', 'chebyshev',
   ],
-  'Pan and Space': ['pan', 'juxBy', 'spread'],
+  'Pan and Space': ['pan', 'jux', 'juxBy', 'spread'],
   Time: [
     'fast', 'slow', 'fastGap', 'early', 'late', 'rev', 'revv', 'off', 'iter', 'iterBack', 'segment', 'repeatCycles',
-    'ribbon', 'chop', 'striate', 'echo', 'echoWith', 'stut', 'plyWith', 'plyForEach', 'shuffle', 'scramble',
+    'ribbon', 'chop', 'striate', 'echo', 'echoWith', 'stut', 'ply', 'plyWith', 'plyForEach', 'shuffle', 'scramble',
+    'hurry', 'swingBy', 'swing', 'palindrome', 'linger', 'compress', 'focus', 'zoom', 'bite', 'brak', 'press', 'pressBy',
   ],
   Structure: [
-    'every', 'firstOf', 'lastOf', 'when', 'within', 'chunk', 'chunkBack', 'fastChunk', 'chunkInto', 'chunkBackInto',
+    'every', 'firstOf', 'lastOf', 'when', 'within', 'struct', 'mask', 'euclid', 'euclidRot', 'euclidLegato',
+    'euclidLegatoRot', 'euclidish', 'reset', 'restart', 'inside', 'outside', 'chunk', 'chunkBack', 'fastChunk', 'chunkInto', 'chunkBackInto',
     'sometimes', 'sometimesBy', 'someCycles', 'someCyclesBy', 'often', 'rarely', 'almostNever', 'almostAlways',
     'never', 'always', 'degrade', 'degradeBy', 'undegrade', 'undegradeBy', 'seed', 'beat', 'filter', 'filterWhen',
   ],
