@@ -8,14 +8,14 @@ in its bar.
 
 A drum voice differs from the bass in one way: a phase template with no hits, while that phase's bars
 do have some (open hats every fourth bar vote a period-4 loop with three silent bars), is not a loop.
-When the found loop has such an empty phase, the voice's loop is its one-bar majority vote instead
-(find_loop already tried the shorter periods, so there is nothing to retry), and the hits off it are fills. When that vote is empty too, the voice has no
-regular part and every hit is a fill. This rule lives here so the bass is untouched.
+When the found loop has such an empty phase, the voice has no regular part: it gets no main line and
+every hit is a fill at its bar position (find_loop already tried the shorter periods, and a one-bar
+majority vote would write a loop the track does not play). This rule lives here so the bass is untouched.
 """
 
 from dataclasses import dataclass
 
-from algorip.loop import Loop, find_loop, vote
+from algorip.loop import Loop, find_loop
 from algorip.schema import Analysis
 
 VOICE_LINES: dict[str, tuple[str, ...]] = {"drums": ("bd", "sd"), "hats": ("hh", "oh")}
@@ -55,8 +55,8 @@ def voice_loop(bars: list[set[int]]) -> VoiceLoop:
     # the spec's retry over shorter periods is vacuous: find_loop returns the shortest qualifying period
     if not _has_empty_phase(found, bars):
         return _loop(found.period, [set(t) for t in found.templates], bars)
-    # the one-bar vote; when it is empty the voice has no regular part and every hit is a fill
-    return _loop(1, [set(vote(steps, 1)[0])], bars)
+    # an empty phase: the voice has no regular part, and every hit is a fill
+    return _loop(1, [set()], bars)
 
 
 def _f1(played: set[tuple[str, int, int]], heard: set[tuple[str, int, int]]) -> float:
