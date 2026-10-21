@@ -349,7 +349,7 @@
       ],
       "group": "Sound",
       "source": "@strudel/core/controls.mjs",
-      "note": null,
+      "note": "for s(...) synths, e.g. s(\"sawtooth\")",
       "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\")"
     },
     {
@@ -382,7 +382,7 @@
       "argRange": null,
       "group": "Sound",
       "source": "@strudel/core/pattern.mjs",
-      "note": null,
+      "note": "for s(...) synths, e.g. s(\"sawtooth\")",
       "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\")"
     },
     {
@@ -400,7 +400,7 @@
       "argRange": null,
       "group": "Sound",
       "source": "@strudel/core/pattern.mjs",
-      "note": null,
+      "note": "for s(...) synths, e.g. s(\"sawtooth\")",
       "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\")"
     },
     {
@@ -877,7 +877,7 @@
       ],
       "group": "Pitch",
       "source": "@strudel/tonal/tonal.mjs",
-      "note": null,
+      "note": "needs note(); silent on a drum deck",
       "base": null
     },
     {
@@ -939,7 +939,7 @@
       ],
       "group": "Pitch",
       "source": "@strudel/tonal/tonal.mjs",
-      "note": null,
+      "note": "needs note(); silent on a drum deck",
       "base": null
     },
     {
@@ -2214,7 +2214,7 @@
       ],
       "group": "Ducking",
       "source": "@strudel/core/controls.mjs",
-      "note": "orbits here are decks: 1 = deck A, 2 = deck B",
+      "note": "needs .duckorbit(); orbits here are decks: 1 = deck A, 2 = deck B",
       "base": "s(\"bd*4\").bank(\"tr909\").duckorbit(2)"
     },
     {
@@ -2235,7 +2235,7 @@
       ],
       "group": "Ducking",
       "source": "@strudel/core/controls.mjs",
-      "note": "orbits here are decks: 1 = deck A, 2 = deck B",
+      "note": "needs .duckorbit(); orbits here are decks: 1 = deck A, 2 = deck B",
       "base": "s(\"bd*4\").bank(\"tr909\").duckorbit(2)"
     },
     {
@@ -2258,7 +2258,7 @@
       ],
       "group": "Ducking",
       "source": "@strudel/core/controls.mjs",
-      "note": "orbits here are decks: 1 = deck A, 2 = deck B",
+      "note": "needs .duckorbit(); orbits here are decks: 1 = deck A, 2 = deck B",
       "base": "s(\"bd*4\").bank(\"tr909\").duckorbit(2)"
     },
     {
@@ -2663,7 +2663,7 @@
       ],
       "group": "Modulation",
       "source": "@strudel/core/controls.mjs",
-      "note": null,
+      "note": "needs a filter to modulate, e.g. .lpf()",
       "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").lpf(800)"
     },
     {
@@ -2774,7 +2774,7 @@
       ],
       "group": "Modulation",
       "source": "@strudel/core/controls.mjs",
-      "note": null,
+      "note": "for s(...) synths, e.g. s(\"sawtooth\")",
       "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\")"
     },
     {
@@ -2922,7 +2922,7 @@
       ],
       "group": "Modulation",
       "source": "@strudel/core/controls.mjs",
-      "note": null,
+      "note": "needs a filter to modulate, e.g. .lpf()",
       "base": "note(\"c3 e3 g3 c4\").s(\"sawtooth\").lpf(800)"
     },
     {

@@ -27,7 +27,8 @@ test('every grouped name exists and the voicing family carries its note', () => 
   const names = new Set(catalogue.methods.map((m) => m.name));
   for (const n of Object.keys(GROUP_OF)) expect(names.has(n), n).toBe(true);
   expect(catalogue.methods.find((m) => m.name === 'voicing')?.note).toBe('needs a chord() pattern');
-  expect(catalogue.methods.find((m) => m.name === 'duckattack')?.note).toBe('orbits here are decks: 1 = deck A, 2 = deck B');
+  expect(catalogue.methods.find((m) => m.name === 'duckorbit')?.note).toBe('orbits here are decks: 1 = deck A, 2 = deck B');
+  expect(catalogue.methods.find((m) => m.name === 'duckattack')?.note).toBe('needs .duckorbit(); orbits here are decks: 1 = deck A, 2 = deck B');
 });
 
 test('a hand default selects its marked literal, an example default selects the whole literal', () => {

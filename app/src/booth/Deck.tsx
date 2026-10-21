@@ -11,7 +11,7 @@ import { evaluateExclusive } from '../engine/evalLock';
 import { initEngine } from '../engine/strudel';
 import { isDirty, newPatternDecision, onDiskChange, patternFromDeck, sameCode } from './deckFile';
 import { cpmFromCps, ORBIT, type DeckId, type DeckState } from './deckState';
-import { applyDrag, methodDropExtension, type MethodDrag } from './methodDrop';
+import { insertAtCursor, methodDropExtension, type MethodDrag } from './methodDrop';
 import { SaveDialog, type SaveTarget } from './SaveDialog';
 import './deck.css';
 
@@ -299,8 +299,7 @@ export function Deck(props: {
       ]),
     });
     const insertSnippet = (drag: MethodDrag) => {
-      const view: EditorView = mirror.editor;
-      const ok = applyDrag(view, view.state.doc.lineAt(view.state.selection.main.head).number - 1, drag);
+      const ok = insertAtCursor(mirror.editor, drag);
       if (!ok) refuse();
       return ok;
     };

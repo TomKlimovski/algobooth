@@ -76,6 +76,9 @@ type Default = { args: string; base?: string; note?: string };
 const SYNTH = 'note("c3 e3 g3 c4").s("sawtooth")';
 const DRUMS = 's("bd*4").bank("tr909")';
 const DUCK_NOTE = 'orbits here are decks: 1 = deck A, 2 = deck B';
+const FOR_SYNTH = 'for s(...) synths, e.g. s("sawtooth")';
+const MODULATES = 'needs a filter to modulate, e.g. .lpf()';
+const NEEDS_NOTE = 'needs note(); silent on a drum deck';
 const VOICING = { base: 'chord("<C^7 Dm7>")', note: 'needs a chord() pattern' };
 const CALLBACK = 'x => x.speed(2)';
 const CHORDS = { base: 'note("<[c3,e3,g3] [d3,f3,a3]>").s("sawtooth")', note: 'needs stacked notes, e.g. "[c,e,g]"' };
@@ -131,12 +134,12 @@ export const DEFAULTS: Record<string, Default> = {
   slice: { args: '§4§, "0 2 1 3"' },
   splice: { args: '§4§, "0 2 1 3"' },
   scrub: { args: '"§0.25§"' },
-  noise: { args: '§0.3§', base: SYNTH },
+  noise: { args: '§0.3§', base: SYNTH, note: FOR_SYNTH },
   density: { args: '§0.1§', base: 's("crackle*4")', note: 'for s("crackle")' },
   ...needs('note("c3 e3 g3 c4").s("pulse")', 'for s("pulse")', { pw: '§0.3§', pwrate: '§2§', pwsweep: '§0.3§' }),
   unison: { args: '§5§', base: 'note("c3 e3 g3 c4").s("supersaw")', note: 'for s("supersaw")' },
-  partials: { args: '[1, 0.5, 0.3, 0.2]', base: SYNTH },
-  phases: { args: '[0, 0.5, 0, 0.25]', base: SYNTH },
+  partials: { args: '[1, 0.5, 0.3, 0.2]', base: SYNTH, note: FOR_SYNTH },
+  phases: { args: '[0, 0.5, 0, 0.25]', base: SYNTH, note: FOR_SYNTH },
   ...needs('s("bytebeat")', 'for s("bytebeat")', {
     // Single quotes: a double-quoted string is mini-notation.
     byteBeatExpression: "'§t*(t>>15^t>>66)§'",
@@ -144,8 +147,8 @@ export const DEFAULTS: Record<string, Default> = {
   }),
 
   // Pitch
-  transpose: { args: '§7§' },
-  scale: { args: '"§C:minor§"' },
+  transpose: { args: '§7§', note: NEEDS_NOTE },
+  scale: { args: '"§C:minor§"', note: NEEDS_NOTE },
   scaleTranspose: { args: '§2§', base: 'n("0 2 4 6").scale("C:minor").s("sawtooth")', note: 'needs a scale() pattern' },
   voicing: { args: '', ...VOICING },
   rootNotes: { args: '§2§', ...VOICING },
@@ -189,7 +192,7 @@ export const DEFAULTS: Record<string, Default> = {
 
   // Ducking
   duckorbit: { args: '§2§', note: DUCK_NOTE },
-  ...needs(`${DRUMS}.duckorbit(2)`, DUCK_NOTE, { duckattack: '§0.2§', duckdepth: '§0.8§', duckonset: '§0.01§' }),
+  ...needs(`${DRUMS}.duckorbit(2)`, `needs .duckorbit(); ${DUCK_NOTE}`, { duckattack: '§0.2§', duckdepth: '§0.8§', duckonset: '§0.01§' }),
 
   // Delay and Reverb
   delay: { args: '§0.5§' },
@@ -212,7 +215,7 @@ export const DEFAULTS: Record<string, Default> = {
   // Modulation
   vib: { args: '§4§' },
   ...needs(`${DRUMS}.vib(4)`, 'needs .vib()', { vibmod: '§0.5§' }),
-  fmi: { args: '§4§', base: SYNTH },
+  fmi: { args: '§4§', base: SYNTH, note: FOR_SYNTH },
   ...needs(`${SYNTH}.fm(4)`, 'needs .fm()', {
     fmh: '§2§',
     fmenv: '"§lin§"',
@@ -236,8 +239,8 @@ export const DEFAULTS: Record<string, Default> = {
     tremolophase: '§0.25§',
     tremoloshape: '"§tri§"',
   }),
-  lfo: { args: '{ c: "lpf", r: §4§ }', base: `${SYNTH}.lpf(800)` },
-  env: { args: '{ c: "lpf", a: §0.1§ }', base: `${SYNTH}.lpf(800)` },
+  lfo: { args: '{ c: "lpf", r: §4§ }', base: `${SYNTH}.lpf(800)`, note: MODULATES },
+  env: { args: '{ c: "lpf", a: §0.1§ }', base: `${SYNTH}.lpf(800)`, note: MODULATES },
 
   // Distortion
   distort: { args: '§1§' },

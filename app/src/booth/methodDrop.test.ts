@@ -1,5 +1,6 @@
 import { EditorView } from '@codemirror/view';
-import { insertAtLineEnd, METHOD_MIME, methodDropExtension } from './methodDrop';
+import { insertAtCursor, insertAtLineEnd, METHOD_MIME, methodDropExtension } from './methodDrop';
+import { DEFAULT_CODE } from './Deck';
 
 const drag = { name: 'lpf', snippet: '.lpf(800)', argRange: [5, 8] as [number, number] };
 test('lands at the end of a plain line, selecting the argument', () => {
@@ -39,6 +40,30 @@ test('a line ending in an opening bracket refuses rather than walking up', () =>
 });
 test('a CRLF document lands before the carriage return', () => {
   expect(insertAtLineEnd('a: s("bd")\r\nb: s("hh")', 0, drag)?.code).toBe('a: s("bd").lpf(800)\r\nb: s("hh")');
+});
+test('a setup line is never a target: the walk goes down to the next pattern line', () => {
+  expect(insertAtLineEnd('setcpm(30)\n\n$: s("bd")', 0, drag)?.code).toBe('setcpm(30)\n\n$: s("bd").lpf(800)');
+  expect(insertAtLineEnd('setcpm(30)\n\n$: s("bd")', 1, drag)?.code).toBe('setcpm(30)\n\n$: s("bd").lpf(800)');
+  expect(insertAtLineEnd('samples("x")\nconst k = 1\n$: s("bd")', 1, drag)?.code).toBe('samples("x")\nconst k = 1\n$: s("bd").lpf(800)');
+  expect(insertAtLineEnd('setcpm(30)', 0, drag)).toBeNull();
+});
+test('a line ending inside a multi-line template literal refuses', () => {
+  expect(insertAtLineEnd('note(`<c3 e3\ng3>`)', 0, drag)).toBeNull();
+  expect(insertAtLineEnd('note(`<c3 e3\ng3>`)', 1, drag)?.code).toBe('note(`<c3 e3\ng3>`).lpf(800)');
+});
+test('a trailing comma after a number, an arrow or a binary operator refuses', () => {
+  expect(insertAtLineEnd('$: s("bd").every(4,\n  x => x.fast(2))', 0, drag)).toBeNull();
+  expect(insertAtLineEnd('$: s("bd").every(4, x =>\n  x.fast(2))', 0, drag)).toBeNull();
+  expect(insertAtLineEnd('$: s("bd") +\n  s("hh")', 0, drag)).toBeNull();
+  expect(insertAtLineEnd('stack(s("bd"),\n  s("hh"))', 0, drag)?.code).toBe('stack(s("bd").lpf(800),\n  s("hh"))');
+});
+test('insertAtCursor on an untouched default deck lands on its pattern line', () => {
+  const view = new EditorView({ doc: DEFAULT_CODE.A, parent: document.body });
+  expect(view.state.selection.main.head).toBe(0);
+  expect(insertAtCursor(view, drag)).toBe(true);
+  expect(view.state.doc.toString()).toBe(`${DEFAULT_CODE.A}.lpf(800)`);
+  expect(view.state.doc.line(2).text.endsWith('.lpf(800)')).toBe(true);
+  view.destroy();
 });
 
 describe('methodDropExtension', () => {
