@@ -1,18 +1,27 @@
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from 'solid-js';
 import { PREVIEW_DELAY_MS } from '../library/LibraryTree';
-import { catalogue, GROUPS, type MethodDoc } from '../methods/catalogue';
+import { catalogue, FUNCTION_GROUPS, GROUPS, type MethodDoc } from '../methods/catalogue';
 import { METHOD_MIME, type MethodDrag } from './methodDrop';
 import './methodPanel.css';
 
 /** Keeps the tooltip this far inside the window when the row is near the bottom. */
 const TIP_MARGIN_PX = 8;
 
-const toDrag = (m: MethodDoc): MethodDrag => ({ name: m.name, snippet: m.snippet, argRange: m.argRange });
+const toDrag = (m: MethodDoc): MethodDrag => ({ name: m.name, snippet: m.snippet, argRange: m.argRange, kind: m.kind });
 
 const matches = (m: MethodDoc, q: string) =>
   m.name.toLowerCase().includes(q) || m.synonyms.some((s) => s.toLowerCase().includes(q)) || m.description.toLowerCase().includes(q);
 
-/** Strudel's chainable methods in folders; drag one onto a deck, or double-click to insert it. */
+/** The two sections of the panel: each kind of row with its own folder order and heading. */
+const SECTIONS: { kind: MethodDoc['kind']; title: string; groups: string[] }[] = [
+  { kind: 'method', title: 'Methods', groups: GROUPS },
+  { kind: 'function', title: 'Functions', groups: FUNCTION_GROUPS },
+];
+
+/**
+ * Strudel's chainable methods and standalone functions in folders; drag one onto a deck, or double-click to
+ * insert it. A method lands at the end of a line, a function where the pointer is.
+ */
 export function MethodPanel(props: { onInsert?: (drag: MethodDrag) => void }) {
   const [query, setQuery] = createSignal('');
   // Folder names the user opened; kept for the app's lifetime, not persisted.
@@ -24,14 +33,22 @@ export function MethodPanel(props: { onInsert?: (drag: MethodDrag) => void }) {
       return next;
     });
 
-  const folders = createMemo(() => {
+  // Folder keys are "kind/group", so a method folder and a function folder never share an open state.
+  const sections = createMemo(() => {
     const q = query().trim().toLowerCase();
-    return GROUPS.map((group) => ({ group, methods: catalogue.methods.filter((m) => m.group === group && (!q || matches(m, q))) })).filter(
-      (f) => f.methods.length > 0,
-    );
+    return SECTIONS.map((s) => ({
+      ...s,
+      folders: s.groups
+        .map((group) => ({
+          key: `${s.kind}/${group}`,
+          group,
+          methods: catalogue.methods.filter((m) => m.kind === s.kind && m.group === group && (!q || matches(m, q))),
+        }))
+        .filter((f) => f.methods.length > 0),
+    })).filter((s) => s.folders.length > 0);
   });
   // A search shows every folder with a hit expanded, whatever the user had open.
-  const expanded = (group: string) => query().trim() !== '' || open().has(group);
+  const expanded = (key: string) => query().trim() !== '' || open().has(key);
 
   // The tooltip, beside the row once the pointer (or focus) has rested on it, as the library's preview.
   const [tip, setTip] = createSignal<{ method: MethodDoc; x: number; y: number } | null>(null);
@@ -90,15 +107,19 @@ export function MethodPanel(props: { onInsert?: (drag: MethodDrag) => void }) {
         )}
       </Show>
       <div class="methods-tree">
-        <For each={folders()}>
+        <For each={sections()}>
+          {(s) => (
+            <section class="methods-section" data-kind={s.kind}>
+              <h2 class="methods-section-title">{s.title}</h2>
+        <For each={s.folders}>
           {(f) => (
             <>
-              <button class="method-folder" aria-expanded={expanded(f.group)} onClick={() => toggle(f.group)}>
-                <span class="method-disclosure">{expanded(f.group) ? '▾' : '▸'}</span>
+              <button class="method-folder" aria-expanded={expanded(f.key)} onClick={() => toggle(f.key)}>
+                <span class="method-disclosure">{expanded(f.key) ? '▾' : '▸'}</span>
                 <span class="method-folder-name">{f.group}</span>
                 <span class="method-count">{f.methods.length}</span>
               </button>
-              <Show when={expanded(f.group)}>
+              <Show when={expanded(f.key)}>
                 <For each={f.methods}>
                   {(m) => (
                     <div
@@ -127,6 +148,9 @@ export function MethodPanel(props: { onInsert?: (drag: MethodDrag) => void }) {
                 </For>
               </Show>
             </>
+          )}
+        </For>
+            </section>
           )}
         </For>
       </div>

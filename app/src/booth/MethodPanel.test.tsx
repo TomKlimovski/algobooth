@@ -1,13 +1,17 @@
 import { render } from 'solid-js/web';
 import { PREVIEW_DELAY_MS } from '../library/LibraryTree';
-import { catalogue, GROUPS } from '../methods/catalogue';
+import { catalogue, FUNCTION_GROUPS, GROUPS } from '../methods/catalogue';
 import { METHOD_MIME, type MethodDrag } from './methodDrop';
 import { MethodPanel } from './MethodPanel';
 
 let dispose = () => {};
 let root: HTMLDivElement;
-const folders = () => [...root.querySelectorAll<HTMLElement>('.method-folder')];
-const folder = (group: string) => folders().find((f) => f.querySelector('.method-folder-name')?.textContent === group)!;
+const section = (kind: 'method' | 'function') => root.querySelector<HTMLElement>(`.methods-section[data-kind="${kind}"]`)!;
+const foldersIn = (kind: 'method' | 'function') => [...(section(kind)?.querySelectorAll<HTMLElement>('.method-folder') ?? [])];
+const folders = () => foldersIn('method');
+const folderIn = (kind: 'method' | 'function', group: string) =>
+  foldersIn(kind).find((f) => f.querySelector('.method-folder-name')?.textContent === group)!;
+const folder = (group: string) => folderIn('method', group);
 const rows = () => [...root.querySelectorAll<HTMLElement>('.method-row')];
 const row = (name: string) => root.querySelector<HTMLElement>(`.method-row[data-name="${name}"]`);
 const duck = catalogue.methods.find((m) => m.name === 'duckattack')!;
@@ -67,7 +71,7 @@ test('dragstart carries both MIME types', () => {
   Object.defineProperty(event, 'dataTransfer', { value: { setData: (type: string, v: string) => (data[type] = v), effectAllowed: 'none' } });
   openDucking().dispatchEvent(event);
   expect(data['text/plain']).toBe(duck.snippet);
-  expect(JSON.parse(data[METHOD_MIME])).toEqual({ name: 'duckattack', snippet: duck.snippet, argRange: duck.argRange });
+  expect(JSON.parse(data[METHOD_MIME])).toEqual({ name: 'duckattack', snippet: duck.snippet, argRange: duck.argRange, kind: 'method' });
 });
 
 test('resting the pointer shows the description, synonyms and note; leaving hides it', async () => {
@@ -97,5 +101,31 @@ test('double-click calls onInsert with the row', () => {
   const onInsert = vi.fn();
   mount(onInsert);
   openDucking().dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
-  expect(onInsert).toHaveBeenCalledWith({ name: 'duckattack', snippet: duck.snippet, argRange: duck.argRange });
+  expect(onInsert).toHaveBeenCalledWith({ name: 'duckattack', snippet: duck.snippet, argRange: duck.argRange, kind: 'method' });
+});
+
+test('a Functions section follows the methods, with its own folders', () => {
+  mount();
+  expect([...root.querySelectorAll('.methods-section-title')].map((h) => h.textContent)).toEqual(['Methods', 'Functions']);
+  const populated = FUNCTION_GROUPS.filter((g) => catalogue.methods.some((m) => m.kind === 'function' && m.group === g));
+  expect(foldersIn('function').map((f) => f.querySelector('.method-folder-name')?.textContent)).toEqual(populated);
+  folderIn('function', 'Combine').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  const seq = section('function').querySelector<HTMLElement>('.method-row[data-name="seq"]')!;
+  expect(seq).not.toBeNull();
+  const data: Record<string, string> = {};
+  const event = new Event('dragstart', { bubbles: true });
+  Object.defineProperty(event, 'dataTransfer', { value: { setData: (type: string, v: string) => (data[type] = v), effectAllowed: 'none' } });
+  seq.dispatchEvent(event);
+  expect(JSON.parse(data[METHOD_MIME])).toMatchObject({ name: 'seq', kind: 'function' });
+  expect(data['text/plain']).toBe('seq("bd*4", "hh*8")');
+});
+
+test('search spans both sections and hides a section with no match', () => {
+  mount();
+  search('seq'); // the function seq, and the methods whose descriptions mention a sequence
+  expect(foldersIn('function').map((f) => f.querySelector('.method-folder-name')?.textContent)).toContain('Combine');
+  expect(section('function').querySelector('.method-row[data-name="seq"]')).not.toBeNull();
+  search('duckatt'); // methods only
+  expect(root.querySelector('.methods-section[data-kind="function"]')).toBeNull();
+  expect(folders()).toHaveLength(1);
 });

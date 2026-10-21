@@ -27,6 +27,18 @@
 
 .methods-tree { flex: 1; min-height: 0; overflow: auto; padding: 4px; }
 
+/* The two sections, Methods then Functions, headed like the panel itself. */
+.methods-section + .methods-section { margin-top: 8px; border-top: 1px solid #2a2d36; padding-top: 6px; }
+.methods-section-title {
+  margin: 0 0 2px;
+  padding: 0 4px;
+  color: #8b90a0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+  font-weight: normal;
+}
+
 .method-folder,
 .method-row {
   display: flex;
