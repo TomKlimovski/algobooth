@@ -60,6 +60,8 @@ test('a block without @name takes its name from the code line after it', () => {
   expect(names('/** Applies the given structure. */\n  Pattern.prototype.struct = function (...args) {};')).toEqual(['struct']);
   expect(names('/** A sawtooth signal. */\nexport const saw = signal((t) => t % 1);')).toEqual(['saw']);
   expect(names('/** Plays the pattern. */\n\nPattern.prototype.play = function () {};')).toEqual(['play']); // blank lines skipped
+  expect(names('/** Plays items at the same time. */\nexport function stack(...pats) {')).toEqual(['stack']);
+  expect(names('/** Sets the tempo. */\n  const setCpm = (cpm) => {')).toEqual(['setCpm']);
 });
 
 test('a lone *Experimental* label does not stand in for the description', () => {

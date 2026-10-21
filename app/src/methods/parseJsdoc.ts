@@ -41,7 +41,8 @@ function firstParagraph(lines: string[]): string {
 
 /**
  * The name the code line after a block defines, as Strudel's jsdoc infers it for blocks without @name:
- * `register('x'` or `register(['x', ...]` (first name), `Pattern.prototype.x =`, or `export const x =`.
+ * `register('x'` or `register(['x', ...]` (first name), `Pattern.prototype.x =`, `export const x =`,
+ * `export function x(` or a plain `const x =` (the repl's setCpm).
  */
 function codeName(after: string): string | undefined {
   const line = after.split('\n').find((l) => l.trim() !== '');
@@ -49,7 +50,8 @@ function codeName(after: string): string | undefined {
   return (
     /register\(\[?\s*['"]([\w$]+)['"]/.exec(line)?.[1] ??
     /^\s*Pattern\.prototype\.([\w$]+)\s*=/.exec(line)?.[1] ??
-    /^\s*export\s+const\s+([\w$]+)\s*=/.exec(line)?.[1]
+    /^\s*(?:export\s+)?const\s+([\w$]+)\s*=/.exec(line)?.[1] ??
+    /^\s*export\s+function\s+([\w$]+)\s*\(/.exec(line)?.[1]
   );
 }
 
