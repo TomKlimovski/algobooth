@@ -5,8 +5,11 @@ import { EditorView } from '@codemirror/view';
 /** The MIME type the Methods panel puts on a drag; the payload is a `MethodDrag` as JSON. */
 export const METHOD_MIME = 'application/x-algobooth-method';
 
-/** What a drag carries: the catalogue's snippet and where its first argument sits within it. */
-export interface MethodDrag { name: string; snippet: string; argRange: [number, number] | null }
+/**
+ * What a drag carries: the catalogue's snippet, where its first argument sits within it, and whether it is a
+ * method (lands at a line's end) or a standalone function (an expression: lands at the pointer).
+ */
+export interface MethodDrag { name: string; snippet: string; argRange: [number, number] | null; kind: 'method' | 'function' }
 
 /**
  * Scans one line: where its first `//` outside a string is (-1 when none), and whether it ends inside a template
@@ -106,6 +109,44 @@ function landing(code: string, lineIndex: number): number | null {
 const argSelection = (at: number, drag: MethodDrag): [number, number] | null =>
   drag.argRange && [at + drag.argRange[0], at + drag.argRange[1]];
 
+/** A character that continues an identifier or number, or ends an expression: no expression can start after it. */
+const EXPRESSION_END = /[\w$)\]"'`]/;
+const WORD = /[\w$]/;
+
+/**
+ * Inserts a function's expression where the pointer is: the offset must be a place an expression can start,
+ * outside strings, comments and template literals, not inside a word or number and not right after an
+ * expression (`)`, a quote, a name). Null when it is not; the deck shows the refusal. `selection` as for
+ * `insertAtLineEnd`.
+ */
+export function insertAtPointer(code: string, offset: number, drag: MethodDrag): { code: string; selection: [number, number] | null } | null {
+  const at = Math.max(0, Math.min(offset, code.length));
+  if (!canStartExpression(code, at)) return null;
+  return { code: code.slice(0, at) + drag.snippet + code.slice(at), selection: argSelection(at, drag) };
+}
+
+/** Whether an expression may be inserted at `at`: see `insertAtPointer`. */
+function canStartExpression(code: string, at: number): boolean {
+  // Scan up to `at`, tracking strings, template literals and comments the way `scanLine` does.
+  let quote: string | null = null;
+  let comment = false;
+  for (let i = 0; i < at; i++) {
+    const c = code[i];
+    if (comment) {
+      if (c === '\n') comment = false;
+    } else if (quote) {
+      if (c === '\\') i++;
+      else if (c === quote) quote = null;
+      else if (c === '\n' && quote !== '`') quote = null; // an unterminated string ends with its line
+    } else if (c === '"' || c === "'" || c === '`') quote = c;
+    else if (c === '/' && code[i + 1] === '/') comment = true;
+  }
+  if (quote || comment) return false;
+  const prev = at > 0 ? code[at - 1] : '';
+  const next = at < code.length ? code[at] : '';
+  return !EXPRESSION_END.test(prev) && !WORD.test(next);
+}
+
 /**
  * Lets an editor take a method dropped from the panel: it lands at the end of the line under the pointer, its argument
  * selected. Every method drop is claimed, a refused one too, so CodeMirror never inserts the text/plain copy mid-token;
@@ -126,16 +167,19 @@ export function methodDropExtension(view: () => EditorView, onRefused: () => voi
       const v = view();
       const drag = JSON.parse(e.dataTransfer!.getData(METHOD_MIME)) as MethodDrag;
       const doc = v.state.doc;
-      const lineIndex = doc.lineAt(v.posAtCoords({ x: e.clientX, y: e.clientY }) ?? doc.length).number - 1;
-      if (!applyDrag(v, lineIndex, drag)) onRefused();
+      if (!applyDrag(v, v.posAtCoords({ x: e.clientX, y: e.clientY }) ?? doc.length, drag)) onRefused();
       return true;
     },
   });
 }
 
-/** Inserts `drag` on line `lineIndex` (0-based) by `insertAtLineEnd`'s rules, selects its argument and focuses; false when refused. */
-export function applyDrag(view: EditorView, lineIndex: number, drag: MethodDrag): boolean {
-  const at = landing(view.state.doc.toString(), lineIndex);
+/**
+ * Inserts `drag` by its kind's rule (a method at the end of the line holding `offset`, a function at `offset`
+ * itself), selects its argument and focuses; false when refused.
+ */
+export function applyDrag(view: EditorView, offset: number, drag: MethodDrag): boolean {
+  const code = view.state.doc.toString();
+  const at = drag.kind === 'function' ? (canStartExpression(code, offset) ? offset : null) : landing(code, view.state.doc.lineAt(offset).number - 1);
   if (at === null) return false;
   // Only the snippet is inserted, so the rest of the document (and its undo history) stays put.
   const sel = argSelection(at, drag);
@@ -148,7 +192,7 @@ export function applyDrag(view: EditorView, lineIndex: number, drag: MethodDrag)
   return true;
 }
 
-/** Inserts `drag` on the cursor's line (the panel's double-click) by `insertAtLineEnd`'s rules; false when refused. */
+/** Inserts `drag` at the cursor (the panel's double-click): a method on its line, a function at it; false when refused. */
 export function insertAtCursor(view: EditorView, drag: MethodDrag): boolean {
-  return applyDrag(view, view.state.doc.lineAt(view.state.selection.main.head).number - 1, drag);
+  return applyDrag(view, view.state.selection.main.head, drag);
 }
