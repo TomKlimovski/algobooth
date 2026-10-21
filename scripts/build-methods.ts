@@ -72,7 +72,9 @@ async function main(): Promise<void> {
         argRange = m.range && [prefix.length + m.range[0], prefix.length + m.range[1]];
       } else if (example !== null) {
         args = example;
-        argRange = [prefix.length, prefix.length + example.length];
+        // A quoted literal selects inside its quotes, so typing over it keeps the string intact.
+        const quoted = /^["']/.test(example) ? 1 : 0;
+        argRange = [prefix.length + quoted, prefix.length + example.length - quoted];
       } else if (block.params.length > 0) {
         missing.push(name);
         continue;
@@ -95,6 +97,11 @@ async function main(): Promise<void> {
     throw new Error(`no default argument for ${missing.length} methods; add them to DEFAULTS: ${missing.join(', ')}`);
   }
 
+  // Strudel lists some names as synonyms that are rows of their own here (fast's `density` is the crackle
+  // control), so the tooltip would send the reader to the wrong method.
+  const names = new Set(methods.map((m) => m.name));
+  for (const m of methods) m.synonyms = m.synonyms.filter((s) => !names.has(s));
+
   const rank = (m: MethodDoc) => GROUPS.indexOf(m.group);
   methods.sort((a, b) => rank(a) - rank(b) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 
@@ -108,7 +115,6 @@ async function main(): Promise<void> {
 
   console.log(`${methods.length} methods`);
   console.log(`Other: ${methods.filter((m) => m.group === 'Other').map((m) => m.name).join(', ')}`);
-  const names = new Set(methods.map((m) => m.name));
   const unused = Object.keys(DEFAULTS).filter((n) => !names.has(n));
   if (unused.length > 0) console.log(`defaults with no catalogue row: ${unused.join(', ')}`);
 }

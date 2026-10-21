@@ -50,3 +50,16 @@ test('the catalogue is sorted by group then name', () => {
   });
   expect(catalogue.methods.map((m) => m.name)).toEqual(sorted.map((m) => m.name));
 });
+
+test('a quoted default selects the text inside its quotes', () => {
+  for (const m of catalogue.methods) {
+    if (!m.argRange) continue;
+    expect(`"'`.includes(m.snippet[m.argRange[0]]), `${m.snippet} selects its opening quote`).toBe(false);
+    expect(`"'`.includes(m.snippet[m.argRange[1] - 1]), `${m.snippet} selects its closing quote`).toBe(false);
+  }
+});
+
+test('no row lists another row as its synonym', () => {
+  const names = new Set(catalogue.methods.map((m) => m.name));
+  for (const m of catalogue.methods) expect(m.synonyms.filter((s) => names.has(s)), m.name).toEqual([]);
+});

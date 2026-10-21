@@ -2107,8 +2107,8 @@
       "params": [],
       "snippet": ".compressor(\"-20:20:10:.002:.02\")",
       "argRange": [
-        12,
-        32
+        13,
+        31
       ],
       "group": "Dynamics",
       "source": "@strudel/core/controls.mjs",
@@ -3802,9 +3802,7 @@
     },
     {
       "name": "fast",
-      "synonyms": [
-        "density"
-      ],
+      "synonyms": [],
       "description": "Speed up a pattern by the given factor. Used by \"*\" in mini notation.",
       "params": [
         {
@@ -5316,8 +5314,8 @@
       "params": [],
       "snippet": ".grow(\"1\")",
       "argRange": [
-        6,
-        9
+        7,
+        8
       ],
       "group": "Other",
       "source": "@strudel/core/pattern.mjs",
@@ -5341,9 +5339,7 @@
     },
     {
       "name": "layer",
-      "synonyms": [
-        "apply"
-      ],
+      "synonyms": [],
       "description": "Layers the result of the given function(s). Like `superimpose`, but without the original pattern:",
       "params": [],
       "snippet": ".layer(x => x.fast(2))",
@@ -5405,8 +5401,8 @@
       "params": [],
       "snippet": ".shrink(\"1\")",
       "argRange": [
-        8,
-        11
+        9,
+        10
       ],
       "group": "Other",
       "source": "@strudel/core/pattern.mjs",
@@ -5432,8 +5428,8 @@
       "params": [],
       "snippet": ".take(\"2\")",
       "argRange": [
-        6,
-        9
+        7,
+        8
       ],
       "group": "Other",
       "source": "@strudel/core/pattern.mjs",
