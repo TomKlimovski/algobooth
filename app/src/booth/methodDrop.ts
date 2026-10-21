@@ -18,23 +18,28 @@ function commentStart(line: string): number {
   return -1;
 }
 
-/** Where a snippet goes on a line: after its code, before a trailing `;`, whitespace or comment. Null for a line with no code. */
-function codeEnd(line: string): number | null {
+/**
+ * Where a snippet goes on a line: after its code, before a trailing `;`, `,`, whitespace or comment.
+ * Null for a line with no code; 'open' for one ending in an opening bracket, where nothing can be appended.
+ */
+function codeEnd(line: string): number | 'open' | null {
   const c = commentStart(line);
   const code = (c < 0 ? line : line.slice(0, c)).trimEnd();
   if (code.trim() === '') return null;
-  return code.endsWith(';') ? code.length - 1 : code.length;
+  if (/[([{]$/.test(code)) return 'open';
+  return /[;,]$/.test(code) ? code.length - 1 : code.length;
 }
 
 /**
  * Inserts a dropped method at the end of a line's code, wherever the pointer was on it, so it can never
  * split a string or a word. A blank or comment-only line borrows the nearest pattern line above; null when
- * there is none. `selection` is the argument's range in the new code, for the editor to select.
+ * there is none, as it is for a line that opens a bracket. `selection` is the argument's range in the new code, for the editor to select.
  */
 export function insertAtLineEnd(code: string, lineIndex: number, drag: MethodDrag): { code: string; selection: [number, number] | null } | null {
   const lines = code.split('\n');
   for (let i = Math.min(lineIndex, lines.length - 1); i >= 0; i--) {
     const end = codeEnd(lines[i]);
+    if (end === 'open') return null;
     if (end === null) continue;
     const at = lines.slice(0, i).reduce((n, l) => n + l.length + 1, 0) + end;
     return {

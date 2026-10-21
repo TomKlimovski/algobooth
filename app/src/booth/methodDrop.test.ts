@@ -28,3 +28,14 @@ test('a line index past the end uses the last line', () => {
 test('a // inside a string is not a comment', () => {
   expect(insertAtLineEnd('a: s("http://x")', 0, drag)?.code).toBe('a: s("http://x").lpf(800)');
 });
+test('a trailing comma behaves like a trailing semicolon', () => {
+  const stack = 'stack(\n  s("bd*4"),\n  s("hh*8")\n).bank("tr909")';
+  expect(insertAtLineEnd(stack, 1, drag)?.code).toBe('stack(\n  s("bd*4").lpf(800),\n  s("hh*8")\n).bank("tr909")');
+});
+test('a line ending in an opening bracket refuses rather than walking up', () => {
+  expect(insertAtLineEnd('a: s("bd")\nstack(\n  s("hh")\n)', 1, drag)).toBeNull();
+  expect(insertAtLineEnd('a: s("bd")\nx: cat([  // pats\n', 1, drag)).toBeNull();
+});
+test('a CRLF document lands before the carriage return', () => {
+  expect(insertAtLineEnd('a: s("bd")\r\nb: s("hh")', 0, drag)?.code).toBe('a: s("bd").lpf(800)\r\nb: s("hh")');
+});
