@@ -66,8 +66,7 @@ const MEMBERS: Record<string, string[]> = {
     'euclidLegatoRot', 'euclidish', 'reset', 'restart', 'inside', 'outside', 'chunk', 'chunkBack', 'fastChunk', 'chunkInto', 'chunkBackInto',
     'sometimes', 'sometimesBy', 'someCycles', 'someCyclesBy', 'often', 'rarely', 'almostNever', 'almostAlways',
     'never', 'always', 'degrade', 'degradeBy', 'undegrade', 'undegradeBy', 'seed', 'beat', 'filter', 'filterWhen',
-    'cat', 'pick', 'pickmod', 'pickF', 'pickOut', 'pickmodOut', 'pickRestart', 'pickmodRestart', 'pickReset',
-    'pickmodReset', 'inhabit', 'inhabitmod', 'squeeze', 'stack', 'seq', 'sequence', 'slowcat', 'tour',
+    'cat', 'pickF', 'stack', 'seq', 'sequence', 'slowcat', 'tour',
   ],
 };
 

@@ -4974,64 +4974,6 @@
       "base": null
     },
     {
-      "name": "inhabit",
-      "synonyms": [
-        "pickSqueeze"
-      ],
-      "description": "Picks patterns (or plain values) either from a list (by index) or a lookup table (by name). Similar to `pick`, but cycles are squeezed into the target ('inhabited') pattern.",
-      "params": [
-        {
-          "name": "pat",
-          "type": "Pattern",
-          "description": ""
-        },
-        {
-          "name": "xs",
-          "type": "*",
-          "description": ""
-        }
-      ],
-      "source": "@strudel/core/pick.mjs",
-      "kind": "method",
-      "snippet": ".inhabit([s(\"bd*4\"), s(\"hh*8\")])",
-      "argRange": [
-        10,
-        19
-      ],
-      "group": "Structure",
-      "note": "chain onto a pattern of indices, e.g. \"0 1\"",
-      "base": "\"0 1\""
-    },
-    {
-      "name": "inhabitmod",
-      "synonyms": [
-        "pickmodSqueeze"
-      ],
-      "description": "The same as `inhabit`, but if you pick a number greater than the size of the list, it wraps around, rather than sticking at the maximum value. For example, if you pick the fifth pattern of a list of three, you'll get the second one.",
-      "params": [
-        {
-          "name": "pat",
-          "type": "Pattern",
-          "description": ""
-        },
-        {
-          "name": "xs",
-          "type": "*",
-          "description": ""
-        }
-      ],
-      "source": "@strudel/core/pick.mjs",
-      "kind": "method",
-      "snippet": ".inhabitmod([s(\"bd*4\"), s(\"hh*8\")])",
-      "argRange": [
-        13,
-        22
-      ],
-      "group": "Structure",
-      "note": "chain onto a pattern of indices, e.g. \"0 1\"",
-      "base": "\"0 1\""
-    },
-    {
       "name": "inside",
       "synonyms": [],
       "description": "Carries out an operation 'inside' a cycle.",
@@ -5133,33 +5075,6 @@
       "base": null
     },
     {
-      "name": "pick",
-      "synonyms": [],
-      "description": "Picks patterns (or plain values) either from a list (by index) or a lookup table (by name). Similar to `inhabit`, but maintains the structure of the original patterns.",
-      "params": [
-        {
-          "name": "pat",
-          "type": "Pattern",
-          "description": ""
-        },
-        {
-          "name": "xs",
-          "type": "*",
-          "description": ""
-        }
-      ],
-      "source": "@strudel/core/pick.mjs",
-      "kind": "method",
-      "snippet": ".pick([s(\"bd*4\"), s(\"hh*8\")])",
-      "argRange": [
-        7,
-        16
-      ],
-      "group": "Structure",
-      "note": "chain onto a pattern of indices, e.g. \"0 1\"",
-      "base": "\"0 1\""
-    },
-    {
       "name": "pickF",
       "synonyms": [],
       "description": "pickF lets you use a pattern of numbers to pick which function to apply to another pattern.",
@@ -5190,195 +5105,6 @@
       "group": "Structure",
       "note": null,
       "base": "s(\"bd*4\")"
-    },
-    {
-      "name": "pickOut",
-      "synonyms": [],
-      "description": "Similar to `pick`, but it applies an outerJoin instead of an innerJoin.",
-      "params": [
-        {
-          "name": "pat",
-          "type": "Pattern",
-          "description": ""
-        },
-        {
-          "name": "xs",
-          "type": "*",
-          "description": ""
-        }
-      ],
-      "source": "@strudel/core/pick.mjs",
-      "kind": "method",
-      "snippet": ".pickOut([s(\"bd*4\"), s(\"hh*8\")])",
-      "argRange": [
-        10,
-        19
-      ],
-      "group": "Structure",
-      "note": "chain onto a pattern of indices, e.g. \"0 1\"",
-      "base": "\"0 1\""
-    },
-    {
-      "name": "pickReset",
-      "synonyms": [],
-      "description": "Similar to `pick`, but the choosen pattern is reset when its index is triggered.",
-      "params": [
-        {
-          "name": "pat",
-          "type": "Pattern",
-          "description": ""
-        },
-        {
-          "name": "xs",
-          "type": "*",
-          "description": ""
-        }
-      ],
-      "source": "@strudel/core/pick.mjs",
-      "kind": "method",
-      "snippet": ".pickReset([s(\"bd*4\"), s(\"hh*8\")])",
-      "argRange": [
-        12,
-        21
-      ],
-      "group": "Structure",
-      "note": "chain onto a pattern of indices, e.g. \"0 1\"",
-      "base": "\"0 1\""
-    },
-    {
-      "name": "pickRestart",
-      "synonyms": [],
-      "description": "Similar to `pick`, but the choosen pattern is restarted when its index is triggered.",
-      "params": [
-        {
-          "name": "pat",
-          "type": "Pattern",
-          "description": ""
-        },
-        {
-          "name": "xs",
-          "type": "*",
-          "description": ""
-        }
-      ],
-      "source": "@strudel/core/pick.mjs",
-      "kind": "method",
-      "snippet": ".pickRestart([s(\"bd*4\"), s(\"hh*8\")])",
-      "argRange": [
-        14,
-        23
-      ],
-      "group": "Structure",
-      "note": "chain onto a pattern of indices, e.g. \"0 1\"",
-      "base": "\"0 1\""
-    },
-    {
-      "name": "pickmod",
-      "synonyms": [],
-      "description": "The same as `pick`, but if you pick a number greater than the size of the list, it wraps around, rather than sticking at the maximum value. For example, if you pick the fifth pattern of a list of three, you'll get the second one.",
-      "params": [
-        {
-          "name": "pat",
-          "type": "Pattern",
-          "description": ""
-        },
-        {
-          "name": "xs",
-          "type": "*",
-          "description": ""
-        }
-      ],
-      "source": "@strudel/core/pick.mjs",
-      "kind": "method",
-      "snippet": ".pickmod([s(\"bd*4\"), s(\"hh*8\")])",
-      "argRange": [
-        10,
-        19
-      ],
-      "group": "Structure",
-      "note": "chain onto a pattern of indices, e.g. \"0 1\"",
-      "base": "\"0 1\""
-    },
-    {
-      "name": "pickmodOut",
-      "synonyms": [],
-      "description": "The same as `pickOut`, but if you pick a number greater than the size of the list, it wraps around, rather than sticking at the maximum value.",
-      "params": [
-        {
-          "name": "pat",
-          "type": "Pattern",
-          "description": ""
-        },
-        {
-          "name": "xs",
-          "type": "*",
-          "description": ""
-        }
-      ],
-      "source": "@strudel/core/pick.mjs",
-      "kind": "method",
-      "snippet": ".pickmodOut([s(\"bd*4\"), s(\"hh*8\")])",
-      "argRange": [
-        13,
-        22
-      ],
-      "group": "Structure",
-      "note": "chain onto a pattern of indices, e.g. \"0 1\"",
-      "base": "\"0 1\""
-    },
-    {
-      "name": "pickmodReset",
-      "synonyms": [],
-      "description": "The same as `pickReset`, but if you pick a number greater than the size of the list, it wraps around, rather than sticking at the maximum value.",
-      "params": [
-        {
-          "name": "pat",
-          "type": "Pattern",
-          "description": ""
-        },
-        {
-          "name": "xs",
-          "type": "*",
-          "description": ""
-        }
-      ],
-      "source": "@strudel/core/pick.mjs",
-      "kind": "method",
-      "snippet": ".pickmodReset([s(\"bd*4\"), s(\"hh*8\")])",
-      "argRange": [
-        15,
-        24
-      ],
-      "group": "Structure",
-      "note": "chain onto a pattern of indices, e.g. \"0 1\"",
-      "base": "\"0 1\""
-    },
-    {
-      "name": "pickmodRestart",
-      "synonyms": [],
-      "description": "The same as `pickRestart`, but if you pick a number greater than the size of the list, it wraps around, rather than sticking at the maximum value.",
-      "params": [
-        {
-          "name": "pat",
-          "type": "Pattern",
-          "description": ""
-        },
-        {
-          "name": "xs",
-          "type": "*",
-          "description": ""
-        }
-      ],
-      "source": "@strudel/core/pick.mjs",
-      "kind": "method",
-      "snippet": ".pickmodRestart([s(\"bd*4\"), s(\"hh*8\")])",
-      "argRange": [
-        17,
-        26
-      ],
-      "group": "Structure",
-      "note": "chain onto a pattern of indices, e.g. \"0 1\"",
-      "base": "\"0 1\""
     },
     {
       "name": "rarely",
@@ -5582,33 +5308,6 @@
       "group": "Structure",
       "note": null,
       "base": null
-    },
-    {
-      "name": "squeeze",
-      "synonyms": [],
-      "description": "Pick from the list of values (or patterns of values) via the index using the given pattern of integers. The selected pattern will be compressed to fit the duration of the selecting event",
-      "params": [
-        {
-          "name": "pat",
-          "type": "Pattern",
-          "description": ""
-        },
-        {
-          "name": "xs",
-          "type": "*",
-          "description": ""
-        }
-      ],
-      "source": "@strudel/core/pick.mjs",
-      "kind": "method",
-      "snippet": ".squeeze([s(\"bd*4\"), s(\"hh*8\")])",
-      "argRange": [
-        10,
-        19
-      ],
-      "group": "Structure",
-      "note": "chain onto a pattern of indices, e.g. \"0 1\"",
-      "base": "\"0 1\""
     },
     {
       "name": "stack",
@@ -6177,10 +5876,10 @@
       ],
       "source": "@strudel/core/pattern.mjs",
       "kind": "function",
-      "snippet": "cat(\"bd*4\", \"hh*8\")",
+      "snippet": "cat(s(\"bd*4\"), s(\"hh*8\"))",
       "argRange": [
-        5,
-        9
+        7,
+        11
       ],
       "group": "Combine",
       "note": null,
@@ -6195,10 +5894,10 @@
       "params": [],
       "source": "@strudel/core/pattern.mjs",
       "kind": "function",
-      "snippet": "polymeter(\"bd hh\", \"sd sd sd\")",
+      "snippet": "polymeter(s(\"bd hh\"), s(\"sd sd sd\"))",
       "argRange": [
-        11,
-        16
+        13,
+        18
       ],
       "group": "Combine",
       "note": null,
@@ -6213,10 +5912,10 @@
       "params": [],
       "source": "@strudel/core/pattern.mjs",
       "kind": "function",
-      "snippet": "seq(\"bd*4\", \"hh*8\")",
+      "snippet": "seq(s(\"bd*4\"), s(\"hh*8\"))",
       "argRange": [
-        5,
-        9
+        7,
+        11
       ],
       "group": "Combine",
       "note": null,
@@ -6245,10 +5944,10 @@
       "params": [],
       "source": "@strudel/core/pattern.mjs",
       "kind": "function",
-      "snippet": "sequence(\"bd*4\", \"hh*8\")",
+      "snippet": "sequence(s(\"bd*4\"), s(\"hh*8\"))",
       "argRange": [
-        10,
-        14
+        12,
+        16
       ],
       "group": "Combine",
       "note": null,
@@ -6261,10 +5960,10 @@
       "params": [],
       "source": "@strudel/core/pattern.mjs",
       "kind": "function",
-      "snippet": "slowcat(\"bd*4\", \"hh*8\")",
+      "snippet": "slowcat(s(\"bd*4\"), s(\"hh*8\"))",
       "argRange": [
-        9,
-        13
+        11,
+        15
       ],
       "group": "Combine",
       "note": null,
@@ -6283,10 +5982,10 @@
       ],
       "source": "@strudel/core/pattern.mjs",
       "kind": "function",
-      "snippet": "slowcatPrime(\"bd*4\", \"hh*8\")",
+      "snippet": "slowcatPrime(s(\"bd*4\"), s(\"hh*8\"))",
       "argRange": [
-        14,
-        18
+        16,
+        20
       ],
       "group": "Combine",
       "note": null,
@@ -6318,10 +6017,10 @@
       "params": [],
       "source": "@strudel/core/pattern.mjs",
       "kind": "function",
-      "snippet": "stepalt([\"bd\", \"hh\"], [\"sd\"])",
+      "snippet": "stepalt([s(\"bd\"), s(\"hh\")], [s(\"sd\")])",
       "argRange": [
-        10,
-        12
+        12,
+        14
       ],
       "group": "Combine",
       "note": null,
@@ -6336,7 +6035,7 @@
       "params": [],
       "source": "@strudel/core/pattern.mjs",
       "kind": "function",
-      "snippet": "stepcat([3, \"bd\"], [1, \"hh\"])",
+      "snippet": "stepcat([3, s(\"bd\")], [1, s(\"hh\")])",
       "argRange": [
         9,
         10
@@ -6352,7 +6051,7 @@
       "params": [],
       "source": "@strudel/core/pattern.mjs",
       "kind": "function",
-      "snippet": "timecat([3, \"bd\"], [1, \"hh\"])",
+      "snippet": "timecat([3, s(\"bd\")], [1, s(\"hh\")])",
       "argRange": [
         9,
         10
@@ -6368,10 +6067,10 @@
       "params": [],
       "source": "@strudel/core/pattern.mjs",
       "kind": "function",
-      "snippet": "tour(\"bd\", \"hh\", \"sd\")",
+      "snippet": "tour(s(\"bd\"), s(\"hh\"), s(\"sd\"))",
       "argRange": [
-        6,
-        8
+        8,
+        10
       ],
       "group": "Combine",
       "note": null,
@@ -6384,10 +6083,10 @@
       "params": [],
       "source": "@strudel/core/pattern.mjs",
       "kind": "function",
-      "snippet": "zip(\"bd hh\", \"sd cp\")",
+      "snippet": "zip(s(\"bd hh\"), s(\"sd cp\"))",
       "argRange": [
-        5,
-        10
+        7,
+        12
       ],
       "group": "Combine",
       "note": null,
@@ -6400,13 +6099,13 @@
       "params": [],
       "source": "@strudel/core/signal.mjs",
       "kind": "function",
-      "snippet": "berlin.range(200, 2000).slow(4)",
+      "snippet": "berlin.range(0.2, 1).slow(4)",
       "argRange": [
         13,
         16
       ],
       "group": "Signals",
-      "note": null,
+      "note": "continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it; for a filter use .range(200, 2000)",
       "base": null
     },
     {
@@ -6416,13 +6115,13 @@
       "params": [],
       "source": "@strudel/core/signal.mjs",
       "kind": "function",
-      "snippet": "cosine.range(200, 2000).slow(4)",
+      "snippet": "cosine.range(0.2, 1).slow(4)",
       "argRange": [
         13,
         16
       ],
       "group": "Signals",
-      "note": null,
+      "note": "continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it; for a filter use .range(200, 2000)",
       "base": null
     },
     {
@@ -6438,7 +6137,7 @@
         14
       ],
       "group": "Signals",
-      "note": "bipolar: -1 to 1",
+      "note": "bipolar, -1 to 1: for .add() on a note, or .pan() after .range(0, 1); continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it",
       "base": null
     },
     {
@@ -6448,13 +6147,13 @@
       "params": [],
       "source": "@strudel/core/signal.mjs",
       "kind": "function",
-      "snippet": "isaw.range(200, 2000).slow(4)",
+      "snippet": "isaw.range(0.2, 1).slow(4)",
       "argRange": [
         11,
         14
       ],
       "group": "Signals",
-      "note": null,
+      "note": "continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it; for a filter use .range(200, 2000)",
       "base": null
     },
     {
@@ -6470,7 +6169,7 @@
         12
       ],
       "group": "Signals",
-      "note": "bipolar: -1 to 1",
+      "note": "bipolar, -1 to 1: for .add() on a note, or .pan() after .range(0, 1); continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it",
       "base": null
     },
     {
@@ -6480,13 +6179,13 @@
       "params": [],
       "source": "@strudel/core/signal.mjs",
       "kind": "function",
-      "snippet": "itri.range(200, 2000).slow(4)",
+      "snippet": "itri.range(0.2, 1).slow(4)",
       "argRange": [
         11,
         14
       ],
       "group": "Signals",
-      "note": null,
+      "note": "continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it; for a filter use .range(200, 2000)",
       "base": null
     },
     {
@@ -6502,7 +6201,7 @@
         12
       ],
       "group": "Signals",
-      "note": "bipolar: -1 to 1",
+      "note": "bipolar, -1 to 1: for .add() on a note, or .pan() after .range(0, 1); continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it",
       "base": null
     },
     {
@@ -6512,13 +6211,13 @@
       "params": [],
       "source": "@strudel/core/signal.mjs",
       "kind": "function",
-      "snippet": "mousex.range(200, 2000).slow(4)",
+      "snippet": "mousex.range(0.2, 1)",
       "argRange": [
         13,
         16
       ],
       "group": "Signals",
-      "note": null,
+      "note": "continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it; for a filter use .range(200, 2000)",
       "base": null
     },
     {
@@ -6528,13 +6227,13 @@
       "params": [],
       "source": "@strudel/core/signal.mjs",
       "kind": "function",
-      "snippet": "mousey.range(200, 2000).slow(4)",
+      "snippet": "mousey.range(0.2, 1)",
       "argRange": [
         13,
         16
       ],
       "group": "Signals",
-      "note": null,
+      "note": "continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it; for a filter use .range(200, 2000)",
       "base": null
     },
     {
@@ -6544,13 +6243,13 @@
       "params": [],
       "source": "@strudel/core/signal.mjs",
       "kind": "function",
-      "snippet": "perlin.range(200, 2000).slow(4)",
+      "snippet": "perlin.range(0.2, 1).slow(4)",
       "argRange": [
         13,
         16
       ],
       "group": "Signals",
-      "note": null,
+      "note": "continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it; for a filter use .range(200, 2000)",
       "base": null
     },
     {
@@ -6560,13 +6259,13 @@
       "params": [],
       "source": "@strudel/core/signal.mjs",
       "kind": "function",
-      "snippet": "saw.range(200, 2000).slow(4)",
+      "snippet": "saw.range(0.2, 1).slow(4)",
       "argRange": [
         10,
         13
       ],
       "group": "Signals",
-      "note": null,
+      "note": "continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it; for a filter use .range(200, 2000)",
       "base": null
     },
     {
@@ -6582,7 +6281,7 @@
         11
       ],
       "group": "Signals",
-      "note": "bipolar: -1 to 1",
+      "note": "bipolar, -1 to 1: for .add() on a note, or .pan() after .range(0, 1); continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it",
       "base": null
     },
     {
@@ -6592,13 +6291,13 @@
       "params": [],
       "source": "@strudel/core/signal.mjs",
       "kind": "function",
-      "snippet": "sine.range(200, 2000).slow(4)",
+      "snippet": "sine.range(0.2, 1).slow(4)",
       "argRange": [
         11,
         14
       ],
       "group": "Signals",
-      "note": null,
+      "note": "continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it; for a filter use .range(200, 2000)",
       "base": null
     },
     {
@@ -6614,7 +6313,7 @@
         12
       ],
       "group": "Signals",
-      "note": "bipolar: -1 to 1",
+      "note": "bipolar, -1 to 1: for .add() on a note, or .pan() after .range(0, 1); continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it",
       "base": null
     },
     {
@@ -6624,13 +6323,13 @@
       "params": [],
       "source": "@strudel/core/signal.mjs",
       "kind": "function",
-      "snippet": "square.range(200, 2000).slow(4)",
+      "snippet": "square.range(0.2, 1).slow(4)",
       "argRange": [
         13,
         16
       ],
       "group": "Signals",
-      "note": null,
+      "note": "continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it; for a filter use .range(200, 2000)",
       "base": null
     },
     {
@@ -6646,7 +6345,7 @@
         14
       ],
       "group": "Signals",
-      "note": "bipolar: -1 to 1",
+      "note": "bipolar, -1 to 1: for .add() on a note, or .pan() after .range(0, 1); continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it",
       "base": null
     },
     {
@@ -6656,13 +6355,13 @@
       "params": [],
       "source": "@strudel/core/signal.mjs",
       "kind": "function",
-      "snippet": "tri.range(200, 2000).slow(4)",
+      "snippet": "tri.range(0.2, 1).slow(4)",
       "argRange": [
         10,
         13
       ],
       "group": "Signals",
-      "note": null,
+      "note": "continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it; for a filter use .range(200, 2000)",
       "base": null
     },
     {
@@ -6678,7 +6377,7 @@
         11
       ],
       "group": "Signals",
-      "note": "bipolar: -1 to 1",
+      "note": "bipolar, -1 to 1: for .add() on a note, or .pan() after .range(0, 1); continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it",
       "base": null
     },
     {
@@ -6694,7 +6393,7 @@
         12
       ],
       "group": "Random",
-      "note": null,
+      "note": "continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it",
       "base": null
     },
     {
@@ -6716,7 +6415,7 @@
         11
       ],
       "group": "Random",
-      "note": null,
+      "note": "continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it",
       "base": null
     },
     {
@@ -6738,7 +6437,7 @@
         10
       ],
       "group": "Random",
-      "note": "continuous: sample it from a pattern, e.g. s(\"hh*8\").s(...)",
+      "note": "continuous: sample it from a pattern, e.g. s(\"hh*8\").s(choose(...))",
       "base": "s(\"hh*8\").s({})"
     },
     {
@@ -6750,14 +6449,14 @@
       "params": [],
       "source": "@strudel/core/signal.mjs",
       "kind": "function",
-      "snippet": "chooseCycles(\"bd\", \"hh\", \"sd\")",
+      "snippet": "chooseCycles(s(\"bd\"), s(\"hh\"), s(\"sd\"))",
       "argRange": [
-        14,
-        16
+        16,
+        18
       ],
       "group": "Random",
       "note": null,
-      "base": "s({})"
+      "base": null
     },
     {
       "name": "chooseInWith",
@@ -6777,14 +6476,14 @@
       ],
       "source": "@strudel/core/signal.mjs",
       "kind": "function",
-      "snippet": "chooseInWith(sine, [\"bd\", \"hh\"])",
+      "snippet": "chooseInWith(sine, [s(\"bd\"), s(\"hh\")])",
       "argRange": [
-        21,
-        23
+        23,
+        25
       ],
       "group": "Random",
       "note": null,
-      "base": "s({})"
+      "base": null
     },
     {
       "name": "chooseWith",
@@ -6810,7 +6509,7 @@
         21
       ],
       "group": "Random",
-      "note": "continuous: sample it from a pattern, e.g. s(\"hh*8\").s(...)",
+      "note": "continuous: sample it from a pattern, e.g. s(\"hh*8\").s(choose(...))",
       "base": "s(\"hh*8\").s({})"
     },
     {
@@ -6832,7 +6531,7 @@
         7
       ],
       "group": "Random",
-      "note": null,
+      "note": "continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it",
       "base": null
     },
     {
@@ -6848,7 +6547,7 @@
         14
       ],
       "group": "Random",
-      "note": null,
+      "note": "continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it",
       "base": null
     },
     {
@@ -6864,7 +6563,7 @@
         12
       ],
       "group": "Random",
-      "note": "bipolar: -1 to 1",
+      "note": "bipolar, -1 to 1; continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it",
       "base": null
     },
     {
@@ -6886,7 +6585,7 @@
         12
       ],
       "group": "Random",
-      "note": "continuous: sample it from a pattern, e.g. s(\"hh*8\").s(...)",
+      "note": "continuous: sample it from a pattern, e.g. s(\"hh*8\").s(choose(...))",
       "base": "s(\"hh*8\").s({})"
     },
     {
@@ -6898,14 +6597,14 @@
       "params": [],
       "source": "@strudel/core/signal.mjs",
       "kind": "function",
-      "snippet": "wchooseCycles([\"bd\", 2], [\"hh\", 1])",
+      "snippet": "wchooseCycles([s(\"bd\"), 2], [s(\"hh\"), 1])",
       "argRange": [
-        16,
-        18
+        18,
+        20
       ],
       "group": "Random",
       "note": null,
-      "base": "s({})"
+      "base": null
     },
     {
       "name": "binary",
@@ -6926,8 +6625,8 @@
         8
       ],
       "group": "Sources",
-      "note": null,
-      "base": "s(\"hh*8\").struct({})"
+      "note": "a rhythm of 1s and 0s: drop it into .struct()",
+      "base": "$: s(\"hh*8\").struct({})"
     },
     {
       "name": "binaryN",
@@ -6953,8 +6652,8 @@
         9
       ],
       "group": "Sources",
-      "note": null,
-      "base": "s(\"hh*8\").struct({})"
+      "note": "a rhythm of 1s and 0s: drop it into .struct()",
+      "base": "$: s(\"hh*8\").struct({})"
     },
     {
       "name": "pick",
@@ -6974,14 +6673,14 @@
       ],
       "source": "@strudel/core/pick.mjs",
       "kind": "function",
-      "snippet": "pick([\"bd*4\", \"hh*8\"], \"0 1\")",
+      "snippet": "pick([s(\"bd*4\"), s(\"hh*8\")], \"0 1\")",
       "argRange": [
-        24,
-        25
+        30,
+        31
       ],
       "group": "Sources",
       "note": null,
-      "base": "s({})"
+      "base": null
     },
     {
       "name": "run",
@@ -6996,8 +6695,8 @@
         5
       ],
       "group": "Sources",
-      "note": null,
-      "base": "n({}).s(\"hh\")"
+      "note": "numbers 0 to n-1: drop it into n()",
+      "base": "$: n({}).s(\"hh\")"
     },
     {
       "name": "squeeze",
@@ -7017,14 +6716,14 @@
       ],
       "source": "@strudel/core/pick.mjs",
       "kind": "function",
-      "snippet": "squeeze(\"0 1\", [\"bd*4\", \"hh*8\"])",
+      "snippet": "squeeze(\"0 1\", [s(\"bd*4\"), s(\"hh*8\")])",
       "argRange": [
         9,
         10
       ],
       "group": "Sources",
       "note": null,
-      "base": "s({})"
+      "base": null
     },
     {
       "name": "setcpm",
@@ -7045,7 +6744,7 @@
         10
       ],
       "group": "Setup",
-      "note": null,
+      "note": "replaces the deck's tempo line; deck B follows A while synced",
       "base": null
     }
   ]

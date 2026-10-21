@@ -25,13 +25,15 @@ const base = (m: MethodDoc) =>
   m.base ?? (m.group === 'Pitch' ? 'note("c3 e3 g3 c4").s("sawtooth")' : 's("bd*4").bank("tr909")');
 
 /** A function's carrier: where its expression goes in a line that plays. */
+// A deck's lines are labelled, and the repl plays only labelled patterns once any exist: so a bare expression
+// is tested the way a blank-line drop writes it, under a `$:` label.
 const CARRIER: Record<string, string> = {
-  Combine: '{}',
-  Sources: '{}',
-  Signals: 's("hh*8").lpf({})',
-  Random: 's("hh*8").lpf({})',
+  Combine: '$: {}',
+  Sources: '$: {}',
+  Signals: 's("hh*8").gain({})',
+  Random: 's("hh*8").gain({})',
   Setup: '{}\n$: s("bd*4")',
-  Other: '{}',
+  Other: '$: {}',
 };
 const carried = (m: MethodDoc) => (m.base ?? CARRIER[m.group]).replace('{}', m.snippet);
 

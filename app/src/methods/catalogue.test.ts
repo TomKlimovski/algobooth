@@ -40,10 +40,14 @@ test('function rows are complete expressions, one per name, and samples is never
   }
   for (const n of Object.keys(FUNCTION_GROUP_OF)) expect(names, n).toContain(n);
   // The ones Tom could not find, in both forms
-  expect(functions.find((m) => m.name === 'seq')?.snippet).toBe('seq("bd*4", "hh*8")');
+  expect(functions.find((m) => m.name === 'seq')?.snippet).toBe('seq(s("bd*4"), s("hh*8"))');
   expect(functions.find((m) => m.name === 'stack')?.snippet).toBe('stack(s("bd*4"), s("hh*8"))');
   expect(methods.find((m) => m.name === 'stack')?.snippet).toBe('.stack(s("hh*8"))');
-  expect(functions.find((m) => m.name === 'sine')?.snippet).toBe('sine.range(200, 2000).slow(4)');
+  expect(functions.find((m) => m.name === 'sine')?.snippet).toBe('sine.range(0.2, 1).slow(4)');
+  // Every Combine and Sources expression carries its own sound, so a blank-line drop plays under a label.
+  for (const m of functions.filter((m) => m.group === 'Combine')) expect(m.snippet, m.name).toMatch(/s\("/);
+  // The pick family is not chained: a method lands on a sound pattern, which has no indices to pick with.
+  expect(methods.map((m) => m.name)).not.toContain('pick');
   expect(functions.find((m) => m.name === 'setcpm')?.snippet).toBe('setcpm(120/4)');
 });
 

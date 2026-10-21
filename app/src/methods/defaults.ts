@@ -58,6 +58,11 @@ export const DENY: Record<string, string> = {
   choose2: 'reads the pattern it is called on as a -1..1 signal; on a sound pattern it picks nothing',
   pickmodF: 'plays nothing with any default tried (pickF works)',
   ...Object.fromEntries(
+    ['pick', 'pickmod', 'pickOut', 'pickmodOut', 'pickRestart', 'pickmodRestart', 'pickReset', 'pickmodReset', 'inhabit', 'inhabitmod', 'squeeze'].map(
+      (n) => [n, 'needs a pattern of indices to be chained onto; a drop lands on a sound pattern. pick() and squeeze() are offered as functions'],
+    ),
+  ),
+  ...Object.fromEntries(
     [
       'wt', 'wtenv', 'wtattack', 'wtdecay', 'wtsustain', 'wtrelease', 'wtrate', 'wtsync', 'wtdepth', 'wtshape',
       'wtdc', 'wtskew', 'wtphaserand', 'warp', 'warpmode', 'warpenv', 'warpattack', 'warpdecay', 'warpsustain',
@@ -123,21 +128,13 @@ function filterFamily(f: 'lp' | 'hp' | 'bp'): Record<string, Default> {
  * name → argument text with the selectable literal between § signs; optional base for the evaluate test,
  * optional tooltip note. Beats the JSDoc example's argument, so this is also where a poor example is fixed.
  */
-const INDICES = { base: '"0 1"', note: 'chain onto a pattern of indices, e.g. "0 1"' };
-
 export const DEFAULTS: Record<string, Default> = {
-  // Picking: the pattern it is chained onto supplies the indices
+  // Combining, chained
   cat: { args: '§s("hh*8")§' },
   stack: { args: '§s("hh*8")§' },
   seq: { args: '§s("hh*8")§' },
   sequence: { args: '§s("hh*8")§' },
   slowcat: { args: '§s("hh*8")§' },
-  ...Object.fromEntries(
-    ['pick', 'pickmod', 'pickOut', 'pickmodOut', 'pickRestart', 'pickmodRestart', 'pickReset', 'pickmodReset', 'inhabit', 'inhabitmod'].map(
-      (n) => [n, { args: '[§s("bd*4")§, s("hh*8")]', ...INDICES }],
-    ),
-  ),
-  squeeze: { args: '[§s("bd*4")§, s("hh*8")]', ...INDICES },
   pickF: { args: '"§0§ 1", [x => x.fast(2), x => x.rev()]', base: 's("bd*4")' },
   // Sound
   s: { args: '"§hh§"' },
@@ -393,10 +390,12 @@ export const FUNCTION_DENY: Record<string, string> = {
   sequenceP: 'library code: a pattern of lists',
 };
 
-const PICKS = 's({})';
 // A continuous chooser has no events of its own: a pattern samples it.
-const SAMPLED = { base: 's("hh*8").s({})', note: 'continuous: sample it from a pattern, e.g. s("hh*8").s(...)' };
-const TWO = '"§bd*4§", "hh*8"';
+const SAMPLED = { base: 's("hh*8").s({})', note: 'continuous: sample it from a pattern, e.g. s("hh*8").s(choose(...))' };
+const TWO = 's("§bd*4§"), s("hh*8")';
+// Continuous signals need a parameter to drive; a discrete n() or note() would need .segment().
+const CONTINUOUS = 'continuous: drop it into .lpf(), .gain(), .pan()...; n() and note() need .segment(8) after it';
+const UNIPOLAR = `${CONTINUOUS}; for a filter use .range(200, 2000)`;
 
 /**
  * Function name → its expression (with § around the selectable literal), or its argument text; `base` is the
@@ -412,40 +411,45 @@ export const FUNCTION_DEFAULTS: Record<string, Default> = {
   slowcatPrime: { args: TWO },
   arrange: { args: `[§4§, s("bd*4")], [2, s("hh*8")]` },
   seqPLoop: { args: `[§0§, 1, s("bd*4")], [1, 2, s("hh*8")]` },
-  polymeter: { args: `"§bd hh§", "sd sd sd"` },
-  stepcat: { args: `[§3§, "bd"], [1, "hh"]` },
-  timecat: { args: `[§3§, "bd"], [1, "hh"]` },
-  stepalt: { args: `["§bd§", "hh"], ["sd"]` },
-  zip: { args: `"§bd hh§", "sd cp"` },
-  tour: { args: `"§bd§", "hh", "sd"` },
-  // Signals: sized for a filter cutoff, the usual target
+  polymeter: { args: `s("§bd hh§"), s("sd sd sd")` },
+  stepcat: { args: `[§3§, s("bd")], [1, s("hh")]` },
+  timecat: { args: `[§3§, s("bd")], [1, s("hh")]` },
+  stepalt: { args: `[s("§bd§"), s("hh")], [s("sd")]` },
+  zip: { args: `s("§bd hh§"), s("sd cp")` },
+  tour: { args: `s("§bd§"), s("hh"), s("sd")` },
+  // Signals: a unit range, safe on gain or pan (the app has no limiter); the note gives the filter form
   ...Object.fromEntries(
-    ['sine', 'cosine', 'saw', 'isaw', 'square', 'tri', 'itri', 'perlin', 'berlin', 'mousex', 'mousey'].map((n) => [
+    ['sine', 'cosine', 'saw', 'isaw', 'square', 'tri', 'itri', 'perlin', 'berlin'].map((n) => [
       n,
-      { expr: `${n}.range(§200§, 2000).slow(4)` },
+      { expr: `${n}.range(§0.2§, 1).slow(4)`, note: UNIPOLAR },
     ]),
   ),
+  mousex: { expr: 'mousex.range(§0.2§, 1)', note: UNIPOLAR },
+  mousey: { expr: 'mousey.range(§0.2§, 1)', note: UNIPOLAR },
   ...Object.fromEntries(
-    ['sine2', 'cosine2', 'saw2', 'isaw2', 'square2', 'tri2', 'itri2'].map((n) => [n, { expr: `${n}.slow(§4§)`, note: 'bipolar: -1 to 1' }]),
+    ['sine2', 'cosine2', 'saw2', 'isaw2', 'square2', 'tri2', 'itri2'].map((n) => [
+      n,
+      { expr: `${n}.slow(§4§)`, note: `bipolar, -1 to 1: for .add() on a note, or .pan() after .range(0, 1); ${CONTINUOUS}` },
+    ]),
   ),
   // Random
-  rand: { expr: 'rand.range(§0.5§, 1)' },
-  rand2: { expr: 'rand2.slow(§2§)', note: 'bipolar: -1 to 1' },
-  brand: { expr: 'brand.slow(§2§)' },
-  brandBy: { args: '§0.3§' },
-  irand: { args: '§8§' },
+  rand: { expr: 'rand.range(§0.5§, 1)', note: CONTINUOUS },
+  rand2: { expr: 'rand2.slow(§2§)', note: `bipolar, -1 to 1; ${CONTINUOUS}` },
+  brand: { expr: 'brand.slow(§2§)', note: CONTINUOUS },
+  brandBy: { args: '§0.3§', note: CONTINUOUS },
+  irand: { args: '§8§', note: CONTINUOUS },
   choose: { args: '"§bd§", "hh", "sd"', ...SAMPLED },
-  chooseCycles: { args: '"§bd§", "hh", "sd"', base: PICKS },
+  chooseCycles: { args: 's("§bd§"), s("hh"), s("sd")' },
   wchoose: { args: '["§bd§", 2], ["hh", 1]', ...SAMPLED },
-  wchooseCycles: { args: '["§bd§", 2], ["hh", 1]', base: PICKS },
+  wchooseCycles: { args: '[s("§bd§"), 2], [s("hh"), 1]' },
   chooseWith: { args: 'sine, ["§bd§", "hh"]', ...SAMPLED },
-  chooseInWith: { args: 'sine, ["§bd§", "hh"]', base: PICKS },
+  chooseInWith: { args: 'sine, [s("§bd§"), s("hh")]' },
   // Sources
-  run: { args: '§8§', base: 'n({}).s("hh")' },
-  binary: { args: '§5§', base: 's("hh*8").struct({})' },
-  binaryN: { args: '§5§, 8', base: 's("hh*8").struct({})' },
-  pick: { args: '["bd*4", "hh*8"], "§0§ 1"', base: PICKS },
-  squeeze: { args: '"§0§ 1", ["bd*4", "hh*8"]', base: PICKS },
+  run: { args: '§8§', base: '$: n({}).s("hh")', note: 'numbers 0 to n-1: drop it into n()' },
+  binary: { args: '§5§', base: '$: s("hh*8").struct({})', note: 'a rhythm of 1s and 0s: drop it into .struct()' },
+  binaryN: { args: '§5§, 8', base: '$: s("hh*8").struct({})', note: 'a rhythm of 1s and 0s: drop it into .struct()' },
+  pick: { args: '[s("bd*4"), s("hh*8")], "§0§ 1"' },
+  squeeze: { args: '"§0§ 1", [s("bd*4"), s("hh*8")]' },
   // Setup: a repl global rather than a bundle export, so it is listed in FUNCTION_GROUP_OF to be offered
-  setcpm: { args: '§120§/4' },
+  setcpm: { args: '§120§/4', note: "replaces the deck's tempo line; deck B follows A while synced" },
 };
