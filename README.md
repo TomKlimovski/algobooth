@@ -23,9 +23,17 @@ cd src-tauri && cargo test
 cd service && uv run pytest
 ```
 
+After a Strudel version bump, run `pnpm build-methods` to rebuild the Methods catalogue; until you do, `app/src/methods/catalogue.test.ts` fails because the installed version differs from the catalogue's.
+
 ## Library
 
 Patterns live in `~/Algobooth/library` as plain JSON files (change the folder in Settings). A brand-new library is seeded with a few examples from `library-example/`. Rest the pointer on a pattern to see its code. Drag it onto a deck to load it, or double-click: that loads into the target deck, the one you last clicked, typed in or loaded, marked "◂ library" in its header.
+
+## Methods
+
+The Methods panel on the Booth's right edge lists Strudel's chainable methods (`.lpf`, `.room`, `.fast` and about 250 more) in folders: Sound, Pitch, Filter, Envelope, Dynamics, Ducking, Delay and Reverb, Modulation, Distortion, Pan and Space, Time, Structure and Other. The folders start collapsed; the search box looks across all of them. Rest the pointer on a row, or focus it with the keyboard, to see the call as it will be inserted, Strudel's own description, synonyms and parameters. Drag a row onto a deck's editor and `.name(default)` lands at the end of the line you dropped on, whatever column, with the default argument selected so you can type over it. Double-click inserts on the cursor's line of the target deck, marked "◂ library" in its header. A drop on a comment, a blank line, or a line that opens a bracket like `stack(` shows "drop onto a pattern line" under the deck. Nothing plays until you press Update.
+
+The list is built offline from the JSDoc of the pinned Strudel packages (`pnpm build-methods` writes `app/src/methods/catalogue.json`), so the panel needs no network. Default arguments, the methods left out and the tooltip notes are hand-kept in `app/src/methods/defaults.ts`. `orbit` is never offered: orbits are the app's deck channels.
 
 ## Rip
 
