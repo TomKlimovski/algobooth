@@ -207,8 +207,7 @@ export function Booth(props: {
         </footer>
       </main>
       <aside class="booth-methods">
-        {/* Task 5: insert into the library's target deck */}
-        <MethodPanel onInsert={() => {}} />
+        <MethodPanel onInsert={(drag) => booth.state.decks[props.library.state.target]?.insertSnippet(drag)} />
       </aside>
     </div>
   );

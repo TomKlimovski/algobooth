@@ -1,5 +1,7 @@
 import { createMemo, createSignal, onCleanup, onMount, Show } from 'solid-js';
 import { StrudelMirror } from '@strudel/codemirror';
+import { StateEffect } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
 import { transpiler } from '@strudel/transpiler';
 import { getAudioContext, webaudioOutput } from '@strudel/webaudio';
 import type { Pattern } from '../library/api';
@@ -9,6 +11,7 @@ import { evaluateExclusive } from '../engine/evalLock';
 import { initEngine } from '../engine/strudel';
 import { isDirty, newPatternDecision, onDiskChange, patternFromDeck, sameCode } from './deckFile';
 import { cpmFromCps, ORBIT, type DeckId, type DeckState } from './deckState';
+import { applyDrag, methodDropExtension, type MethodDrag } from './methodDrop';
 import { SaveDialog, type SaveTarget } from './SaveDialog';
 import './deck.css';
 
@@ -34,6 +37,8 @@ export interface DeckApi {
   isDirty(): boolean;
   /** The deck's Save (Save as when it has no file); resolves false if cancelled or failed. */
   save(): Promise<boolean>;
+  /** Inserts a method at the end of the cursor's line (the panel's double-click); false when refused. */
+  insertSnippet(drag: MethodDrag): boolean;
   /** The mirror's Cyclist. `beforeStart` runs (and is awaited) before its clock starts; `clock` is its zyklus clock. */
   scheduler: {
     cps: number;
@@ -58,6 +63,9 @@ export const DEFAULT_CODE: Record<DeckId, string> = {
 // Browsers keep the AudioContext suspended until a user gesture; every
 // evaluation resumes it (initAudio's own resume() never fires).
 const resumeAudio = () => getAudioContext().resume();
+
+/** Shown in the error slot when a method has nowhere to go. */
+const REFUSED = 'drop onto a pattern line';
 
 /** How long a failed save's message stays under the deck header. */
 const SAVE_ERROR_MS = 5000;
@@ -277,6 +285,25 @@ export function Deck(props: {
       onUpdateState: (s: { code: string }) => setEditorCode(s.code),
     });
     mirror.evaluate = lockedEvaluate;
+    const refuse = () => deck.setError(REFUSED);
+    mirror.editor.dispatch({
+      effects: StateEffect.appendConfig.of([
+        methodDropExtension(() => mirror.editor, refuse),
+        // A drop is an interaction with this deck, like clicking in it: the deck becomes the library's target,
+        // and an earlier refusal no longer applies.
+        EditorView.updateListener.of((u) => {
+          if (!u.transactions.some((t) => t.isUserEvent('input.drop'))) return;
+          if (deck.state.error === REFUSED) deck.setError(null);
+          props.onUse?.();
+        }),
+      ]),
+    });
+    const insertSnippet = (drag: MethodDrag) => {
+      const view: EditorView = mirror.editor;
+      const ok = applyDrag(view, view.state.doc.lineAt(view.state.selection.main.head).number - 1, drag);
+      if (!ok) refuse();
+      return ok;
+    };
 
     props.onReady?.({
       id,
@@ -292,6 +319,7 @@ export function Deck(props: {
       diskChanged: (paths) => void diskChanged(paths),
       isDirty: dirty,
       save,
+      insertSnippet,
       scheduler: mirror.repl.scheduler,
       setCps: (cps) => mirror.repl.setCps(cps),
       afterEval,
