@@ -57,6 +57,15 @@ test('a trailing comma after a number, an arrow or a binary operator refuses', (
   expect(insertAtLineEnd('$: s("bd") +\n  s("hh")', 0, drag)).toBeNull();
   expect(insertAtLineEnd('stack(s("bd"),\n  s("hh"))', 0, drag)?.code).toBe('stack(s("bd").lpf(800),\n  s("hh"))');
 });
+test('a bare label line sends the drop down to its pattern body', () => {
+  // `$:` alone, pattern on the next line: the method belongs on the body, not on a previous block
+  expect(insertAtLineEnd('a: s("hh")\n$:\n  s("bd")', 1, drag)?.code).toBe('a: s("hh")\n$:\n  s("bd").lpf(800)');
+  expect(insertAtLineEnd('bass:\n\n  note("c2")', 0, drag)?.code).toBe('bass:\n\n  note("c2").lpf(800)');
+  // a blank line under the label walks up to the label, which still sends it down
+  expect(insertAtLineEnd('$:\n\n  s("bd")', 1, drag)?.code).toBe('$:\n\n  s("bd").lpf(800)');
+  // a label with nothing under it refuses
+  expect(insertAtLineEnd('a: s("hh")\n$:', 1, drag)).toBeNull();
+});
 test('insertAtCursor on an untouched default deck lands on its pattern line', () => {
   const view = new EditorView({ doc: DEFAULT_CODE.A, parent: document.body });
   expect(view.state.selection.main.head).toBe(0);

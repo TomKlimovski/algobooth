@@ -31,18 +31,22 @@ const SETUP = /^(setcpm\(|setcps\(|samples\(|const\s|let\s|var\s|await\s)/;
 const UNFINISHED = /(=>|[-+*/%?:=&|<>])$/;
 /** A numeric literal at the end of the code. */
 const NUMBER_END = /(?<![\w$.])(\d+\.?\d*|\.\d+)$/;
+/** A named-pattern label on its own (`$:`, `bass:`): the pattern body is on the lines below. */
+const BARE_LABEL = /^[\w$]+:$/;
 
 /**
  * Where a snippet goes on a line: after its code, before a trailing `;`, `,`, whitespace or comment.
- * Null for a line with no code or a setup line (both skipped); 'refuse' for one where nothing can be appended:
- * it opens a bracket, ends inside a template literal, ends in an operator or arrow, or has a number before a trailing comma.
+ * Null for a line with no code or a setup line (both skipped); 'down' for a bare label, whose body is below;
+ * 'refuse' for one where nothing can be appended: it opens a bracket, ends inside a template literal, ends in
+ * an operator or arrow, or has a number before a trailing comma.
  */
-function codeEnd(line: string, startsInTemplate: boolean): number | 'refuse' | null {
+function codeEnd(line: string, startsInTemplate: boolean): number | 'refuse' | 'down' | null {
   const scan = scanLine(line, startsInTemplate);
   if (scan.inTemplate) return 'refuse';
   const code = (scan.comment < 0 ? line : line.slice(0, scan.comment)).trimEnd();
   if (code.trim() === '') return null;
   if (!startsInTemplate && SETUP.test(code.trimStart())) return null;
+  if (!startsInTemplate && BARE_LABEL.test(code.trim())) return 'down';
   if (/[([{]$/.test(code)) return 'refuse';
   const comma = code.endsWith(',');
   const body = /[;,]$/.test(code) ? code.slice(0, -1).trimEnd() : code;
@@ -53,8 +57,9 @@ function codeEnd(line: string, startsInTemplate: boolean): number | 'refuse' | n
 /**
  * Inserts a dropped method at the end of a line's code, wherever the pointer was on it, so it can never
  * split a string or a word. A blank, comment-only or setup line (`setcpm(`, `samples(`, `const` ...) borrows the
- * nearest pattern line above, else the next one below; null when there is none, or when the line it settles on
- * cannot take a method (see `codeEnd`). `selection` is the argument's range in the new code, for the editor to select.
+ * nearest pattern line above, else the next one below; a bare label (`$:` alone) sends it to the body below it;
+ * null when there is none, or when the line it settles on cannot take a method (see `codeEnd`). `selection` is
+ * the argument's range in the new code, for the editor to select.
  */
 export function insertAtLineEnd(code: string, lineIndex: number, drag: MethodDrag): { code: string; selection: [number, number] | null } | null {
   const at = landing(code, lineIndex);
@@ -79,17 +84,23 @@ function landing(code: string, lineIndex: number): number | null {
   const from = Math.min(lineIndex, lines.length - 1);
   const at = (i: number) => {
     const end = codeEnd(lines[i], starts[i]);
-    return end === null || end === 'refuse' ? end : offsets[i] + end;
+    return typeof end === 'number' ? offsets[i] + end : end;
+  };
+  // The first line below `i` that decides: a label met on the way down counts as its own body's start.
+  const down = (i: number): number | null => {
+    for (let j = i + 1; j < lines.length; j++) {
+      const end = at(j);
+      if (end === 'down') continue;
+      if (end !== null) return end === 'refuse' ? null : end;
+    }
+    return null;
   };
   for (let i = from; i >= 0; i--) {
     const end = at(i);
+    if (end === 'down') return down(i);
     if (end !== null) return end === 'refuse' ? null : end;
   }
-  for (let i = from + 1; i < lines.length; i++) {
-    const end = at(i);
-    if (end !== null) return end === 'refuse' ? null : end;
-  }
-  return null;
+  return down(from);
 }
 
 const argSelection = (at: number, drag: MethodDrag): [number, number] | null =>
