@@ -7,7 +7,7 @@ import './methodPanel.css';
 /** Keeps the tooltip this far inside the window when the row is near the bottom. */
 const TIP_MARGIN_PX = 8;
 
-const toDrag = (m: MethodDoc): MethodDrag => ({ name: m.name, snippet: m.snippet, argRange: m.argRange, kind: m.kind });
+const toDrag = (m: MethodDoc): MethodDrag => ({ name: m.name, snippet: m.snippet, argRange: m.argRange, kind: m.kind, group: m.group });
 
 const matches = (m: MethodDoc, q: string) =>
   m.name.toLowerCase().includes(q) || m.synonyms.some((s) => s.toLowerCase().includes(q)) || m.description.toLowerCase().includes(q);

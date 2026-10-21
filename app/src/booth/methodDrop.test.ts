@@ -2,8 +2,10 @@ import { EditorView } from '@codemirror/view';
 import { insertAtCursor, insertAtLineEnd, insertAtPointer, METHOD_MIME, methodDropExtension } from './methodDrop';
 import { DEFAULT_CODE } from './Deck';
 
-const drag = { name: 'lpf', snippet: '.lpf(800)', argRange: [5, 8] as [number, number], kind: 'method' as const };
-const fn = { name: 'sine', snippet: 'sine.range(200, 2000)', argRange: [11, 14] as [number, number], kind: 'function' as const };
+const drag = { name: 'lpf', snippet: '.lpf(800)', argRange: [5, 8] as [number, number], kind: 'method' as const, group: 'Filter' };
+const fn = { name: 'sine', snippet: 'sine.range(200, 2000)', argRange: [11, 14] as [number, number], kind: 'function' as const, group: 'Signals' };
+const stack = { name: 'stack', snippet: 'stack(s("bd*4"), s("hh*8"))', argRange: [6, 15] as [number, number], kind: 'function' as const, group: 'Combine' };
+const tempo = { name: 'setcpm', snippet: 'setcpm(120/4)', argRange: [7, 10] as [number, number], kind: 'function' as const, group: 'Setup' };
 test('lands at the end of a plain line, selecting the argument', () => {
   expect(insertAtLineEnd('a: s("bd")\nb: s("hh")', 0, drag)).toEqual({ code: 'a: s("bd").lpf(800)\nb: s("hh")', selection: [15, 18] });
 });
@@ -23,7 +25,7 @@ test('a multi-line chain lands on the dropped-on line, not the last', () => {
   expect(insertAtLineEnd('a: s("bd")\n  .bank("tr909")\n  .gain(1)', 1, drag)?.code).toBe('a: s("bd")\n  .bank("tr909").lpf(800)\n  .gain(1)');
 });
 test('no argument means no selection', () => {
-  expect(insertAtLineEnd('a: s("bd")', 0, { name: 'rev', snippet: '.rev()', argRange: null, kind: 'method' })).toEqual({ code: 'a: s("bd").rev()', selection: null });
+  expect(insertAtLineEnd('a: s("bd")', 0, { name: 'rev', snippet: '.rev()', argRange: null, kind: 'method', group: 'Time' })).toEqual({ code: 'a: s("bd").rev()', selection: null });
 });
 test('a line index past the end uses the last line', () => {
   expect(insertAtLineEnd('a: s("bd")', 5, drag)?.code).toBe('a: s("bd").lpf(800)');
@@ -82,24 +84,43 @@ describe('insertAtPointer (a function drops where the pointer is)', () => {
     const code = '$: s("bd").lpf()';
     expect(insertAtPointer(code, 15, fn)).toEqual({ code: '$: s("bd").lpf(sine.range(200, 2000))', selection: [26, 29] });
   });
-  test('after a comma and space, after a label, and on a blank line', () => {
+  test('after a comma and space, and after a label', () => {
     expect(insertAtPointer('stack(s("bd"), )', 15, fn)?.code).toBe('stack(s("bd"), sine.range(200, 2000))');
     expect(insertAtPointer('$: \n', 3, fn)?.code).toBe('$: sine.range(200, 2000)\n');
-    expect(insertAtPointer('a: s("bd")\n\nb: s("hh")', 11, fn)?.code).toBe('a: s("bd")\nsine.range(200, 2000)\nb: s("hh")');
+  });
+  test('spaces around the pointer are looked past, both ways', () => {
+    expect(insertAtPointer('$: s("bd").lpf( )', 15, fn)?.code).toBe('$: s("bd").lpf(sine.range(200, 2000) )');
+    expect(insertAtPointer('stack(s("bd"),  s("hh"))', 15, stack)).toBeNull(); // a value follows
+  });
+  test('on a blank line a combinator gets a label, a setup call goes bare, a signal refuses', () => {
+    expect(insertAtPointer('a: s("bd")\n\nb: s("hh")', 11, stack)).toEqual({
+      code: 'a: s("bd")\n$: stack(s("bd*4"), s("hh*8"))\nb: s("hh")',
+      selection: [20, 29],
+    });
+    expect(insertAtPointer('setcpm(30)\n\n$: s("bd")', 11, tempo)?.code).toBe('setcpm(30)\nsetcpm(120/4)\n$: s("bd")');
+    expect(insertAtPointer('a: s("bd")\n\nb: s("hh")', 11, fn)).toBeNull();
+    // a line of only spaces counts as blank; the label replaces the spaces
+    expect(insertAtPointer('a: s("bd")\n  \nb: s("hh")', 12, stack)?.code).toBe('a: s("bd")\n$: stack(s("bd*4"), s("hh*8"))\nb: s("hh")');
   });
   test('inside a word or a number, or right after an expression, refuses', () => {
     expect(insertAtPointer('$: s("bd")', 4, fn)).toBeNull(); // in `s`
     expect(insertAtPointer('$: s("bd").lpf(800)', 16, fn)).toBeNull(); // in `800`
     expect(insertAtPointer('$: s("bd")', 10, fn)).toBeNull(); // after `)`
+    expect(insertAtPointer('$: s("bd") ', 11, fn)).toBeNull(); // after `)` and a space
+    expect(insertAtPointer('$: s("bd").lpf(800 )', 19, fn)).toBeNull(); // after a number and a space
     expect(insertAtPointer('$: s("bd").lpf(800)', 15, fn)).toBeNull(); // right before `800`
+    expect(insertAtPointer('$: s("bd").', 11, fn)).toBeNull(); // after a dot
+    expect(insertAtPointer('$: s("bd")\n  .lpf(800)', 13, fn)).toBeNull(); // before a continuation line's dot
+    expect(insertAtPointer('x => { } ', 9, fn)).toBeNull(); // after `}`
   });
   test('inside a string, a comment or a template literal refuses', () => {
     expect(insertAtPointer('$: s("bd hh")', 7, fn)).toBeNull();
     expect(insertAtPointer('$: s("bd") // kick\n', 15, fn)).toBeNull();
     expect(insertAtPointer('note(`<c3 e3\ng3>`)', 14, fn)).toBeNull();
+    expect(insertAtPointer('/* a\nb */ s( )', 2, fn)).toBeNull();
   });
   test('no argument means no selection, and an offset past the end clamps', () => {
-    const run = { name: 'run', snippet: 'run(8)', argRange: null, kind: 'function' as const };
+    const run = { name: 'run', snippet: 'run(8)', argRange: null, kind: 'function' as const, group: 'Sources' };
     expect(insertAtPointer('n()', 2, run)).toEqual({ code: 'n(run(8))', selection: null });
     expect(insertAtPointer('n(', 99, run)?.code).toBe('n(run(8)');
   });
@@ -140,13 +161,13 @@ describe('methodDropExtension', () => {
     expect(onRefused).not.toHaveBeenCalled();
     view.destroy();
   });
-  test('a refused drop still never lets the text copy in', () => {
+  test('a refused drop still never lets the text copy in, and says which kind was refused', () => {
     const { view, onRefused } = mount('// only\n// comments');
     const e = dragEvent('drop', payload);
     view.contentDOM.dispatchEvent(e);
     expect(view.state.doc.toString()).toBe('// only\n// comments');
     expect(e.defaultPrevented).toBe(true);
-    expect(onRefused).toHaveBeenCalledOnce();
+    expect(onRefused).toHaveBeenCalledWith('method');
     view.destroy();
   });
   test('a function drop goes by the pointer offset, not the line end', () => {
@@ -154,12 +175,13 @@ describe('methodDropExtension', () => {
     const refused = mount('setcpm(30)\n$: s("bd")');
     refused.view.contentDOM.dispatchEvent(dragEvent('drop', { [METHOD_MIME]: JSON.stringify(fn), 'text/plain': fn.snippet }));
     expect(refused.view.state.doc.toString()).toBe('setcpm(30)\n$: s("bd")');
-    expect(refused.onRefused).toHaveBeenCalledOnce();
+    expect(refused.onRefused).toHaveBeenCalledWith('function');
     refused.view.destroy();
-    // A blank line 2 takes it.
+    // A blank line 2 takes a combinator, written as its own labelled line.
     const { view, onRefused } = mount('setcpm(30)\n\n$: s("bd")');
-    view.contentDOM.dispatchEvent(dragEvent('drop', { [METHOD_MIME]: JSON.stringify(fn), 'text/plain': fn.snippet }));
-    expect(view.state.doc.toString()).toBe('setcpm(30)\nsine.range(200, 2000)\n$: s("bd")');
+    view.contentDOM.dispatchEvent(dragEvent('drop', { [METHOD_MIME]: JSON.stringify(stack), 'text/plain': stack.snippet }));
+    expect(view.state.doc.toString()).toBe('setcpm(30)\n$: stack(s("bd*4"), s("hh*8"))\n$: s("bd")');
+    expect(view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to)).toBe('s("bd*4")');
     expect(onRefused).not.toHaveBeenCalled();
     view.destroy();
   });

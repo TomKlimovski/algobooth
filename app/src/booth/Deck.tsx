@@ -66,6 +66,8 @@ const resumeAudio = () => getAudioContext().resume();
 
 /** Shown in the error slot when a method has nowhere to go. */
 const REFUSED = 'drop onto a pattern line';
+const REFUSED_FUNCTION = 'drop a function where a value goes: inside ( ), after a comma, or on a blank line';
+const REFUSALS = new Set([REFUSED, REFUSED_FUNCTION]);
 
 /** How long a failed save's message stays under the deck header. */
 const SAVE_ERROR_MS = 5000;
@@ -285,7 +287,7 @@ export function Deck(props: {
       onUpdateState: (s: { code: string }) => setEditorCode(s.code),
     });
     mirror.evaluate = lockedEvaluate;
-    const refuse = () => deck.setError(REFUSED);
+    const refuse = (kind: MethodDrag['kind']) => deck.setError(kind === 'function' ? REFUSED_FUNCTION : REFUSED);
     mirror.editor.dispatch({
       effects: StateEffect.appendConfig.of([
         methodDropExtension(() => mirror.editor, refuse),
@@ -293,14 +295,14 @@ export function Deck(props: {
         // and an earlier refusal no longer applies.
         EditorView.updateListener.of((u) => {
           if (!u.transactions.some((t) => t.isUserEvent('input.drop'))) return;
-          if (deck.state.error === REFUSED) deck.setError(null);
+          if (REFUSALS.has(deck.state.error ?? '')) deck.setError(null);
           props.onUse?.();
         }),
       ]),
     });
     const insertSnippet = (drag: MethodDrag) => {
       const ok = insertAtCursor(mirror.editor, drag);
-      if (!ok) refuse();
+      if (!ok) refuse(drag.kind);
       return ok;
     };
 

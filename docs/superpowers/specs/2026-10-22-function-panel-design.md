@@ -13,11 +13,17 @@ fits an expression rather than a method call.
 ## Goals
 
 - A second section, **Functions**, below the method folders in the same panel, with its own folders:
-  Combine, Signals, Random, Sources, Setup, Other. Search spans both sections.
+  Combine, Signals, Random, Sources, Setup, Other. Search spans both sections. The deck's refusal message
+  names the kind: a function refused mid-word is told where a value goes.
 - Each function row carries a complete, evaluable expression as its snippet (`stack(s("bd*4"), s("hh*8"))`,
   `sine.range(200, 2000).slow(4)`, `irand(8)`, `setcpm(120/4)`), with its one tweakable literal selected.
-- A function drop lands **at the pointer**, nudged to the nearest token boundary: never inside a word, a
-  number, a string or a comment (those refuse). Double-click inserts at the cursor the same way.
+- A function drop lands **at the pointer** when an expression can start there: after an opener (`(`, `,`,
+  `:`, an operator) or nothing but spaces, and before a closer, a comment or the line's end; never inside
+  a string or a comment, a word or a number, or right after an expression (those refuse: an expression
+  glued to an identifier is broken either way, so there is no boundary to nudge to). On a blank line a
+  Combine or Sources expression is written as its own `$:` line, since the repl plays only labelled lines
+  once a deck has any; a setup call goes in bare; a signal refuses, having nothing to drive. Double-click
+  inserts at the cursor the same way. (Amended after the final review.)
 - The evaluate test covers functions too: each snippet, placed in a group-specific carrier
   (`s("hh*8").gain({})` for signals and random, `{}` alone for combinators and sources, `{}\n$: s("bd*4")`
   for setup), evaluates and plays.
@@ -38,7 +44,7 @@ fits an expression rather than a method call.
 
 1. **Parser.** `codeName` also recognises `export function x(` and `const x =` after a block.
 2. **Catalogue.** `MethodDoc` gains `kind: 'method' | 'function'`. `SOURCES` adds `core/repl.mjs`
-   (`setcpm`, `setcps`) and `core/pick.mjs`. A documented name that is not a `Pattern.prototype` function
+   (`setcpm`; `setcps` has no JSDoc block of its own and is not offered) and `core/pick.mjs`. A documented name that is not a `Pattern.prototype` function
    but is exported by the core, mini or tonal bundle (as a function or a Pattern object) becomes a
    function row. Its snippet is the hand table's `expr` (full text with `§` markers) when given, else
    `name(args)` from the hand table's `args`, else `name()` when the block has no params; a function with
@@ -62,4 +68,7 @@ fits an expression rather than a method call.
 - `samples`, `silence`, `gap`, `K`, `useRNG`, `addVoicings`, `ref`, `withSeed`, the list-returning
   `binaryL`, `binaryNL`, `randL`, `parray`, the event-length meta signals `cyclesPer`, `per`, `perx` and
   `time` are denied, each with a reason in the table.
-- Signals get musically sized expressions (`sine.range(200, 2000).slow(4)`) rather than the bare `sine`.
+- Signals default to a unit range (`sine.range(0.2, 1).slow(4)`): safe on `.gain()` and `.pan()` in an app
+  with no limiter; the tooltip gives the filter-sized form. Every Combine and Sources expression wraps its
+  parts in `s()` so it sounds on its own; the pick family is denied as methods (a method lands on a sound
+  pattern, which has no indices) and offered as the `pick()` and `squeeze()` functions. (After the review.)

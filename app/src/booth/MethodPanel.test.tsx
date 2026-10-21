@@ -71,7 +71,7 @@ test('dragstart carries both MIME types', () => {
   Object.defineProperty(event, 'dataTransfer', { value: { setData: (type: string, v: string) => (data[type] = v), effectAllowed: 'none' } });
   openDucking().dispatchEvent(event);
   expect(data['text/plain']).toBe(duck.snippet);
-  expect(JSON.parse(data[METHOD_MIME])).toEqual({ name: 'duckattack', snippet: duck.snippet, argRange: duck.argRange, kind: 'method' });
+  expect(JSON.parse(data[METHOD_MIME])).toEqual({ name: 'duckattack', snippet: duck.snippet, argRange: duck.argRange, kind: 'method', group: 'Ducking' });
 });
 
 test('resting the pointer shows the description, synonyms and note; leaving hides it', async () => {
@@ -101,7 +101,7 @@ test('double-click calls onInsert with the row', () => {
   const onInsert = vi.fn();
   mount(onInsert);
   openDucking().dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
-  expect(onInsert).toHaveBeenCalledWith({ name: 'duckattack', snippet: duck.snippet, argRange: duck.argRange, kind: 'method' });
+  expect(onInsert).toHaveBeenCalledWith({ name: 'duckattack', snippet: duck.snippet, argRange: duck.argRange, kind: 'method', group: 'Ducking' });
 });
 
 test('a Functions section follows the methods, with its own folders', () => {
@@ -117,7 +117,7 @@ test('a Functions section follows the methods, with its own folders', () => {
   Object.defineProperty(event, 'dataTransfer', { value: { setData: (type: string, v: string) => (data[type] = v), effectAllowed: 'none' } });
   seq.dispatchEvent(event);
   expect(JSON.parse(data[METHOD_MIME])).toMatchObject({ name: 'seq', kind: 'function' });
-  expect(data['text/plain']).toBe('seq("bd*4", "hh*8")');
+  expect(data['text/plain']).toBe('seq(s("bd*4"), s("hh*8"))');
 });
 
 test('search spans both sections and hides a section with no match', () => {

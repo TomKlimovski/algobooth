@@ -6,10 +6,11 @@ import { EditorView } from '@codemirror/view';
 export const METHOD_MIME = 'application/x-algobooth-method';
 
 /**
- * What a drag carries: the catalogue's snippet, where its first argument sits within it, and whether it is a
- * method (lands at a line's end) or a standalone function (an expression: lands at the pointer).
+ * What a drag carries: the catalogue's snippet, where its first argument sits within it, whether it is a
+ * method (lands at a line's end) or a standalone function (an expression: lands at the pointer), and the
+ * function's folder, which decides what a blank-line drop writes.
  */
-export interface MethodDrag { name: string; snippet: string; argRange: [number, number] | null; kind: 'method' | 'function' }
+export interface MethodDrag { name: string; snippet: string; argRange: [number, number] | null; kind: 'method' | 'function'; group: string }
 
 /**
  * Scans one line: where its first `//` outside a string is (-1 when none), and whether it ends inside a template
@@ -109,42 +110,80 @@ function landing(code: string, lineIndex: number): number | null {
 const argSelection = (at: number, drag: MethodDrag): [number, number] | null =>
   drag.argRange && [at + drag.argRange[0], at + drag.argRange[1]];
 
-/** A character that continues an identifier or number, or ends an expression: no expression can start after it. */
-const EXPRESSION_END = /[\w$)\]"'`]/;
-const WORD = /[\w$]/;
+/** Before the pointer, past spaces: a character an expression may follow. */
+const OPENER = /[([{,:=?+\-*/%!&|<>]/;
+/** After the pointer, past spaces: a character an expression may precede. */
+const CLOSER = /[)\]},;]/;
+/** Folders whose expression is a pattern: on a blank line it gets a `$:` label so the deck plays it. */
+const PLAYS_AS_LINE = new Set(['Combine', 'Sources', 'Other']);
+/** Folders whose expression only drives a parameter: a blank line has nothing for it to drive. */
+const NEEDS_A_TARGET = new Set(['Signals', 'Random']);
+
+/** One edit: replace `[from, to)` with `insert`; `selection` is the argument's range afterwards. */
+interface Edit { from: number; to: number; insert: string; selection: [number, number] | null }
 
 /**
- * Inserts a function's expression where the pointer is: the offset must be a place an expression can start,
- * outside strings, comments and template literals, not inside a word or number and not right after an
- * expression (`)`, a quote, a name). Null when it is not; the deck shows the refusal. `selection` as for
- * `insertAtLineEnd`.
+ * Where a function's expression goes when dropped at `offset`: at the pointer when an expression can start
+ * there (outside strings and comments; after an opener, a label or nothing but spaces; before a closer, a
+ * comment or the line's end). On a blank line a combinator is written as its own `$:` line, a setup call as
+ * it is, and a signal refuses (nothing to drive). Null when the drop is refused.
  */
-export function insertAtPointer(code: string, offset: number, drag: MethodDrag): { code: string; selection: [number, number] | null } | null {
+function functionEdit(code: string, offset: number, drag: MethodDrag): Edit | null {
   const at = Math.max(0, Math.min(offset, code.length));
-  if (!canStartExpression(code, at)) return null;
-  return { code: code.slice(0, at) + drag.snippet + code.slice(at), selection: argSelection(at, drag) };
+  const spot = expressionSpot(code, at);
+  if (spot === 'no') return null;
+  if (spot === 'blank') {
+    if (NEEDS_A_TARGET.has(drag.group)) return null;
+    const from = code.lastIndexOf('\n', at - 1) + 1;
+    let to = code.indexOf('\n', at);
+    if (to === -1) to = code.length;
+    const prefix = PLAYS_AS_LINE.has(drag.group) ? '$: ' : '';
+    const sel = argSelection(from + prefix.length, drag);
+    return { from, to, insert: prefix + drag.snippet, selection: sel };
+  }
+  return { from: at, to: at, insert: drag.snippet, selection: argSelection(at, drag) };
 }
 
-/** Whether an expression may be inserted at `at`: see `insertAtPointer`. */
-function canStartExpression(code: string, at: number): boolean {
-  // Scan up to `at`, tracking strings, template literals and comments the way `scanLine` does.
+/** `insertAtLineEnd`'s counterpart for a function: the code after the drop, or null when refused. */
+export function insertAtPointer(code: string, offset: number, drag: MethodDrag): { code: string; selection: [number, number] | null } | null {
+  const e = functionEdit(code, offset, drag);
+  if (e === null) return null;
+  return { code: code.slice(0, e.from) + e.insert + code.slice(e.to), selection: e.selection };
+}
+
+/** Whether an expression may start at `at`: 'ok', 'blank' (the line holds only whitespace) or 'no'. */
+function expressionSpot(code: string, at: number): 'ok' | 'blank' | 'no' {
+  // Scan up to `at`, tracking strings, template literals and both kinds of comment.
   let quote: string | null = null;
-  let comment = false;
+  let comment: 'line' | 'block' | null = null;
   for (let i = 0; i < at; i++) {
     const c = code[i];
-    if (comment) {
-      if (c === '\n') comment = false;
+    if (comment === 'line') {
+      if (c === '\n') comment = null;
+    } else if (comment === 'block') {
+      if (c === '*' && code[i + 1] === '/') {
+        comment = null;
+        i++;
+      }
     } else if (quote) {
       if (c === '\\') i++;
       else if (c === quote) quote = null;
       else if (c === '\n' && quote !== '`') quote = null; // an unterminated string ends with its line
     } else if (c === '"' || c === "'" || c === '`') quote = c;
-    else if (c === '/' && code[i + 1] === '/') comment = true;
+    else if (c === '/' && code[i + 1] === '/') comment = 'line';
+    else if (c === '/' && code[i + 1] === '*') comment = 'block';
   }
-  if (quote || comment) return false;
-  const prev = at > 0 ? code[at - 1] : '';
-  const next = at < code.length ? code[at] : '';
-  return !EXPRESSION_END.test(prev) && !WORD.test(next);
+  if (quote || comment) return 'no';
+  let b = at;
+  while (b > 0 && (code[b - 1] === ' ' || code[b - 1] === '\t')) b--;
+  const prev = b > 0 && code[b - 1] !== '\n' ? code[b - 1] : '';
+  let f = at;
+  while (f < code.length && (code[f] === ' ' || code[f] === '\t')) f++;
+  const next = f < code.length && code[f] !== '\n' ? code.slice(f, f + 2) : '';
+  if (prev === '' && next === '') return 'blank';
+  const prevOk = prev === '' || OPENER.test(prev);
+  const nextOk = next === '' || CLOSER.test(next[0]) || next === '//';
+  return prevOk && nextOk ? 'ok' : 'no';
 }
 
 /**
@@ -152,7 +191,7 @@ function canStartExpression(code: string, at: number): boolean {
  * selected. Every method drop is claimed, a refused one too, so CodeMirror never inserts the text/plain copy mid-token;
  * other drags are left to CodeMirror. Nothing is evaluated.
  */
-export function methodDropExtension(view: () => EditorView, onRefused: () => void): Extension {
+export function methodDropExtension(view: () => EditorView, onRefused: (kind: MethodDrag['kind']) => void): Extension {
   const isMethod = (e: DragEvent) => e.dataTransfer?.types.includes(METHOD_MIME) ?? false;
   return EditorView.domEventHandlers({
     dragover(e) {
@@ -167,7 +206,7 @@ export function methodDropExtension(view: () => EditorView, onRefused: () => voi
       const v = view();
       const drag = JSON.parse(e.dataTransfer!.getData(METHOD_MIME)) as MethodDrag;
       const doc = v.state.doc;
-      if (!applyDrag(v, v.posAtCoords({ x: e.clientX, y: e.clientY }) ?? doc.length, drag)) onRefused();
+      if (!applyDrag(v, v.posAtCoords({ x: e.clientX, y: e.clientY }) ?? doc.length, drag)) onRefused(drag.kind);
       return true;
     },
   });
@@ -179,13 +218,18 @@ export function methodDropExtension(view: () => EditorView, onRefused: () => voi
  */
 export function applyDrag(view: EditorView, offset: number, drag: MethodDrag): boolean {
   const code = view.state.doc.toString();
-  const at = drag.kind === 'function' ? (canStartExpression(code, offset) ? offset : null) : landing(code, view.state.doc.lineAt(offset).number - 1);
-  if (at === null) return false;
+  let edit: Edit | null;
+  if (drag.kind === 'function') edit = functionEdit(code, offset, drag);
+  else {
+    const at = landing(code, view.state.doc.lineAt(offset).number - 1);
+    edit = at === null ? null : { from: at, to: at, insert: drag.snippet, selection: argSelection(at, drag) };
+  }
+  if (edit === null) return false;
   // Only the snippet is inserted, so the rest of the document (and its undo history) stays put.
-  const sel = argSelection(at, drag);
+  const { from, to, insert, selection: sel } = edit;
   view.dispatch({
-    changes: { from: at, insert: drag.snippet },
-    selection: sel ? { anchor: sel[0], head: sel[1] } : { anchor: at + drag.snippet.length },
+    changes: { from, to, insert },
+    selection: sel ? { anchor: sel[0], head: sel[1] } : { anchor: from + insert.length },
     userEvent: 'input.drop',
   });
   view.focus();
