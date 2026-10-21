@@ -69,14 +69,15 @@ def test_bass_lines_write_the_loop_and_a_muted_layer():
 
 def test_drum_lines_write_the_loop_and_a_muted_fills_line():
     a = analysis(drums={"bd": [(b, s) for b in range(8) for s in (0, 4, 8, 12)],
-                        "sd": [(b, s) for b in range(8) for s in (4, 12)] + [(3, 14), (7, 14)],
+                        "sd": [(b, s) for b in range(8) for s in (4, 12)] + [(3, 13), (3, 14), (3, 15), (7, 14)],
                         "hh": [(b, s) for b in range(8) for s in range(0, 16, 2)] + [(1, 5)], "oh": []}, bars=8)
     s = choose_sounds(a)  # snare_name is "cp" or "sd": the test uses s.snare_name
+    # bar 4 has three snare strays (a fill); the lone strays in bars 2 and 8 are under FILL_MIN_HITS
     assert drum_lines(a, s) == [
         f'drums: s("bd*4, [~ {s.snare_name}]*2").bank("{s.drum_bank}")',
         f'hats: s("hh*8").bank("{s.drum_bank}")',
-        "// bars 2–8 add these hits (a fill): remove the underscore to hear them",
-        f'_fills: s("<~ ~ ~ [~ ~ ~ [~ ~ {s.snare_name} ~]]>, <~ [~ [~ hh ~ ~] ~ ~] ~ ~ ~ ~ ~ ~>").bank("{s.drum_bank}")',
+        "// bars 4–4 add these hits (a fill): remove the underscore to hear them",
+        f'_fills: s("<~ ~ ~ [~ ~ ~ [~ {s.snare_name} {s.snare_name} {s.snare_name}]] ~ ~ ~ ~>").bank("{s.drum_bank}")',
     ]
 
 

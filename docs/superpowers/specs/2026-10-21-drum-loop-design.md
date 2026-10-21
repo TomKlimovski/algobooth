@@ -1,5 +1,7 @@
 # Drum loop: the drum and hat lines through the loop finder, fills as a muted line
 
+Amended by `2026-10-21-drum-loop-fills-design.md` (empty-phase rule, fills threshold).
+
 Date: 2026-10-21. Extends `2026-10-20-bass-loop-design.md` (built; `service/algorip/loop.py` is the loop
 finder it describes) to the drum voices. Principle, from Tom: generated code is as modular as possible —
 the simplest loop on each part's line, anything that varies as its own muted line.
