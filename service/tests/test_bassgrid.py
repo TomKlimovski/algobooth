@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from algorip.audio import SR
-from algorip.bassgrid import bass_grid, grid_to_notes
+from algorip.bassgrid import PYIN_SR, bass_grid, grid_to_notes, hps_midi, sub_octave_supported
 from algorip.grid import Grid
 from tests.synth import bass_line, plucked_bass, swept_bass
 
@@ -79,3 +79,50 @@ def test_a_sixty_second_stem_tracks_in_under_five_seconds():
     y = bass_line([(b, s, 1, 31) for b in range(30) for s in range(0, 16, 2)], BPM, 30)  # 60 s
     t = time.perf_counter(); bass_grid(y, SR, Grid(bpm=BPM, first_downbeat=0.0, bars=30))
     assert time.perf_counter() - t < 5.0
+
+
+def _tone(midi: int, seconds: float, weights: tuple[float, ...]) -> np.ndarray:
+    """Harmonics 1..n of a note at PYIN_SR with the given amplitudes."""
+    t = np.arange(int(seconds * PYIN_SR)) / PYIN_SR
+    hz = 440.0 * 2 ** ((midi - 69) / 12)
+    return sum(w * np.sin(2 * np.pi * (k + 1) * hz * t) for k, w in enumerate(weights)).astype(np.float32)
+
+
+def test_hps_midi_reads_the_fundamental_even_under_a_louder_second_harmonic():
+    # D#2 (39): the 48:50 clip's beat 4, which pyin reads an octave down at no confidence
+    assert hps_midi(_tone(39, 0.35, (1.0, 0.5, 0.2, 0.2)), PYIN_SR) == 39
+    assert hps_midi(_tone(39, 0.35, (0.5, 1.0, 0.3)), PYIN_SR) == 39
+    assert hps_midi(_tone(24, 0.35, (1.0, 0.5)), PYIN_SR) == 24  # C1, at FMIN's edge: 350 ms resolves it, 232 reads B0
+    assert hps_midi(_tone(51, 0.35, (1.0, 0.3)), PYIN_SR) == 51  # D#3, a semitone resolved against E3
+    assert hps_midi(np.zeros(100, dtype=np.float32), PYIN_SR) is None  # too short to resolve a bass note
+    assert hps_midi(_tone(70, 0.35, (1.0, 0.3)), PYIN_SR) is None  # out of the bass range: nothing in the band is a partial
+    # a missing fundamental: the spectrum reads the octave above, and the sub-octave is supported by its third harmonic
+    missing = _tone(31, 0.35, (0.0, 1.0, 0.6, 0.4, 0.3, 0.2))
+    assert hps_midi(missing, PYIN_SR) == 43 and sub_octave_supported(missing, PYIN_SR, 31)
+    assert not sub_octave_supported(_tone(39, 0.35, (1.0, 0.5, 0.3)), PYIN_SR, 27)
+
+
+def test_a_loud_step_pyin_cannot_voice_gets_its_pitch_from_the_spectrum(monkeypatch):
+    # pyin is confident on the first note and not on the second (its frames read an octave down at 0.03):
+    # the second step still gets its pitch, from the spectrum, since it is as loud as the first
+    import librosa
+
+    from algorip import bassgrid
+
+    real = librosa.pyin
+
+    def unsure_after_half(y, **kw):
+        f0, vf, vp = real(y, **kw)
+        half = len(f0) // 2
+        f0[half:] = f0[half:] / 2  # an octave down...
+        vp[half:] = 0.03  # ...at no confidence, as on the clip
+        return f0, vf, vp
+
+    monkeypatch.setattr(bassgrid.librosa, "pyin", unsure_after_half)
+    bg = bass_grid(bass_line([(0, 0, 8, 39), (0, 8, 8, 39)], BPM, 1), SR, Grid(bpm=BPM, first_downbeat=0.0, bars=1))
+    assert bg.midi[0] == [39] * 16
+
+
+def test_a_quiet_step_never_gets_a_fallback_pitch():
+    bg = bass_grid(bass_line([(0, 0, 4, 39)], BPM, 1), SR, Grid(bpm=BPM, first_downbeat=0.0, bars=1))
+    assert bg.midi[0][:4] == [39] * 4 and bg.midi[0][4:] == [None] * 12

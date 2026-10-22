@@ -37,6 +37,23 @@ PYIN_RESOLUTION = 0.2
 # of pyin's 186 ms frame, and on a real stem (Solomun, steps 5/7/13) its frames read 0.02-0.15 while
 # pitch was tracked correctly, so those hits were dropped as rests.
 VOICED_PROB = 0.02
+# A step whose voiced frames' median probability is under this is not pyin's to call: the 48:50 Solomun
+# clip's beat 4, a D#2 as loud as any note in the bar, reads an octave down at 0.01-0.09 (YIN's trough at
+# the double period) while a plain spectrum has the fundamental as its strongest peak. Such a step, when
+# loud enough to be a note, takes its pitch from the harmonic product spectrum instead.
+PYIN_CONFIDENT = 0.3
+HPS_HARMONICS = 3
+# The spectrum's window: the step and one step either side, and at least this long, since a 232 ms Hann
+# window reads C1 as B0 (its lobe meets its mirror at 0 Hz) while 350 ms resolves the whole range.
+HPS_WINDOW_SECONDS = 0.35
+HPS_MIN_SECONDS = 0.1  # under this a window cannot resolve a semitone at the bottom of the range
+# The spectrum's candidate must be a real partial: at least this share of the window's strongest bin.
+# A tone outside FMIN..FMAX leaves only noise in the band, and noise never reaches it.
+HPS_PARTIAL = 0.2
+# Whether a pitch pyin heard an octave under the spectrum's is a real missing-fundamental reading: a
+# peak at its third harmonic, which the octave above does not have, at least this share of the strongest bin.
+HPS_SUPPORT = 0.1
+_HPS_FFT = 1 << 15  # 0.34 Hz bins at PYIN_SR
 # A same-pitch step is a retrigger when the short RMS around its start dips below this share of the
 # quieter of the two steps' levels. Synthetic retriggers (10 ms release + 10 ms attack) dip to 0.35
 # (G1 to G1) and 0.36 (G1 to G2); held notes and plucked tails stay at or above 0.89, and the
@@ -82,6 +99,48 @@ def _retriggered(env: np.ndarray, t: np.ndarray, edges: np.ndarray, i: int) -> b
     return float(around.min()) < RETRIGGER_DIP * min(float(np.median(before)), float(np.median(after)))
 
 
+def _spectrum(y: np.ndarray, sr: int) -> tuple[np.ndarray, np.ndarray]:
+    spectrum = np.abs(np.fft.rfft(np.asarray(y, dtype=np.float64) * np.hanning(len(y)), n=_HPS_FFT))
+    return spectrum, np.fft.rfftfreq(_HPS_FFT, 1.0 / sr)
+
+
+def _peak_near(spectrum: np.ndarray, freqs: np.ndarray, hz: float, width: float = 0.03) -> float:
+    band = (freqs >= hz * (1 - width)) & (freqs <= hz * (1 + width))
+    return float(spectrum[band].max()) if band.any() else 0.0
+
+
+def hps_midi(y: np.ndarray, sr: int) -> int | None:
+    """The semitone of the strongest fundamental in `y` by a harmonic product spectrum over FMIN..FMAX.
+
+    The magnitude spectrum is multiplied by itself compressed by 2 and 3, so a fundamental is where its
+    harmonics line up and a dominant second harmonic does not win on its own. None when `y` is too short,
+    or when the candidate is not a real partial of the window (nothing in the range sounds).
+    """
+    if len(y) < HPS_MIN_SECONDS * sr:
+        return None
+    spectrum, freqs = _spectrum(y, sr)
+    product = np.ones_like(spectrum)
+    for k in range(1, HPS_HARMONICS + 1):
+        product[: len(spectrum) // k] *= spectrum[::k][: len(spectrum) // k]
+    band = (freqs >= FMIN) & (freqs <= FMAX)
+    peak = freqs[band][np.argmax(product[band])]
+    if _peak_near(spectrum, freqs, peak) < HPS_PARTIAL * spectrum.max():
+        return None
+    # A note under FMIN puts its harmonics in the band and would read an octave up: a real partial at half
+    # the candidate, under the floor, says the fundamental is out of range, so the step is a rest as for pyin.
+    if peak / 2 < FMIN and _peak_near(spectrum, freqs, peak / 2) >= HPS_PARTIAL * spectrum.max():
+        return None
+    return int(np.round(librosa.hz_to_midi(peak)))
+
+
+def sub_octave_supported(y: np.ndarray, sr: int, midi: int) -> bool:
+    """Whether `midi`, heard an octave under the spectrum's candidate, is a missing-fundamental reading rather
+    than YIN's double-period error: its third harmonic (not a harmonic of the octave above) is a real partial."""
+    spectrum, freqs = _spectrum(y, sr)
+    third = 3 * 440.0 * 2.0 ** ((midi - 69) / 12)
+    return _peak_near(spectrum, freqs, third) >= HPS_SUPPORT * spectrum.max()
+
+
 def _strongest_midi(hz: np.ndarray, prob: np.ndarray) -> int:
     """The semitone the frames hear most surely: the one with the largest summed voiced probability.
 
@@ -91,6 +150,21 @@ def _strongest_midi(hz: np.ndarray, prob: np.ndarray) -> int:
     semitones = np.round(librosa.hz_to_midi(hz)).astype(int)
     values = np.unique(semitones)
     return int(values[np.argmax([prob[semitones == v].sum() for v in values])])
+
+
+def _second_opinion(y: np.ndarray, edges: np.ndarray, i: int, pyin_midi: int | None) -> int | None:
+    """A loud step pyin is not sure of: the spectrum's reading, unless pyin's pitch is an octave under it and
+    the spectrum supports that octave (a missing fundamental), or pyin's reading stands on its own."""
+    step = edges[i + 1] - edges[i]
+    reach = max(step, (HPS_WINDOW_SECONDS - step) / 2)
+    lo, hi = max(0, int((edges[i] - reach) * PYIN_SR)), int((edges[i + 1] + reach) * PYIN_SR)
+    window = y[lo:hi]
+    spectral = hps_midi(window, PYIN_SR)
+    if pyin_midi is None:
+        return spectral
+    if spectral is not None and spectral - pyin_midi == 12 and not sub_octave_supported(window, PYIN_SR, pyin_midi):
+        return spectral
+    return pyin_midi
 
 
 def bass_grid(y: np.ndarray, sr: int, grid: Grid) -> BassGrid:
@@ -125,10 +199,14 @@ def bass_grid(y: np.ndarray, sr: int, grid: Grid) -> BassGrid:
     midi: list[int | None] = []
     for i, (frames, loud) in enumerate(zip(steps, level)):
         heard = frames[voiced[frames]]
-        if loud >= floor and len(frames) and len(heard) >= VOICED_SHARE * len(frames):
-            midi.append(_strongest_midi(f0[heard], voiced_prob[heard]))
-        else:
+        if loud < floor or not len(frames):
             midi.append(None)
+        else:
+            pyin_midi = _strongest_midi(f0[heard], voiced_prob[heard]) if len(heard) >= VOICED_SHARE * len(frames) else None
+            if pyin_midi is not None and np.median(voiced_prob[heard]) >= PYIN_CONFIDENT:
+                midi.append(pyin_midi)
+            else:
+                midi.append(_second_opinion(y, edges, i, pyin_midi))
     if not whole_before:
         midi[0] = None
 
