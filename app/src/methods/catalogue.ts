@@ -33,3 +33,14 @@ export interface Catalogue {
 }
 
 export const catalogue: Catalogue = json as Catalogue;
+
+const byName = new Map<string, MethodDoc>();
+// Methods first: a key holds a method, and a name both kinds share (stack, cat) means the method there.
+for (const m of [...catalogue.methods].sort((a, b) => Number(a.kind !== 'method') - Number(b.kind !== 'method'))) {
+  if (!byName.has(m.name)) byName.set(m.name, m);
+}
+
+/** The catalogue entry a key's method is named for, so the strip can show the panel's tooltip for it. */
+export function findMethod(name: string | null): MethodDoc | undefined {
+  return name === null ? undefined : byName.get(name);
+}

@@ -5,7 +5,44 @@ import { METHOD_MIME, type MethodDrag } from './methodDrop';
 import './methodPanel.css';
 
 /** Keeps the tooltip this far inside the window when the row is near the bottom. */
-const TIP_MARGIN_PX = 8;
+export const TIP_MARGIN_PX = 8;
+
+/**
+ * Where a tip of `height` goes so it stays inside the window. Beside its anchor it opens at `y`, pulled back
+ * up when it would run off the bottom; `above` it opens over `y` (the anchor's top), as the key strip at the
+ * bottom of a deck wants, and drops no higher than the window's top.
+ */
+export function tipTop(y: number, height: number, above = false): number {
+  if (above) return Math.max(TIP_MARGIN_PX, y - height - TIP_MARGIN_PX);
+  const overflow = y + height - (window.innerHeight - TIP_MARGIN_PX);
+  return overflow > 0 ? Math.max(TIP_MARGIN_PX, y - overflow) : y;
+}
+
+/**
+ * A method's description, snippet, synonyms and parameters, fixed at (x, y) in viewport pixels. The Methods
+ * panel's CSS opens it leftwards of its row; `above` opens it over the anchor instead, kept inside the window.
+ */
+export function MethodTip(props: { method: MethodDoc; x: number; y: number; above?: boolean }) {
+  let el!: HTMLDivElement;
+  // Its size is known only once shown, so the fit is a second step.
+  createEffect(() => {
+    el.style.top = `${tipTop(props.y, el.offsetHeight, props.above)}px`;
+    if (!props.above) return;
+    const right = props.x + el.offsetWidth - (window.innerWidth - TIP_MARGIN_PX);
+    el.style.left = `${Math.max(TIP_MARGIN_PX, right > 0 ? props.x - right : props.x)}px`;
+  });
+  return (
+    <div ref={el} class="method-tip" role="tooltip" style={{ left: `${props.x}px`, top: `${props.y}px` }}>
+      <code class="method-tip-snippet">{props.method.snippet}</code>
+      <p>{props.method.description}</p>
+      <Show when={props.method.synonyms.length}>
+        <p class="method-tip-dim">also: {props.method.synonyms.join(', ')}</p>
+      </Show>
+      <For each={props.method.params}>{(p) => <div class="method-tip-param">{p.name}: {p.type}</div>}</For>
+      <Show when={props.method.note}>{(note) => <p class="method-tip-note">{note()}</p>}</Show>
+    </div>
+  );
+}
 
 const toDrag = (m: MethodDoc): MethodDrag => ({ name: m.name, snippet: m.snippet, argRange: m.argRange, kind: m.kind, group: m.group });
 
@@ -53,7 +90,6 @@ export function MethodPanel(props: { onInsert?: (drag: MethodDrag) => void }) {
   // The tooltip, beside the row once the pointer (or focus) has rested on it, as the library's preview.
   const [tip, setTip] = createSignal<{ method: MethodDoc; x: number; y: number } | null>(null);
   let tipTimer: ReturnType<typeof setTimeout> | undefined;
-  let tipEl: HTMLDivElement | undefined;
   const hideTip = () => {
     clearTimeout(tipTimer);
     tipTimer = undefined;
@@ -67,13 +103,6 @@ export function MethodPanel(props: { onInsert?: (drag: MethodDrag) => void }) {
       setTip({ method, x: rect.left - TIP_MARGIN_PX, y: rect.top });
     }, PREVIEW_DELAY_MS);
   };
-  // Pull a tip that would run off the bottom of the window back up; its height is known only once shown.
-  createEffect(() => {
-    const t = tip();
-    if (!t || !tipEl) return;
-    const overflow = t.y + tipEl.offsetHeight - (window.innerHeight - TIP_MARGIN_PX);
-    if (overflow > 0) tipEl.style.top = `${Math.max(TIP_MARGIN_PX, t.y - overflow)}px`;
-  });
   onCleanup(hideTip);
 
   return (
@@ -93,19 +122,7 @@ export function MethodPanel(props: { onInsert?: (drag: MethodDrag) => void }) {
           setQuery(e.currentTarget.value);
         }}
       />
-      <Show when={tip()}>
-        {(t) => (
-          <div ref={tipEl} class="method-tip" role="tooltip" style={{ left: `${t().x}px`, top: `${t().y}px` }}>
-            <code class="method-tip-snippet">{t().method.snippet}</code>
-            <p>{t().method.description}</p>
-            <Show when={t().method.synonyms.length}>
-              <p class="method-tip-dim">also: {t().method.synonyms.join(', ')}</p>
-            </Show>
-            <For each={t().method.params}>{(p) => <div class="method-tip-param">{p.name}: {p.type}</div>}</For>
-            <Show when={t().method.note}>{(note) => <p class="method-tip-note">{note()}</p>}</Show>
-          </div>
-        )}
-      </Show>
+      <Show when={tip()}>{(t) => <MethodTip method={t().method} x={t().x} y={t().y} />}</Show>
       <div class="methods-tree">
         <For each={sections()}>
           {(s) => (

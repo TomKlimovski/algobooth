@@ -1,0 +1,104 @@
+/* The method keyboard under a deck, in the deck's palette (deck.css): compact, so the editor keeps the room. */
+.key-strip {
+  --key-gap: 2px;
+  /* One letter key: a tenth of the row, less the gaps between ten keys. */
+  --key-w: calc((100% - 9 * var(--key-gap)) / 10);
+  display: flex;
+  flex-direction: column;
+  gap: var(--key-gap);
+  padding: 3px 0;
+  font-size: 10px;
+  line-height: 1.1;
+  user-select: none;
+  transition: opacity 120ms;
+}
+.key-strip.dimmed { opacity: 0.4; }
+.key-strip.folded .key-row:not(.key-hint) { display: none; }
+
+.key-row { display: flex; gap: var(--key-gap); min-width: 0; }
+/* Each letter row starts a little further right, as on a keyboard. */
+.key-row[data-row='a'] > .key:first-child { margin-left: calc(var(--key-w) * 0.3); }
+.key-row[data-row='z'] > .key:first-child { margin-left: calc(var(--key-w) * 0.8); }
+
+.key {
+  position: relative;
+  box-sizing: border-box;
+  flex: 0 0 var(--key-w);
+  min-width: 0;
+  height: 26px;
+  padding: 2px 3px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid #2a2d36;
+  border-radius: 3px;
+  background: #0e0f13;
+  color: #8b90a0;
+  cursor: pointer;
+  overflow: hidden;
+}
+.key-letter { font-size: 9px; color: #5c6170; }
+.key-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: #cfd3dc;
+}
+.key.bound { border-color: #3a3e4a; }
+.key.bound .key-letter { color: #8b90a0; }
+.key.bound:hover { background: #171a22; }
+.key.on { background: #e94f37; border-color: #e94f37; }
+.key.on .key-letter,
+.key.on .key-label { color: #fff; }
+.key.line { border-style: dashed; }
+.key.muted .key-label { color: #5c6170; text-decoration: line-through; }
+.key.refused { border: 1px dashed #5c6170; background: #0e0f13; }
+.key.refused .key-label { color: #5c6170; }
+.key.pending { animation: key-pending 1s ease-in-out infinite; }
+.key.held { outline: 2px solid #61afef; outline-offset: -1px; }
+.key.drop { outline: 2px solid #ffb86c; outline-offset: -1px; background: #171a22; }
+
+@keyframes key-pending {
+  0%, 100% { box-shadow: inset 0 0 0 1px rgba(97, 175, 239, 0.15); }
+  50% { box-shadow: inset 0 0 0 2px rgba(97, 175, 239, 0.9); }
+}
+
+/* The digit and F row: small single-line keys, digits left and snapshots right. */
+.key.num,
+.key.fn {
+  flex: 0 1 22px;
+  height: 16px;
+  padding: 0;
+  justify-content: center;
+  align-items: center;
+  font-size: 9px;
+}
+.key.num.on { background: #ffb86c; border-color: #ffb86c; color: #0e0f13; }
+.key.fn { flex-basis: 24px; }
+/* A filled snapshot slot carries a dot. */
+.key.fn.filled { color: #cfd3dc; border-color: #3a3e4a; }
+.key.fn.filled::after { content: '·'; position: absolute; right: 2px; top: -2px; color: #ffb86c; font-size: 12px; }
+.key-gap { flex: 1; }
+
+.key-hint { align-items: center; gap: 6px; height: 16px; color: #5c6170; font-size: 9px; }
+.key-hint-text { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.key-hint button {
+  padding: 0 5px;
+  height: 15px;
+  border: 1px solid #2a2d36;
+  border-radius: 3px;
+  background: none;
+  color: #8b90a0;
+  font: inherit;
+  cursor: pointer;
+}
+.key-fold { border: none !important; padding: 0 2px !important; }
+.key-quantise { display: inline-flex; }
+.key-quantise button { border-radius: 0; margin-left: -1px; }
+.key-quantise button:first-child { border-radius: 3px 0 0 3px; margin-left: 0; }
+.key-quantise button:last-child { border-radius: 0 3px 3px 0; }
+.key-quantise button.on { background: #2a2d36; color: #cfd3dc; }
+.key-perform[aria-pressed='true'] { background: #e94f37; border-color: #e94f37; color: #fff; }
+
+/* Over the deck's editor and the other deck; it opens above its key (MethodTip's `above`), not leftwards. */
+.key-strip .method-tip { z-index: 30; }

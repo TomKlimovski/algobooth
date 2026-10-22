@@ -82,9 +82,9 @@
   white-space: normal;
   pointer-events: none;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-  /* Anchored at the row's left edge, it opens leftwards by its own width. */
-  transform: translateX(-100%);
 }
+/* In the panel it is anchored at the row's left edge and opens leftwards by its own width. */
+.methods .method-tip { transform: translateX(-100%); }
 .method-tip p { margin: 4px 0 0; }
 .method-tip-snippet { color: #ffb86c; white-space: pre; }
 .method-tip-dim,
