@@ -16,7 +16,7 @@ export interface MethodDrag { name: string; snippet: string; argRange: [number, 
  * Scans one line: where its first `//` outside a string is (-1 when none), and whether it ends inside a template
  * literal. `inTemplate` says whether it starts inside one; only backticks span lines.
  */
-function scanLine(line: string, inTemplate: boolean): { comment: number; inTemplate: boolean } {
+export function scanLine(line: string, inTemplate: boolean): { comment: number; inTemplate: boolean } {
   let quote: string | null = inTemplate ? '`' : null;
   for (let i = 0; i < line.length; i++) {
     const c = line[i];
@@ -30,13 +30,13 @@ function scanLine(line: string, inTemplate: boolean): { comment: number; inTempl
 }
 
 /** A line that sets the deck up rather than playing: never a target. */
-const SETUP = /^(setcpm\(|setcps\(|samples\(|const\s|let\s|var\s|await\s)/;
+export const SETUP = /^(setcpm\(|setcps\(|samples\(|const\s|let\s|var\s|await\s)/;
 /** Code ending in an arrow or a binary operator: the expression goes on, so nothing can be appended. */
 const UNFINISHED = /(=>|[-+*/%?:=&|<>])$/;
 /** A numeric literal at the end of the code. */
 const NUMBER_END = /(?<![\w$.])(\d+\.?\d*|\.\d+)$/;
 /** A named-pattern label on its own (`$:`, `bass:`): the pattern body is on the lines below. */
-const BARE_LABEL = /^[\w$]+:$/;
+export const BARE_LABEL = /^[\w$]+:$/;
 
 /**
  * Where a snippet goes on a line: after its code, before a trailing `;`, `,`, whitespace or comment.
