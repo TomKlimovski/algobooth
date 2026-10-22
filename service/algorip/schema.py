@@ -69,6 +69,14 @@ class DrumSummary(BaseModel):
     fill_bars: tuple[int, int] | None  # 1-based inclusive; None when no voice fills
 
 
+class DrumTone(BaseModel):
+    """Each drum voice on the stem, by shape and level: the voice band's median peak (dB) and the median time
+    for the first 12 dB of its fall (ms), over the voice's hits. The kick is the level reference."""
+
+    levels: dict[str, float]
+    falls: dict[str, float]
+
+
 class Analysis(BaseModel):
     bpm: float
     key: str
@@ -84,6 +92,7 @@ class Analysis(BaseModel):
     melody: list[Note] | None
     bass_loop: BassLoop | None = None
     drum_summary: DrumSummary | None = None
+    drum_tone: DrumTone | None = None
     bass_envelope: MeasuredEnvelope | None = None
     bass_tone: BassTone | None = None
     tuning_cents: float = 0.0  # the clip's offset from 440 tuning, removed before the bass was rounded

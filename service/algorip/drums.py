@@ -18,6 +18,9 @@ import numpy as np
 from scipy import signal
 
 from algorip.grid import Grid
+from algorip.kits import VOICE_BANDS, _fall_ms
+from algorip.kits import _rms_envelope as _band_envelope
+from algorip.schema import DrumTone
 from algorip.onsets import _DELTA, _LEAD_IN_SECONDS, _detect, _lead_in, band, band_onsets  # noqa: F401  (re-exported)
 
 VOICES = ("bd", "sd", "hh", "oh")
@@ -283,3 +286,42 @@ def is_four_on_the_floor(hits: DrumHits, bars: int) -> bool:
     kicks = hits.get("bd", set())
     full = sum(all((bar, s) in kicks for s in _FOUR_ON_THE_FLOOR_STEPS) for bar in range(bars))
     return full >= _FOUR_ON_THE_FLOOR_SHARE * bars
+
+
+# drum_tone: which sample list each voice is measured against (the snare voice's band is the clap's too; a ghost
+# is a closed hat).
+_TONE_VOICE = {"bd": "bd", "sd": "sd", "hh": "hh", "oh": "oh", "gh": "hh"}
+
+
+def drum_tone(drums: np.ndarray, sr: int, hits: DrumHits, grid: Grid) -> DrumTone | None:
+    """Each voice's level and fall on the stem, measured as kits.json measures the bank's samples.
+
+    Per hit, the voice band's 5 ms RMS peak within half a step either side of the hit's grid time; its level in
+    dB and the time from it to 12 dB under, cut at the voice's next hit (the time to that hit when it never gets
+    there). Medians over the voice's hits. None when no voice has a hit.
+    """
+    y = np.asarray(drums, dtype=float)
+    hop = max(1, round(_ENV_HOP_SECONDS * sr))
+    half = grid.step_seconds / 2
+    levels: dict[str, float] = {}
+    falls: dict[str, float] = {}
+    for voice, steps in hits.items():
+        if not steps or voice not in _TONE_VOICE:
+            continue
+        env = _band_envelope(band(y, sr, *VOICE_BANDS[_TONE_VOICE[voice]]), sr)
+        times = sorted(grid.time_of(bar, step) for bar, step in steps)
+        peaks, falls_ms = [], []
+        for k, t in enumerate(times):
+            lo, hi = max(0, round((t - half) * sr / hop)), min(len(env), round((t + half) * sr / hop) + 1)
+            if hi <= lo:
+                continue
+            peak = lo + int(np.argmax(env[lo:hi]))
+            if env[peak] <= 0:
+                continue
+            until = round((times[k + 1] - half) * sr / hop) if k + 1 < len(times) else None
+            peaks.append(20 * np.log10(env[peak]))
+            falls_ms.append(_fall_ms(env, peak, until))
+        if peaks:
+            levels[voice] = round(float(np.median(peaks)), 1)
+            falls[voice] = round(float(np.median(falls_ms)), 1)
+    return DrumTone(levels=levels, falls=falls) if levels else None
