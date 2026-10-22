@@ -382,3 +382,33 @@ test('a deck is hooked once, whether it arrives raw or through the booth store',
   expect(a.onToggle.size).toBe(1);
   expect(a.afterEval.size).toBe(1);
 });
+
+test('a cancelled press still queued is taken back: no edit and no Update', () => {
+  const { ctl, a, deckState } = setup({ started: true, now: 0.25, cps: 0.5 });
+  ctl.togglePerform();
+  ctl.press('A', 'KeyQ');
+  expect(ctl.shown('A').KeyQ?.pending).toBe(true);
+  ctl.cancel('A', 'KeyQ');
+  expect(ctl.shown('A').KeyQ?.held).toBe(false);
+  expect(ctl.shown('A').KeyQ?.pending).toBe(false);
+  expect(deckState.A.state.queued).toBe(0);
+  vi.advanceTimersByTime(3000);
+  expect(a.applyEdits).not.toHaveBeenCalled();
+  expect(a.evaluate).not.toHaveBeenCalled();
+  // The key is up again: a later release is nothing, a later press is a fresh one.
+  ctl.release('A', 'KeyQ');
+  expect(a.applyEdits).not.toHaveBeenCalled();
+});
+
+test('a cancelled press that already landed reverts, leaving the code as it was', () => {
+  const { ctl, a } = setup();
+  ctl.togglePerform();
+  ctl.press('A', 'KeyQ');
+  expect(a.getCode()).toContain('.lpenv(2)');
+  ctl.cancel('A', 'KeyQ');
+  expect(a.getCode()).toBe(CODE);
+  expect(ctl.shown('A').KeyQ?.held).toBe(false);
+  expect(ctl.shown('A').KeyQ?.on).toBe(false);
+  ctl.release('A', 'KeyQ');
+  expect(a.getCode()).toBe(CODE);
+});

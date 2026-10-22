@@ -54,6 +54,8 @@ interface Press {
   revert: boolean;
   /** Whether the key's effect was on after the press landed; null when it was refused (nothing to undo). */
   after: boolean | null;
+  /** The queued toggle, so a cancel can take it back before it runs. */
+  job: Job | null;
 }
 
 /** A hold's revert, queued or waiting out its boundary; `handle` is the wait's timer, null once queued. */
@@ -96,6 +98,8 @@ export class KeyController {
   private readonly queues: Record<DeckId, KeyQueue>;
   private readonly trackers: Record<DeckId, PressTracker>;
   private readonly presses = new Map<string, Press>();
+  /** The slot each queued job is for, so taking one back knows whether its key still has work pending. */
+  private readonly jobSlots = new WeakMap<Job, string>();
   /** Letters held on the keyboard and the deck each went to, so a Tab mid-hold still releases the right one. */
   private readonly keyboard = new Map<string, DeckId>();
   /** The target as last found, label included, so a code change re-finds it by name. */
@@ -200,9 +204,28 @@ export class KeyController {
     const binding = this.layout(id)[slot]?.binding;
     if (!binding || !this.trackers[id].down(slot)) return;
     this.mark(this.down, id, slot, true);
-    const press: Press = { binding, ran: false, revert: false, after: null };
+    const press: Press = { binding, ran: false, revert: false, after: null, job: null };
     this.presses.set(`${id}|${slot}`, press);
-    this.push(id, slot, this.toggleJob(id, slot, binding, press));
+    press.job = this.toggleJob(id, slot, binding, press);
+    this.push(id, slot, press.job);
+  }
+
+  /**
+   * A press that was not meant (the strip's key became a drag): forgotten with no edit left behind. Still
+   * queued, its job is taken back; already landed, it reverts as a hold's release would.
+   */
+  cancel(id: DeckId, slot: Slot): void {
+    const key = `${id}|${slot}`;
+    const press = this.presses.get(key);
+    if (!this.trackers[id].up(slot)) return;
+    if (!press || press.ran) return this.ended(id, slot, true);
+    this.presses.delete(key);
+    this.mark(this.down, id, slot, false);
+    if (press.job && this.queues[id].remove(press.job)) {
+      const still = this.queues[id].some((job) => this.jobSlots.get(job) === slot);
+      if (!still) this.mark(this.pending, id, slot, false);
+    }
+    this.countdown();
   }
 
   /** Key up: a tap keeps its edit; a hold queues the inverse (after the press, if that has not landed yet). */
@@ -486,6 +509,7 @@ export class KeyController {
   }
 
   private push(id: DeckId, slot: string, job: Job): void {
+    this.jobSlots.set(job, slot);
     this.mark(this.pending, id, slot, true);
     this.queues[id].push(job);
     this.countdown();

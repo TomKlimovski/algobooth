@@ -62,7 +62,7 @@ export function KeyStrip(props: {
 
   // The slot a mouse press is down on, so a release (or the pointer leaving) ends only a press it started.
   let mouseDown: Slot | null = null;
-  // A Ctrl+click on macOS is also a contextmenu; that one was a nudge, not a request for the menu.
+  // A Ctrl+click on macOS is also a contextmenu, sent before its pointerup; that one was a nudge, not the menu.
   let nudged = false;
   let tipTimer: ReturnType<typeof setTimeout> | undefined;
   const hideTip = () => {
@@ -88,7 +88,7 @@ export function KeyStrip(props: {
   const pointerDown = (slot: Slot, e: MouseEvent) => {
     if (e.button !== 0) return;
     hideTip();
-    nudged = e.shiftKey || e.ctrlKey;
+    nudged = e.ctrlKey;
     if (e.shiftKey) props.controller.nudge(props.deck, slot, 'up');
     else if (e.ctrlKey) props.controller.nudge(props.deck, slot, 'down');
     else {
@@ -97,6 +97,7 @@ export function KeyStrip(props: {
     }
   };
   const pointerUp = (slot: Slot) => {
+    nudged = false;
     if (mouseDown !== slot) return;
     mouseDown = null;
     props.controller.release(props.deck, slot);
@@ -178,8 +179,11 @@ export function KeyStrip(props: {
         onContextMenu={(e) => openMenu(p.slot, e)}
         onDragStart={(e) => {
           hideTip();
-          // The browser sends no pointerup once a drag has begun, so the press ends here.
-          pointerUp(p.slot);
+          // A drag is not a press: no pointerup follows its start, and the key's toggle must not stand.
+          if (mouseDown === p.slot) {
+            mouseDown = null;
+            props.controller.cancel(props.deck, p.slot);
+          }
           e.dataTransfer!.setData(KEY_MIME, p.slot);
           e.dataTransfer!.effectAllowed = 'move';
         }}

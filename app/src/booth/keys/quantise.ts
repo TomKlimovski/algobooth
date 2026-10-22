@@ -91,6 +91,20 @@ export class KeyQueue {
     return Math.ceil(s * deck.scheduler.cps * 4);
   }
 
+  /** Takes one job back out before it runs (a cancelled press); idle again once nothing is left. */
+  remove(job: Job): boolean {
+    const i = this.jobs.indexOf(job);
+    if (i < 0) return false;
+    this.jobs.splice(i, 1);
+    if (this.jobs.length === 0) this.disarm();
+    return true;
+  }
+
+  /** Whether any queued job satisfies `test`. */
+  some(test: (job: Job) => boolean): boolean {
+    return this.jobs.some(test);
+  }
+
   /** Stop pressed: the queued edits are discarded. */
   drop(): void {
     this.disarm();

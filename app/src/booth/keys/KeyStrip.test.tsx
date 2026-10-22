@@ -56,6 +56,7 @@ function mount(opts: { perform?: boolean; performing?: boolean } = {}) {
     drop: vi.fn(),
     menu: vi.fn(),
     move: vi.fn(),
+    cancel: vi.fn(),
   };
   const state = createDeckState('A');
   const setQuantise = vi.fn((q: Quantise) => setQ(q));
@@ -200,8 +201,9 @@ test('a key dragged onto another moves its binding; a derived line key does not 
   fire(slot('KeyQ'), 'pointerdown');
   slot('KeyQ').dispatchEvent(dragEvent('dragstart', data));
   expect(data[KEY_MIME]).toBe('KeyQ');
-  // No pointerup follows a drag's start, so the press ends with it.
-  expect(controller.release).toHaveBeenCalledWith('A', 'KeyQ');
+  // A drag is not a tap: the press is cancelled, not released.
+  expect(controller.cancel).toHaveBeenCalledWith('A', 'KeyQ');
+  expect(controller.release).not.toHaveBeenCalled();
   const over = dragEvent('dragover', data);
   slot('KeyP').dispatchEvent(over);
   expect(over.defaultPrevented).toBe(true);
@@ -227,6 +229,22 @@ test('right-click opens the menu for the key owner; derived keys have none', () 
   expect($$('.lib-menu')).toHaveLength(0);
   fire(slot('KeyY'), 'contextmenu', { button: 2 });
   expect($$('.lib-menu')).toHaveLength(0);
+});
+
+test('a shift-click nudge does not swallow the next right-click; a ctrl-click is not a menu', () => {
+  mount();
+  fire(slot('KeyW'), 'pointerdown', { shiftKey: true });
+  fire(slot('KeyW'), 'pointerup', { shiftKey: true });
+  fire(slot('KeyQ'), 'contextmenu', { button: 2 });
+  expect($$('.lib-menu')).toHaveLength(1);
+  fire($$('.lib-menu-item')[0], 'click');
+  // macOS: ctrl+click is a contextmenu between the pointerdown and the pointerup.
+  fire(slot('KeyQ'), 'pointerdown', { ctrlKey: true });
+  fire(slot('KeyQ'), 'contextmenu', { ctrlKey: true });
+  fire(slot('KeyQ'), 'pointerup', { ctrlKey: true });
+  expect($$('.lib-menu')).toHaveLength(0);
+  fire(slot('KeyQ'), 'contextmenu', { button: 2 });
+  expect($$('.lib-menu')).toHaveLength(1);
 });
 
 test('resting on a method key shows the Methods panel tooltip for it', () => {
