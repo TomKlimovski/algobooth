@@ -64,6 +64,28 @@ def _lead_in(y: np.ndarray, sr: int) -> tuple[np.ndarray, int]:
     return np.concatenate([np.zeros(lead), np.asarray(y, dtype=float)]), lead
 
 
+def peak_rms(y: np.ndarray, sr: int, hop_seconds: float = 0.005) -> float:
+    """The loudest 5 ms RMS frame of y."""
+    hop = max(1, round(hop_seconds * sr))
+    frames = len(y) // hop
+    if frames == 0:
+        return 0.0
+    return float(np.sqrt(np.mean(np.asarray(y[: frames * hop]).reshape(frames, hop) ** 2, axis=1)).max())
+
+
+def gated_band_onsets(y: np.ndarray, sr: int, low: float | None, high: float | None, gate_db: float,
+                      delta: float = _DELTA) -> np.ndarray:
+    """band_onsets, or no onsets when the band's peak RMS is under gate_db relative to y's own peak RMS.
+
+    The onset envelope is min-max normalised, so a band holding only other voices' leakage would otherwise
+    read that leakage as a full set of hits (the classifier gates each voice's band the same way)."""
+    padded, lead = _lead_in(y, sr)
+    filtered = band(padded, sr, low, high)
+    if peak_rms(filtered, sr) < peak_rms(padded, sr) * 10.0 ** (gate_db / 20.0):
+        return np.zeros(0)
+    return _detect(filtered, sr, delta) - lead / sr
+
+
 def band_onsets(
     y: np.ndarray, sr: int, low: float | None, high: float | None, delta: float = _DELTA
 ) -> np.ndarray:

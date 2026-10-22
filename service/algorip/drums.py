@@ -126,10 +126,13 @@ _SNARE_OVER_LOW_DB = 15.0
 _LOW_BEFORE_SECONDS = 0.01
 _LOW_AFTER_SECONDS = 0.06
 
-# Ghosts. A hat that is not on a kick or a snare, and lies more than this under the median level (over the
-# floor) of all such hats, is a ghost: the 48:50 Solomun clip's offbeat open hats sit 24 to 26 dB over the
-# floor, its 16th-note ticks 6 to 10. Judged before D3, with closed and open hats pooled.
+# Ghosts. A hat that is not on a kick or a snare, and lies more than this under the level (over the floor) of
+# the loud such hats, is a ghost: the 48:50 Solomun clip's offbeat open hats sit 24 to 26 dB over the floor,
+# its 16th-note ticks 6 to 10. The loud hats' level is the upper quartile of all such hats, so ticks that
+# outnumber the real hats do not pull the reference down to themselves. Judged before D3, closed and open
+# hats pooled; a lone hat is never a ghost.
 GHOST_DB = 12.0
+_GHOST_REFERENCE_PERCENTILE = 75
 
 _FOUR_ON_THE_FLOOR_STEPS = (0, 4, 8, 12)
 _FOUR_ON_THE_FLOOR_SHARE = 0.75
@@ -277,7 +280,7 @@ def classify_drums(drums: np.ndarray, sr: int, grid: Grid) -> DrumHits:
 
     others = [over for _, over, _, shared in hats if not shared]
     own_level = float(np.median(others)) - _OWN_LEVEL_DB if others else None
-    ghost_level = float(np.median(others)) - GHOST_DB if len(others) >= 2 else None
+    ghost_level = float(np.percentile(others, _GHOST_REFERENCE_PERCENTILE)) - GHOST_DB if len(others) >= 2 else None
     for t, over, rate, shared in hats:
         if shared and own_level is not None and over < own_level:
             continue

@@ -33,7 +33,12 @@ right hits. The 36:40 clip's kicks sit 0.13 step from its beats, so its grid is 
    a grid the kicks moved, whose tracker downbeat means nothing; an unmoved grid keeps the tracker's
    rule as it stands (the loudest phase). Found at the build: 36:40's loudest kick leads its runner-up
    by 0.6 dB, so a lead rule on every clip would have moved its bar line two beats. The bar count is
-   recomputed from the moved downbeat. `band`/`band_onsets` move to `algorip/onsets.py` (re-exported
+   recomputed from the moved downbeat. Found at review: the kick band is gated as the classifier gates it
+   (`KICK_GATE_DB = -16` dB re the stem's peak, and at least a kick a bar), since a breakdown of hats
+   alone leaks into the band and would read as offbeat kicks; a beat moved more than half a step before
+   the clip's start is dropped, not clamped; and the accent and backbeat scores of a moved grid are
+   per-beat means, since a clip's beat count is rarely a multiple of four and the phase with one beat
+   more would lead on the sum alone (the unmoved grid keeps the tracker's summed argmax as it was). `band`/`band_onsets` move to `algorip/onsets.py` (re-exported
    from `drums`) so `grid` can import them without a cycle.
    On 48:50: the beats move 197 ms earlier, the kicks land on steps 0, 4, 8, 12, `four_on_the_floor`
    is true, the kit is the 909, the clap falls on 2 and 4, and the bass line reads
@@ -41,13 +46,13 @@ right hits. The 36:40 clip's kicks sit 0.13 step from its beats, so its grid is 
    8ths. Its lengths are truer than before: the stem's notes last 1.3, 2.1, 2.1 and 2.2 steps (the
    old lines sat 0.2 step before each onset and read the note's fall into a third step, then needed
    `.clip(0.57)` to cut it back). On 36:40 nothing moves.
-2. **The bass measurements find an onset just before the line** (`bass.py`). With the lines on the
-   kicks, the bass onsets fall 12 ms before their step (the bass leads the kick), and `_sounding`,
-   which starts at the note's line, read the filter already closing: the 1.7-octave opening and the
-   240 Hz hold became no opening and 420 Hz. `_sounding` and `bass_envelope`'s onset search start a
-   quarter step before the note's line when that quarter step is quiet (more than 6 dB under the
-   note's loudest frame), and at the line otherwise (a legato or retriggered note's predecessor is
-   loud there and must not be taken for the onset). The measurements themselves are unchanged.
+2. **The bass onset just before the line: tried and withdrawn.** With the lines on the kicks the bass
+   onsets fall 12 ms before their step, and a build of this round searched a quarter step before each
+   line for the onset. The review measured it: on 48:50 the look-back changed the readings by a frame
+   (open 759 to 754 Hz, close 75 to 65 ms) and the 1.7-octave opening the four-bar prototype had lost
+   came back with the fifth bar, not with the look-back (the stem's filter follows the note: d#1 holds
+   at 86 Hz, e3 near 540, and the clip-wide median moves with the note set); on 36:40 it drifted the
+   envelope's attack reading from 3 to 15 ms. So `bass.py` is unchanged this round.
 3. **The kit's sample by shape** (`scripts/measure_kits.py` → `algorip/kits.json`, `sounds.py`,
    `generate.py`). A committed table of every sample in the two banks the rip writes (`tr909`,
    `tr808`, from `app/public/samples/tidal-drum-machines.json`): for each voice (`bd`, `sd`, `cp`,
@@ -69,7 +74,8 @@ right hits. The 36:40 clip's kicks sit 0.13 step from its beats, so its grid is 
    kick's) is compared with the chosen samples' (the sample's band peak less the chosen kick sample's),
    and the difference becomes the line's gain: `0.8 × 10^(diff/20)` (Strudel's default gain is 0.8 and
    the curve is linear), two decimals, written only when it is 2 dB or more from the default, never
-   above 1. Since gains are per line, the lines become one per voice:
+   above 1 and never under 0.01. A stem with no kick has no reference and gets no gains. Since gains are
+   per line, the lines become one per voice:
    `drums:` the kick; `claps:` (or `snare:` on the 808) the snare voice; `hats:` closed and open hats;
    `ghosts:` (change 5); `_fills:` as now, all voices, no gain. A line holding two voices (hats with
    both `hh` and `oh`) takes the gain of the voice with more hits on it; the ghosts' gain is read
@@ -79,10 +85,12 @@ right hits. The 36:40 clip's kicks sit 0.13 step from its beats, so its grid is 
    (gain 0.32).
 5. **Ghost hats** (`drums.py`, `drumloop.py`, `generate.py`). A hat that is not on a kick or a snare
    and whose level over the hat band's floor is more than `GHOST_DB = 12` under the median of the
-   other such hats (closed and open pooled, since D3 has not yet split them; the test runs in
-   `classify_drums` before D3) is a ghost: voice `gh`, written with the closed-hat sample on its own
+   loud such hats (the upper quartile of their levels, so ticks that outnumber the real hats do not pull
+   the reference down to themselves; closed and open pooled, since D3 has not yet split them; the test
+   runs in `classify_drums` before D3; a lone hat is never a ghost) is a ghost: voice `gh`, written with the closed-hat sample on its own
    `ghosts:` line at its measured gain (change 4), looped like any voice by `drum_loops`. Its strays
-   are dropped, not written as fills. Measured on 48:50: the offbeat hats sit 24 to 26 dB over the
+   are dropped, not written as fills, and a closed-hat stray on a step the ghosts line already plays
+   (the same sample) is not a fill either. Measured on 48:50: the offbeat hats sit 24 to 26 dB over the
    floor, the 16th ticks 6 to 10 (the split is 15 dB wide); no other hat lies between. The hats line
    becomes `[~ oh:2]*4`.
 
@@ -120,7 +128,7 @@ its hats line may gain an index and a gain like any other.
 - `solomun` (36:40), as built: grid, hats pattern and bass lines unchanged;
   `drums: s("bd*4")` (its kick's first 12 dB fall in 30 ms: `bd:0`), `claps: s("[cp:4 ~ cp:4 ~] ...").gain(1)`
   (the stem's claps 2.7 dB above where the samples put them, capped), `hats: ... oh:1 ... .gain(0.42)`;
-  the bass `lpf` reads 360 for 370, the onset look-back moving the hold window by a frame on some notes.
+  the bass lines byte-identical (change 2 withdrawn).
 - `build` (synthetic), as built: `bd`, `cp`, `hh` keep index 0 (the kit's shortest), the open hat
   `oh:2`; no gains (the synthetic voices sit within 2 dB of the samples); lines split as above.
 

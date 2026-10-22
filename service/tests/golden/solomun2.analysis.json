@@ -463,15 +463,15 @@
   },
   "bass_envelope": {
     "attack_ms": 20.8,
-    "hold_ms": 190.1,
+    "hold_ms": 188.7,
     "fall_ms": 35.3,
     "end_db": -17.1,
-    "hold_share": 0.63
+    "hold_share": 0.62
   },
   "bass_tone": {
-    "open_hz": 753.7,
+    "open_hz": 759.0,
     "hold_hz": 226.1,
-    "close_ms": 65.0,
+    "close_ms": 75.0,
     "wobble_hz": null,
     "wobble_db": null
   },

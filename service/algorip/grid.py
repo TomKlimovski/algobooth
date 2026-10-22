@@ -11,10 +11,11 @@ import numpy as np
 from pydantic import BaseModel
 from scipy import signal
 
-from algorip.onsets import band, band_onsets
+from algorip.onsets import band, gated_band_onsets
 
 STEPS_PER_BAR = 16
 BEATS_PER_BAR = 4
+STEPS_PER_BEAT = STEPS_PER_BAR // BEATS_PER_BAR
 
 _MIN_BPM = 70.0
 _MAX_BPM = 180.0
@@ -28,6 +29,9 @@ _ACCENT_WINDOW = 0.06  # seconds after each beat in which low-band energy is mea
 # half a step of the kicks is left where the tracker put it, so a clip it got right is unchanged).
 KICK_AGREEMENT = 0.75
 KICK_DEAD_ZONE = 0.5  # steps
+# The kick band's peak RMS must reach this, relative to the stem's own peak RMS, for its onsets to be kicks at
+# all (drums.GATE_DB["bd"]): a breakdown of hats alone leaks into the band and would read as offbeat kicks.
+KICK_GATE_DB = -16.0
 # The downbeat of a moved grid: the low-band accent rule when one phase leads the runner-up by ACCENT_LEAD
 # dB; with four equal kicks, the backbeat decides: the phase with the most 1-6 kHz energy after its beats
 # is 2 or 4. An unmoved grid keeps the tracker's rule (the loudest phase), which the 36:40 golden rests on:
@@ -98,18 +102,22 @@ def estimate_tempo(y: np.ndarray, sr: int) -> tuple[float, np.ndarray]:
     return bpm * factor, beats
 
 
-def _phase_scores(y: np.ndarray, sr: int, beats: np.ndarray, window_seconds: float) -> list[float]:
-    """Summed RMS of y in the window after each beat, per beat phase."""
+def _phase_scores(y: np.ndarray, sr: int, beats: np.ndarray, window_seconds: float, mean: bool = False) -> list[float]:
+    """RMS of y in the window after each beat, summed per beat phase (or averaged, with `mean`, since a clip's
+    beat count is rarely a multiple of four and a phase with one beat more would lead on the sum alone).
+    A window before the clip's start is skipped; one cut by the clip's end counts as it stands on the sum (the
+    tracker's rule, as it was) and is skipped on the mean."""
     window = round(window_seconds * sr)
     scores = []
     for phase in range(BEATS_PER_BAR):
-        total = 0.0
+        values = []
         for t in beats[phase::BEATS_PER_BAR]:
             start = round(t * sr)
-            chunk = y[start : start + window]
-            if len(chunk):
-                total += float(np.sqrt(np.mean(chunk**2)))
-        scores.append(total)
+            chunk = y[start : start + window] if start >= 0 else y[:0]
+            if not len(chunk) or (mean and len(chunk) < window):
+                continue
+            values.append(float(np.sqrt(np.mean(chunk**2))))
+        scores.append((float(np.mean(values)) if mean else float(np.sum(values))) if values else 0.0)
     return scores
 
 
@@ -125,12 +133,14 @@ def downbeat_phase(drums: np.ndarray, sr: int, beats: np.ndarray, backbeat: bool
         return 0
     sos = signal.butter(4, _LOW_BAND_HZ, btype="lowpass", fs=sr, output="sos")
     low = signal.sosfilt(sos, np.asarray(drums, dtype=float))
-    scores = _phase_scores(low, sr, beats, _ACCENT_WINDOW)
+    if not backbeat:
+        return int(np.argmax(_phase_scores(low, sr, beats, _ACCENT_WINDOW)))  # the tracker's rule, as it was
+    scores = _phase_scores(low, sr, beats, _ACCENT_WINDOW, mean=True)
     ranked = sorted(scores, reverse=True)
-    if not backbeat or ranked[1] <= 0 or ranked[0] >= ranked[1] * 10.0 ** (ACCENT_LEAD / 20.0):
+    if ranked[1] <= 0 or ranked[0] >= ranked[1] * 10.0 ** (ACCENT_LEAD / 20.0):
         return int(np.argmax(scores))
-    backbeat = int(np.argmax(_phase_scores(band(drums, sr, *_BACKBEAT_BAND), sr, beats, _BACKBEAT_WINDOW)))
-    return min((backbeat - 1) % BEATS_PER_BAR, (backbeat - 3) % BEATS_PER_BAR)
+    loudest = int(np.argmax(_phase_scores(band(drums, sr, *_BACKBEAT_BAND), sr, beats, _BACKBEAT_WINDOW, mean=True)))
+    return min((loudest - 1) % BEATS_PER_BAR, (loudest - 3) % BEATS_PER_BAR)
 
 
 def align_beats_to_kicks(beats: np.ndarray, drums: np.ndarray, sr: int, bpm: float) -> np.ndarray:
@@ -142,8 +152,8 @@ def align_beats_to_kicks(beats: np.ndarray, drums: np.ndarray, sr: int, bpm: flo
     """
     if len(beats) < 2 or bpm <= 0:
         return beats
-    kicks = band_onsets(drums, sr, None, _LOW_BAND_HZ)
-    if len(kicks) < 2:
+    kicks = gated_band_onsets(drums, sr, None, _LOW_BAND_HZ, KICK_GATE_DB)
+    if len(kicks) < max(2, len(beats) / BEATS_PER_BAR):  # at least a kick a bar, or there is nothing to align to
         return beats
     beat = 60.0 / bpm
     nearest = np.clip(np.searchsorted(beats, kicks), 1, len(beats) - 1)
@@ -151,10 +161,11 @@ def align_beats_to_kicks(beats: np.ndarray, drums: np.ndarray, sr: int, bpm: flo
     phases = ((kicks - beats[nearest]) / beat) % 1.0  # in beats
     mean = float(np.angle(np.mean(np.exp(2j * np.pi * phases))) / (2 * np.pi))  # in (-0.5, 0.5]
     deviation = np.abs(((phases - mean + 0.5) % 1.0) - 0.5)  # in beats, circular
-    half_step = 0.5 / BEATS_PER_BAR
-    if np.mean(deviation <= half_step) < KICK_AGREEMENT or abs(mean) <= KICK_DEAD_ZONE / BEATS_PER_BAR:
+    half_step = 0.5 / STEPS_PER_BEAT  # in beats
+    if np.mean(deviation <= half_step) < KICK_AGREEMENT or abs(mean) <= KICK_DEAD_ZONE / STEPS_PER_BEAT:
         return beats
-    return beats + mean * beat
+    moved = beats + mean * beat
+    return moved[moved >= -half_step * beat]  # a beat moved more than half a step before the clip is dropped
 
 
 def estimate_grid(mix: np.ndarray, drums: np.ndarray | None, sr: int, duration: float) -> Grid:
@@ -178,7 +189,7 @@ def estimate_grid(mix: np.ndarray, drums: np.ndarray | None, sr: int, duration: 
         if aligned is not beats:
             # Moved forward, the beats can leave a kick at the clip's very start without a beat (the 48:50
             # clip opens on one): a beat is added before them while it lies within half a step of the start.
-            beat, half_step = 60.0 / bpm, 60.0 / bpm / BEATS_PER_BAR / 2
+            beat, half_step = 60.0 / bpm, 60.0 / bpm / STEPS_PER_BEAT / 2
             while aligned[0] - beat >= -half_step:
                 aligned = np.concatenate([[aligned[0] - beat], aligned])
             grid = grid_from(aligned, moved=True)  # None when the move lost the only bar: the tracker's beats stand

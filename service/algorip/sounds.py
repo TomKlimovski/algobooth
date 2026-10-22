@@ -21,7 +21,8 @@ FILTER_ENV_MIN_OCTAVES = 1.0  # an opening under this is not worth a filter enve
 FILTER_ENV_MIN_CLOSE_MS = 50.0
 # Drum voices: the bank sample whose first 12 dB of fall is nearest the stem's (kits.nearest_sample), and a gain
 # per voice from the stem's level relative to its kick against the chosen samples' (the kick is the reference).
-# Strudel's default gain is 0.8 on a linear curve; a gain within GAIN_WRITE_DB of it is not written, none exceeds 1.
+# Strudel's default gain is 0.8 on a linear curve; a gain within GAIN_WRITE_DB of it is not written, none exceeds 1
+# and none rounds to 0. Without a kick on the stem there is no reference and no gain is written.
 DEFAULT_GAIN = 0.8
 GAIN_WRITE_DB = 2.0
 _SAMPLE_VOICE = {"bd": "bd", "hh": "hh", "oh": "oh", "gh": "hh"}  # the snare voice uses the bank's snare_name list
@@ -68,7 +69,7 @@ def gain_for(diff_db: float) -> float | None:
     """The line's gain for a voice the stem plays diff_db louder (or quieter) than the chosen samples would; None when within GAIN_WRITE_DB."""
     if abs(diff_db) < GAIN_WRITE_DB:
         return None
-    return min(1.0, round(DEFAULT_GAIN * 10 ** (diff_db / 20), 2))
+    return max(0.01, min(1.0, round(DEFAULT_GAIN * 10 ** (diff_db / 20), 2)))  # never silent
 
 
 def _drum_samples_and_gains(a: Analysis, bank: str, snare_name: str) -> tuple[dict[str, int], dict[str, float]]:

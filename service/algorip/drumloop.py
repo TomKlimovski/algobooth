@@ -78,7 +78,11 @@ def drum_loops(a: Analysis) -> DrumLoops:
         v = voices[voice] = voice_loop(bars)
         played |= {(voice, b, s) for b in range(a.bars) for s in v.templates[b % v.period]}
     if "gh" in voices:  # a ghost's strays are not worth a fill
-        voices["gh"].fills = [set() for _ in voices["gh"].fills]
+        gh = voices["gh"]
+        gh.fills = [set() for _ in gh.fills]
+        if "hh" in voices:  # a closed hat the ghosts line already plays (the same sample) on that step is not a fill
+            for b in range(a.bars):
+                voices["hh"].fills[b] -= gh.templates[b % gh.period]
     looped = [v for v in voices.values() if any(v.templates)]
     for b in range(a.bars):
         if sum(len(v.fills[b]) for v in looped) < FILL_MIN_HITS:

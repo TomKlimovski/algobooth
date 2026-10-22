@@ -21,7 +21,7 @@
 - Kicks on every offbeat 8th with no on-beat kick: read as the beat (aligned), not left. Task 1.
 - A clip whose kicks disagree (breakbeat, under 75% within half a step of the mean): the grid does not move. Task 1.
 - Aligning forward past the clip's end must not produce a zero-bar grid: the shorter way is taken and bars recomputed; a grid that would lose its only bar keeps the tracker's beats. Task 1.
-- A voice with no hits in the stem (no snare) gets no sample, no gain and no line; a voice with hits but a fall that never reaches −12 dB before the next hit uses the time to the next hit. Task 4.
+- A voice with no hits in the stem (no snare) gets no sample, no gain and no line; a stem with no kick gets no gains at all (no reference); a voice with hits but a fall that never reaches −12 dB before the next hit uses the time to the next hit. Task 4.
 - A legato bass note (its predecessor loud a quarter step before the line) keeps its onset at the line. Task 2.
 
 ---
@@ -63,7 +63,7 @@ def test_estimate_grid_aligns_a_late_grid():        # estimate_grid on drum_loop
 - [ ] **Step 4: run** `uv run pytest -q tests/test_grid.py tests/test_drums.py`: PASS.
 - [ ] **Step 5: commit** `The kick is the beat: the grid's beats move onto the kicks and the backbeat picks the downbeat among equal kicks`.
 
-### Task 2: the bass onset a quarter step before the line (`bass.py`)
+### Task 2: the bass onset a quarter step before the line (`bass.py`) — built, then withdrawn at review (see the spec's change 2)
 
 **Files:** Modify `service/algorip/bass.py` (`_sounding`, `_note_filter`, `bass_tone`, `bass_envelope`); `service/tests/synth.py` (`filtered_bass` accepts a negative `onset_lag_seconds`: the note is placed earlier, clipped at 0); Test `service/tests/test_bass.py`.
 

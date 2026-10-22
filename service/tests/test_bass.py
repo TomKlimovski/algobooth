@@ -291,32 +291,3 @@ def test_choose_sounds_writes_the_measured_filter_and_tremolo():
     sine = a.model_copy(update={"bass_harmonics": 0.1, "bass_tone": BassTone(open_hz=1700, hold_hz=212, close_ms=118, wobble_hz=None, wobble_db=None)})
     s = choose_sounds(sine)
     assert s.bass_lpf is None and s.bass_filter_env is None
-
-
-def test_a_note_starting_just_before_its_line_keeps_its_filter_opening():
-    # with the grid on the kicks, a bass that leads the kick starts a little before its line (12 ms on the 48:50
-    # clip); read from the line, its filter is already closing. The quarter step before the line is searched.
-    from algorip.bass import bass_tone
-
-    g = Grid(bpm=120, first_downbeat=0.0, bars=2)
-    line = [(b, s, 3, 39) for b in range(2) for s in (1, 5, 9, 13)]
-    early = filtered_bass(line, 120, 2, open_hz=2000, hold_hz=200, close_seconds=0.12, onset_lag_seconds=-0.012)
-    notes = transcribe_bass(early, SR, g, GMIN)[1]
-    assert len(notes) >= 6 and {(n.bar, n.step) for n in notes} <= {(b, s) for b, s, _, _ in line}
-    tone = bass_tone(early, SR, notes, g)
-    assert tone is not None and tone.open_hz >= 3 * tone.hold_hz and 150 <= tone.hold_hz <= 320
-
-
-def test_a_note_after_a_held_note_takes_its_onset_at_the_line():
-    # the quarter step before the second note's line is the first note, loud: the onset stays at the line
-    from algorip.bass import bass_envelope
-
-    g = Grid(bpm=120, first_downbeat=0.0, bars=1)
-    pair = bass_line([(0, 0, 4, 39), (0, 4, 4, 39)], 120, 1)
-    single = bass_line([(0, 4, 4, 39)], 120, 1)
-    both = transcribe_bass(pair, SR, g, GMIN)[1]
-    assert [(n.step, n.length) for n in both] == [(0, 4), (4, 4)]
-    paired = bass_envelope(pair, SR, [n for n in both if n.step == 4], g)
-    alone = bass_envelope(single, SR, transcribe_bass(single, SR, g, GMIN)[1], g)
-    assert paired is not None and alone is not None
-    assert abs(paired.attack_ms - alone.attack_ms) <= 5 and abs(paired.hold_ms - alone.hold_ms) <= 15

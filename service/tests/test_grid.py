@@ -83,6 +83,28 @@ def test_beats_a_frame_late_are_left_alone():
     assert np.array_equal(align_beats_to_kicks(beats, y, SR, 124), beats)
 
 
+def test_a_backward_move_drops_a_beat_before_the_clip():
+    # the clip is cut a quarter beat into a bar (first kick at 0.75 beat) and the tracker's beats sit at 0.05:
+    # the beats move back 0.3 beat, and the one that lands at -0.25 beat is dropped rather than clamped
+    y = np.concatenate([silence(0.75 * BEAT), drum_loop(HOUSE, 124, 4)])
+    beats = np.arange(16) * BEAT + 0.05 * BEAT
+    aligned = align_beats_to_kicks(beats, y, SR, 124)
+    assert aligned[0] == pytest.approx(0.75 * BEAT, abs=0.02) and len(aligned) == 15
+
+
+def test_a_stem_without_kicks_does_not_move_the_grid():
+    hats_only = {"oh": {(b, s) for b in range(4) for s in (2, 6, 10, 14)}}
+    beats = np.arange(16) * BEAT
+    assert np.array_equal(align_beats_to_kicks(beats, drum_loop(hats_only, 124, 4), SR, 124), beats)
+
+
+def test_the_backbeat_rule_averages_over_unequal_beat_counts():
+    # 21 beats: phase 0 has six, the others five; summed, four equal kicks would read as a 1.6 dB lead for phase 0
+    claps_on_one_and_three = dict(HOUSE, sd={(b, s) for b in range(6) for s in (0, 8)})
+    y = drum_loop(claps_on_one_and_three, 124, 6)
+    assert downbeat_phase(y, SR, np.arange(21) * BEAT, backbeat=True) == 1
+
+
 def test_disagreeing_kicks_do_not_move_the_grid():
     breaks = {"bd": {(0, 0), (0, 10), (1, 0), (1, 6), (2, 0), (2, 10), (3, 0), (3, 6)}}
     y = drum_loop(breaks, 124, 4)
