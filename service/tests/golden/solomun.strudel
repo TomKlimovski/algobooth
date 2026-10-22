@@ -2,9 +2,9 @@
 setcpm(129/4)
 
 drums: s("bd*4, [cp ~ cp ~] [cp ~ cp ~] [~ ~ cp ~] [~ ~ cp ~]").bank("tr909")
-hats: s("<[[~ oh ~ ~] ~ [~ oh ~ ~] [~ ~ ~ oh]] [[~ oh ~ ~] [~ ~ ~ oh] [~ oh ~ ~] [~ ~ ~ oh]]>").bank("tr909")
+hats: s("[~ oh ~ ~] ~ [~ oh ~ ~] [~ ~ ~ oh]").bank("tr909")
 // bars 1–7 add these hits (a fill): remove the underscore to hear them
-_fills: s("<[~ ~ ~ [~ ~ ~ bd]] ~ ~ ~ ~ ~ [[~ ~ bd ~] ~ ~ ~] ~ ~>, <[~ [~ ~ ~ cp] [cp ~ ~ ~] [cp ~ ~ ~]] ~ ~ ~ ~ ~ [[~ cp ~ ~] ~ ~ ~] ~ ~>, <~ ~ ~ ~ ~ ~ [~ [~ ~ ~ oh] ~ ~] ~ ~>").bank("tr909")
+_fills: s("<[~ ~ ~ [~ ~ ~ bd]] ~ ~ ~ ~ ~ [[~ ~ bd ~] ~ ~ ~] ~ ~>, <[~ [~ ~ ~ cp] [cp ~ ~ ~] [cp ~ ~ ~]] [~ ~ [cp ~ ~ ~] [cp ~ ~ ~]] ~ [~ ~ ~ [cp ~ ~ cp]] ~ ~ [[~ cp ~ ~] ~ ~ ~] ~ ~>, <~ [~ [~ ~ ~ oh] ~ ~] ~ [~ [~ ~ ~ oh] ~ ~] ~ ~ [~ [~ ~ ~ oh] ~ ~] ~ ~>").bank("tr909")
 bass: note("[~ ~ g1@2] [~ g1 ~ g1] [~ ~ g1@2] [~ g1@2 g2]").s("sawtooth").lpf(800)
 // bars 5–9 add this under the bass (a variation): remove the underscore to hear it (match 0.80 without, 0.94 with)
 _bass2: note("<~ ~ ~ ~ [~ ~ [g1 ~ ~ ~] [g1 ~ ~ ~]] [[g2 ~ ~ ~] [g1 ~ ~ ~] [g1 ~ ~ ~] ~] [[g1 g1 ~ ~] [g1 ~ ~ ~] [g1 ~ ~ ~] [g1 ~ ~ ~]] [[g1 g1 ~ ~] [~ ~ g1 ~] [g1@2 ~ ~] [g1 ~ ~ ~]] [[g1 g1 ~ ~] [g1 ~ g1 ~] [g1 ~ ~ ~] [g1 ~ ~ ~]]>").s("sawtooth").lpf(800).gain(0.6)

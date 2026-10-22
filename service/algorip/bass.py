@@ -162,7 +162,8 @@ def choose_bass_loop(bg: BassGrid, grid: Grid, notes: list[Note]) -> BassLoop | 
 
     layer = layer_bars = match_with_layer = None
     if loop.extra is not None and loop.extra_bars is not None:
-        layer = _layer_notes(bg, loop.extra, loop.extra_from or [])
+        assert loop.extra_from is not None  # find_loop sets both or neither
+        layer = _layer_notes(bg, loop.extra, loop.extra_from)
         layer_bars = (loop.extra_bars[0] + 1, loop.extra_bars[1] + 1)
         match_with_layer = score(bg, grid, expand(winner, grid.bars), expand(layer, grid.bars)).match
 

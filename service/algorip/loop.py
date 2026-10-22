@@ -10,10 +10,11 @@ line keep its loop: one extra onset in a three-onset bar is a quarter of the ste
 loop. Containment alone would make every period 1 (whatever bars share is "the loop" and the rest
 variation), so two more rules hold it: the template is voted by the cleanest core bars (those adding
 the least, so a long build cannot outvote a short loop), and a longer period replaces a shorter one
-only when it explains at least LOOP_GAIN more of the steps (an alternation is a two-bar loop, a
-varying beat is not). Every bar's steps beyond its template, core bars included, form the variation
-(`extra`), kept per bar at its own position like the drum fills; it is not folded into a loop of its
-own, since the majority of a variation can hide the build it carries.
+only when it explains RESIDUAL_GAIN of what the shorter leaves unexplained and does more than add to
+it in a minority of phases (an alternation is a two-bar loop; a varying beat or a phrase-end fill is
+not). Every bar's steps beyond its template, core bars included, form the variation (`extra`): one
+short loop when every adding bar contains it at its own phase of the clip, else one phase per bar,
+verbatim, like the drum fills.
 """
 
 from collections import Counter
@@ -28,9 +29,10 @@ LOOP_CORE_SHARE = 0.4  # the core must be at least this share of all bars...
 LOOP_MIN_CORE = 2  # ...and at least this many bars
 VARIATION_MIN_STEPS = 2  # a bar adding fewer steps than this adds a stray, not a variation
 LAYER_MIN_STEPS = 4  # fewer extra steps than this over the whole clip is no variation at all
-LOOP_GAIN = 0.2  # a longer period must explain this much more of the steps to replace a shorter one
+RESIDUAL_GAIN = 0.5  # a longer period must explain this share of what the shorter one leaves unexplained
 LOOP_PERIODS = (1, 2, 4, 8)
 VARIATION_PERIODS = (1, 2, 4)  # a variation shared by the adding bars is written as a loop this short
+_EPS = 1e-9
 
 
 @dataclass
@@ -80,18 +82,10 @@ def find_loop(
     sounding, when given, is one dict per bar of the value sounding on each step; the variation is then
     measured on those as well as on the starts (see the module docstring).
     """
-    best: tuple[float, int, list[dict[int, H]], list[int], list[int], list[int]] | None = None
-    for period in periods:
-        found = _loop_at(bars, period)
-        if found is None:
-            continue
-        explained = _explained(bars, found[0])
-        # shortest first: a longer period has to earn its length
-        if best is None or explained >= best[0] + LOOP_GAIN:
-            best = (explained, period, *found)
+    best = _best_period(bars, periods)
     if best is None:
         return None
-    _, period, templates, core, clean, deviating = best
+    period, (templates, core, clean, deviating) = best
     heard = [bars]
     heard_templates = [templates]
     if sounding is not None:
@@ -101,17 +95,74 @@ def find_loop(
     return Loop(period, templates, core, clean, deviating, extra, extra_from, extra_bars)
 
 
-def _loop_at(bars: list[dict[int, H]], period: int) -> tuple[list[dict[int, H]], list[int], list[int], list[int]] | None:
-    """The templates, core, clean and deviating bars at one period, or None when the bars do not loop at it."""
+# A period's reading of the bars: templates, core, clean (the template's voters) and deviating bar indexes.
+Candidate = tuple[list[dict[int, H]], list[int], list[int], list[int]]
+
+
+def _best_period(bars: list[dict[int, H]], periods: tuple[int, ...]) -> tuple[int, Candidate[H]] | None:
+    """The shortest period the bars loop at, unless a longer one earns its length (see `_earns_its_length`)."""
+    best: tuple[float, int, Candidate[H]] | None = None
+    for period in periods:
+        cand = _loop_at(bars, period)
+        if cand is None:
+            continue
+        explained = _explained(bars, cand[0])
+        if best is None or _earns_its_length(best[0], best[2][0], period, cand[0], explained):
+            best = (explained, period, cand)
+    return None if best is None else (best[1], best[2])
+
+
+def _earns_its_length(
+    short_explained: float, short: list[dict[int, H]], period: int, templates: list[dict[int, H]], explained: float
+) -> bool:
+    """Whether a longer period's reading replaces the shorter one's.
+
+    Phases that only add to the shorter loop, in a minority of phases, are a fill or a variation on it,
+    never a longer loop; a phase that drops something the shorter loop claims is a correction and counts.
+    Beyond that it must explain at least RESIDUAL_GAIN of what the shorter loop leaves unexplained (an
+    alternation of one note is still an alternation).
+    """
+    additions = corrections = 0
+    for phase in range(period):
+        own, shorter = templates[phase], short[phase % len(short)]
+        if own == shorter:
+            continue
+        if all(own.get(step) == value for step, value in shorter.items()):
+            additions += 1
+        else:
+            corrections += 1
+    if corrections == 0 and 2 * additions < period:
+        return False
+    return explained - short_explained >= RESIDUAL_GAIN * (1 - short_explained) - _EPS
+
+
+def _loop_at(bars: list[dict[int, H]], period: int) -> Candidate[H] | None:
+    """The bars' reading at one period, or None when they do not loop at it.
+
+    The first vote is over every bar: a step most bars play is in the loop, and the bars lacking it are
+    dropouts (so a clip whose build outnumbers its clean bars reads the build as the loop; the majority
+    decides). When that vote settles on no loop, a vote over the sparsest half seeds a second try, which
+    counts only if a majority of bars contain what it finds (Solomun 36:40's open hats: the full vote fails
+    the core share, the sparse one finds the three-hit bar the busier bars contain).
+    """
     if len(bars) < 2 * period:  # one voter per phase is a bar nobody repeated
         return None
-    first = vote(bars, period)
+    cand = _settle(bars, vote(bars, period), period)
+    if cand is not None:
+        return cand
+    cand = _settle(bars, _vote_of(bars, _sparsest(bars, period), period), period)
+    if cand is None or 2 * len(cand[1]) <= len(bars):
+        return None
+    return cand
+
+
+def _settle(bars: list[dict[int, H]], first: list[dict[int, H]], period: int) -> Candidate[H] | None:
+    """The two-pass vote from a first template: core by containment, the cleanest core bars re-vote, split again."""
     if not any(first):  # nothing repeats at this period: not a loop of silence
         return None
     core, _ = _split(bars, first)
     if _phase_unplayed(bars, first, core):
         return None
-    # second pass: the cleanest core bars of each phase vote the real template
     clean = _cleanest(bars, first, core, period)
     templates = _vote_of(bars, clean, period)
     if not any(templates):
@@ -158,20 +209,32 @@ def _vote_of(bars: list[dict[int, H]], voters: list[int], period: int) -> list[d
     return [_majority([bars[i] for i in voters if i % period == phase]) for phase in range(period)]
 
 
+def _lower_half(scores: dict[int, int]) -> list[int]:
+    """The indexes scoring at or under the lower half's top score: at least half of them, ties included."""
+    counts = sorted(scores.values())
+    cutoff = counts[max(0, len(counts) // 2 - 1)]
+    return [i for i, n in scores.items() if n <= cutoff]
+
+
+def _sparsest(bars: list[dict[int, H]], period: int) -> list[int]:
+    """Each phase's bars with the fewest steps (the lower half), the seed a build cannot outvote."""
+    voters: list[int] = []
+    for phase in range(period):
+        voters.extend(_lower_half({i: len(bars[i]) for i in range(phase, len(bars), period)}))
+    return sorted(voters)
+
+
 def _cleanest(bars: list[dict[int, H]], templates: list[dict[int, H]], core: list[int], period: int) -> list[int]:
-    """Each phase's core bars that add the least beyond the first vote: at least half of them, the median extra count and under.
+    """Each phase's core bars that add the least beyond the first vote (the lower half), the template's voters.
 
     Voting over every core bar would let a build that is longer than the loop outvote it; the bars with
     the fewest extra steps are the loop as the track states it.
     """
     clean: list[int] = []
     for phase in range(period):
-        at_phase = [i for i in core if i % period == phase]
         template = templates[phase]
-        extra = {i: len([s for s in bars[i] if template.get(s) != bars[i][s]]) for i in at_phase}
-        counts = sorted(extra.values())
-        cutoff = counts[(len(counts) - 1) // 2]  # the median: at least half the bars qualify
-        clean.extend(i for i in at_phase if extra[i] <= cutoff)
+        extra = {i: len([s for s in bars[i] if template.get(s) != bars[i][s]]) for i in core if i % period == phase}
+        clean.extend(_lower_half(extra))
     return sorted(clean)
 
 
@@ -183,8 +246,9 @@ def _variation(
     A bar adding fewer than VARIATION_MIN_STEPS adds a stray, which is dropped (as a drum bar under the
     fills threshold is); None when what is left is under LAYER_MIN_STEPS in all. When the adding bars all
     contain one variation of their own (a build repeated as is, or alternating), that short loop is the
-    variation, drawn from those bars; otherwise (a gradual fill) it is one phase per clip bar, verbatim.
-    The bounds are the bars that add a variation, or None when none does.
+    variation, voted at the bars' own phases of the clip so it is written where they are; otherwise (a
+    gradual fill) it is one phase per clip bar, verbatim. The bounds are the bars that add a variation,
+    or None when none does.
     """
     n = len(heard[0])
     extras = [
@@ -203,23 +267,30 @@ def _variation(
     bounds = (min(adding), max(adding))
     if sum(len(e) for e in extras) < LAYER_MIN_STEPS:
         return None, None, bounds
-    compact = _shared_variation([extras[i] for i in adding])
+    compact = _shared_variation(extras, adding)
     if compact is not None:
-        period = len(compact)
-        return compact, [adding[phase::period] for phase in range(period)], bounds
+        return compact[0], compact[1], bounds
     return extras, [[i] for i in range(n)], bounds
 
 
-def _shared_variation(added: list[dict[int, H]]) -> list[dict[int, H]] | None:
-    """The one short loop every adding bar contains, with nothing but strays beyond it; None when they differ."""
+def _shared_variation(
+    extras: list[dict[int, H]], adding: list[int]
+) -> tuple[list[dict[int, H]], list[list[int]]] | None:
+    """The one short loop every adding bar contains at its clip phase, with only strays beyond it; None when they differ.
+
+    The loop's steps promise 80% containment (LOOP_AGREE), so a step some adding bar lacks can be written;
+    muted, that is harmless.
+    """
     for period in VARIATION_PERIODS:
-        found = _loop_at(added, period)
-        if found is None:
+        if len(adding) < 2 * period:
             continue
-        templates, _, _, deviating = found
-        if deviating:
+        phases = [[i for i in adding if i % period == phase] for phase in range(period)]
+        templates = [_majority([extras[i] for i in ph]) for ph in phases]
+        if not any(templates):
             continue
-        beyond = [len([s for s in bar if templates[i % period].get(s) != bar[s]]) for i, bar in enumerate(added)]
+        if any(agreement(extras[i], templates[i % period]) < LOOP_AGREE for i in adding):
+            continue
+        beyond = [len([s for s in extras[i] if templates[i % period].get(s) != extras[i][s]]) for i in adding]
         if all(b < VARIATION_MIN_STEPS for b in beyond):
-            return templates
+            return templates, phases
     return None

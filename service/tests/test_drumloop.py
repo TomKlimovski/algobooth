@@ -76,22 +76,23 @@ def test_hits_off_the_clip_are_ignored():
     assert drum_loops(analysis(drums=stray, bars=4)) == drum_loops(analysis(drums=drums, bars=4))
 
 
-def test_solomun_open_hats_are_a_two_bar_loop_with_a_break():
-    # Solomun 36:40's open hats: odd bars add the hit on step 7; bars 5 and 6 drop out (a break), which
-    # containment tolerates; the stray step-7 hits in bars 3 and 7 are fills
+def test_solomun_open_hats_are_a_one_bar_loop_with_strays_and_a_break():
+    # Solomun 36:40's open hats: the full vote fails (the step-7 hit is in five bars of nine, and the bars
+    # without it are then under the core share), the sparse seed finds the three-hit bar seven bars contain;
+    # the step-7 hits are fills, and bars 5 and 6 (a break) are dropouts
     bars = [{1, 9, 15}, {1, 7, 9, 15}, {1, 7, 9, 15}, {1, 7, 9}, {1}, set(), {7, 9, 15}, {1, 7, 9, 15}, {1, 9, 15}]
     v = voice_loop(bars)
-    assert v.period == 2 and v.templates == [{1, 9, 15}, {1, 7, 9, 15}]
-    assert v.fills == [set(), set(), {7}, set(), set(), set(), {7}, set(), set()]
+    assert v.period == 1 and v.templates == [{1, 9, 15}]
+    assert v.fills == [set(), {7}, {7}, {7}, set(), set(), {7}, {7}, set()]
 
 
 def test_a_bar_needs_three_strays_over_the_looped_voices_to_be_a_fill():
     assert FILL_MIN_HITS == 3
     bd = [(b, s) for b in range(4) for s in FOUR] + [(1, 2), (1, 3)]  # two strays in bar 2
-    sd = [(b, s) for b in range(4) for s in (4, 12)] + [(1, 14), (3, 14), (3, 15)]  # one in bar 2, two in bar 4
+    sd = [(b, s) for b in range(4) for s in (4, 12)] + [(1, 14), (2, 14), (2, 15)]  # one in bar 2, two in bar 3
     d = drum_loops(analysis(drums={"bd": bd, "sd": sd, "hh": [], "oh": []}, bars=4))
     assert d.voices["bd"].fills == [set(), {2, 3}, set(), set()]  # bar 2: 2 + 1 = 3, kept
-    assert d.voices["sd"].fills == [set(), {14}, set(), set()]  # bar 4: 0 + 2 = 2, dropped
+    assert d.voices["sd"].fills == [set(), {14}, set(), set()]  # bar 3: 0 + 2 = 2, dropped
     assert d.fill_bars == (2, 2)
 
 

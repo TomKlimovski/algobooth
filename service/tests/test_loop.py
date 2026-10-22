@@ -107,3 +107,51 @@ def test_retriggers_under_a_held_template_note_are_still_extra_material():
     sounds = {**{s: 9 for s in range(8)}, **{s: 0 for s in range(8, 12)}, **{s: 4 for s in range(12, 16)}}
     loop = find_loop([root] * 4 + [retriggered] * 3, sounding=[sounds] * 7)
     assert loop.extra == [{s: 9 for s in range(1, 8)}] and loop.extra_from == [[4, 5, 6]] and loop.extra_bars == (4, 6)
+
+
+def test_a_phrase_end_fill_stays_a_fill_and_does_not_become_a_four_bar_loop():
+    # the drum design's anti-goal `<loop loop loop fill>`: claps every bar, a fill on the last bar of each four
+    claps = [{4: 1, 12: 1}] * 8
+    claps[3] = claps[7] = {4: 1, 12: 1, 13: 1, 14: 1, 15: 1}
+    loop = find_loop(claps)
+    assert loop.period == 1 and loop.templates == [{4: 1, 12: 1}]
+    assert loop.extra == [{13: 1, 14: 1, 15: 1}] and loop.extra_from == [[3, 7]]
+    # a four-hit kick fill, where period 4 would explain exactly 0.2 more
+    kick = [{0: 1, 4: 1, 8: 1, 12: 1}] * 8
+    kick[3] = kick[7] = {**kick[0], 13: 1, 14: 1, 15: 1, 11: 1}
+    assert find_loop(kick).period == 1
+    # and on the bass: [A, A, A, A+fill] twice is a one-bar loop plus a variation, not a four-bar loop
+    a = {0: 7, 8: 7}
+    bars = [a, a, a, {**a, 12: 9, 14: 9}] * 2
+    loop = find_loop(bars)
+    assert loop.period == 1 and loop.templates == [a] and loop.extra == [{12: 9, 14: 9}]
+
+
+def test_a_shared_variation_is_placed_by_clip_bar_not_by_its_order_among_the_adding_bars():
+    a = {0: 7, 8: 7}
+    v1, v2 = {4: 9, 12: 9}, {4: 5, 12: 5}
+    # the variation alternates from bar 5 (0-based): v1 on odd bars, v2 on even ones
+    bars = [a] * 5 + [{**a, **v1}, {**a, **v2}, {**a, **v1}, {**a, **v2}]
+    loop = find_loop(bars)
+    assert loop.extra == [v2, v1] and loop.extra_from == [[6, 8], [5, 7]]  # phase 0 = even bars = v2
+
+
+def test_a_sparse_loop_survives_a_clip_that_is_half_build():
+    # the 48:50 shape ripped a bar later: two clean bars, two with the C# and F. The C# and F are not a strict
+    # majority, so they are the variation. With three build bars to two they would be the loop: the majority
+    # decides, and the two clean bars would be its dropouts.
+    d = 3
+    clean = {1: d, 4: d, 8: d}
+    build = {**clean, 6: 1, 14: 5}
+    loop = find_loop([clean, clean, build, build])
+    assert loop.templates == [clean] and loop.extra == [{6: 1, 14: 5}] and loop.extra_from == [[2, 3]]
+    loop = find_loop([clean, clean, build, build, build])
+    assert loop.templates == [build] and loop.extra is None
+
+
+def test_a_one_note_alternation_is_a_two_bar_loop():
+    # bars the same except beat 4: D# against F, alternating; neither is a stray
+    a = {1: 3, 4: 3, 8: 3, 14: 3}
+    b = {1: 3, 4: 3, 8: 3, 14: 5}
+    loop = find_loop([a, b, a, b, a])
+    assert loop.period == 2 and loop.templates == [a, b] and loop.extra is None
