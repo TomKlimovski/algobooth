@@ -85,15 +85,15 @@ Basic Pitch still transcribes the melody; the bass goes through these modules in
 `mir_eval` is a direct dependency, used for the onset score.
 
 - `algorip/bassgrid.py`: a per-16th-step pitch grid from `librosa.pyin` (stem resampled to 11025 Hz, 30 to 400 Hz), with note starts. Steps quieter than a tenth of the loudest step are rests. The pyin frame is fixed at 2048 samples (186 ms), so the grid is reliable up to roughly 160 bpm and smears 16ths above that (a tempo-adaptive frame is a follow-up).
-- `algorip/loop.py`: finds the period (1, 2, 4 or 8 bars) the bars repeat at with a two-pass majority vote, so deviating bars do not veto it. What those bars sound or start that the template does not (measured on the grid's steps, so a sustained fill counts as much as a retriggered one) becomes a layer when it repeats and is dense enough.
+- `algorip/loop.py`: finds the period (1, 2, 4 or 8 bars) the bars repeat at with a two-pass majority vote. A bar is core when it contains its phase's template (plays what the loop plays, whatever it adds); the template is voted by the core bars adding the least; a longer period replaces a shorter one only when it explains `LOOP_GAIN` (0.2) more of the steps. What every bar sounds or starts beyond its template (measured on the grid's steps, so a sustained fill counts as much as a retriggered one) is the variation: dropped per bar under `VARIATION_MIN_STEPS` (2), written as one short loop when the adding bars share it, else one phase per bar.
 - `algorip/score.py`: scores a candidate against the grid, combining a per-step pitch-class frame score with mir_eval's onset F1 into a `match` in 0 to 1.
-- `algorip/drumloop.py`: finds a loop per drum voice through `loop.find_loop`; every hit the loop does not play, per bar, becomes the muted `_fills:` line. Drum-only rule: a loop with an empty phase is not a loop; that voice has no main line and all its hits are fills. A bar's strays over the looped voices are written only from `FILL_MIN_HITS` (3) hits. `match` is hit agreement (F1 of the hits the loops play against the classified hits), not a check against the stem.
+- `algorip/drumloop.py`: finds a loop per drum voice through `loop.find_loop`; every hit the loop does not play, per bar, becomes the muted `_fills:` line. A voice that never repeats (over more than one bar) has no main line and all its hits are fills; a loop with an empty phase over bars that have hits is refused by `find_loop` itself. A bar's strays over the looped voices are written only from `FILL_MIN_HITS` (3) hits. `match` is hit agreement (F1 of the hits the loops play against the classified hits), not a check against the stem.
 - `algorip/bass.py`: `choose_bass_loop` tries four notations (as heard, on an 8th grid, sustained, both) and keeps the shortest within 0.05 of the best match.
 
 ### Backtest fixtures
 
 `tests/golden/` holds `solomun.*` (a real clip; the derived grid, analysis, Strudel code and
-bass events, no audio) and `build.*` (a synthetic 2-bar loop with a build layer).
+bass events, no audio), `solomun2.*` (48:50 to 49:00 of the same set: a sparse one-bar D# loop with a varying last beat and a one-bar variation) and `build.*` (a synthetic 2-bar loop with a build layer).
 `app/src/rip/roundtrip.test.ts` plays each golden's `bass:` line under real Strudel and
 checks it against the events. `scripts/bass_fixture.py` builds the fixtures and prints the
 loop and the match:
