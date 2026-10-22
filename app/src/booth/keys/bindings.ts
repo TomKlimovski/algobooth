@@ -104,11 +104,13 @@ export function withHidden(pattern: Layout, slot: Slot): Layout {
   return withBindings(pattern, { ...pattern.bindings, [slot]: null });
 }
 
+/** Moves a binding to `to`; a binding already there swaps into `from`, so a move never loses a key. */
 export function withMoved(layout: Layout, from: Slot, to: Slot): Layout {
   const binding = layout.bindings[from];
   if (from === to || binding === undefined) return layout;
   const { [from]: _gone, ...rest } = layout.bindings;
-  return withBindings(layout, { ...rest, [to]: binding });
+  const there = layout.bindings[to];
+  return withBindings(layout, there ? { ...rest, [from]: there, [to]: binding } : { ...rest, [to]: binding });
 }
 
 /** Sets or (with null) removes a snapshot; an emptied `snapshots` object is dropped so layouts compare equal. */

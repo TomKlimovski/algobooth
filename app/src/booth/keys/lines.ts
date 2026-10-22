@@ -11,17 +11,40 @@ export interface PatternLine { n: number; label: string | null; muted: boolean; 
 /** Code ending in a dot, an operator, a comma or an open bracket: the expression goes on below. */
 const OPEN_END = /([.,([{]|=>|[-+*/%?:=&|<>])$/;
 const LABEL = /^(_?)([\w$]+):/;
+/** A line that starts with a label: a bare label's body is never another named pattern. */
+const LABEL_START = /^[\w$]+:/;
+
+/** Opening minus closing brackets in `body`, outside strings (a line starting in a template literal starts inside one). */
+function depthOf(body: string, inTemplate: boolean): number {
+  let quote: string | null = inTemplate ? '`' : null;
+  let depth = 0;
+  for (let i = 0; i < body.length; i++) {
+    const c = body[i];
+    if (quote) {
+      if (c === '\\') i++;
+      else if (c === quote) quote = null;
+    } else if (c === '"' || c === "'" || c === '`') quote = c;
+    else if ('([{'.includes(c)) depth++;
+    else if (')]}'.includes(c)) depth--;
+  }
+  return depth;
+}
 
 /**
  * The pattern lines of `code`, numbered in document order. Setup lines (`setcpm(`, `samples(` ...), comments and
  * blanks are not pattern lines. A physical line joins the one before it while that is still open (inside a
  * template literal, or ending in `.`, an operator, a comma, an open bracket, or a bare label) or when it starts
- * with `.`, so a chain or a multi-line stack counts once.
+ * with `.`, so a chain or a multi-line stack counts once. A bare label's body is the lines below it up to the
+ * next label; with none, it is a pattern line with an empty body. A setup line left open (an unclosed bracket, a
+ * trailing operator or comma, a template literal) swallows the lines below it until it closes.
  */
 export function patternLines(code: string): PatternLine[] {
   const out: PatternLine[] = [];
   let inTemplate = false;
   let open = false;
+  let bare = false;
+  let setupOpen = false;
+  let setupDepth = 0;
   let offset = 0;
   code.split('\n').forEach((line, i) => {
     const startsInTemplate = inTemplate;
@@ -32,14 +55,22 @@ export function patternLines(code: string): PatternLine[] {
     offset = end + 1;
     const body = (scan.comment < 0 ? line : line.slice(0, scan.comment)).trim();
     const last = out[out.length - 1];
-    if (startsInTemplate) {
+    if (setupOpen) {
+      if (body !== '') {
+        setupDepth += depthOf(body, startsInTemplate);
+        setupOpen = inTemplate || setupDepth > 0 || OPEN_END.test(body);
+      }
+      return;
+    } else if (startsInTemplate) {
       if (last) { last.to = end; last.lastLine = i; }
     } else if (body === '') {
       return; // blank or comment-only: neither starts nor ends a pattern line
     } else if (SETUP.test(body)) {
       open = false;
+      setupDepth = depthOf(body, false);
+      setupOpen = inTemplate || setupDepth > 0 || OPEN_END.test(body);
       return;
-    } else if (last && (open || /^[.)\]}]/.test(body))) {
+    } else if (last && ((open && !(bare && LABEL_START.test(body))) || /^[.)\]}]/.test(body))) {
       last.to = end;
       last.lastLine = i;
     } else {
@@ -47,7 +78,8 @@ export function patternLines(code: string): PatternLine[] {
       const label = m && m[2] !== '$' ? m[2] : null;
       out.push({ n: out.length + 1, label, muted: !!m && m[1] === '_' && label !== null, from: start, to: end, firstLine: i, lastLine: i });
     }
-    open = inTemplate || BARE_LABEL.test(body) || OPEN_END.test(body);
+    bare = !startsInTemplate && BARE_LABEL.test(body);
+    open = inTemplate || bare || OPEN_END.test(body);
   });
   return out;
 }

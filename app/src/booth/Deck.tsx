@@ -28,7 +28,7 @@ export interface DeckApi {
   setCode(code: string): void;
   getCode(): string;
   setName(name: string): void;
-  /** Points the deck at a library file (null: none) whose content is `savedCode`; `pattern` is that file. */
+  /** Points the deck at a library file (null: none) whose content is `savedCode`; `pattern` is that file. With a pattern this is a load, and `onLoad` fires. */
   setFile(filePath: string | null, savedCode: string | null, pattern?: Pattern | null): void;
   /** Library-relative path of the deck's file; null when it has none. */
   filePath(): string | null;
@@ -66,6 +66,8 @@ export interface DeckApi {
   afterEval: Set<() => void>;
   /** Called after the deck starts or stops, however that happened. */
   onToggle: Set<(started: boolean) => void>;
+  /** Called after a pattern is loaded onto the deck (`setFile` with a pattern); the deck's own Save does not fire it. */
+  onLoad: Set<() => void>;
 }
 
 export const DEFAULT_CODE: Record<DeckId, string> = {
@@ -118,6 +120,7 @@ export function Deck(props: {
   let mirror: any;
   const afterEval = new Set<() => void>();
   const onToggle = new Set<(started: boolean) => void>();
+  const onLoad = new Set<() => void>();
   const [dragOver, setDragOver] = createSignal(false);
   /** The live editor text (`deck.state.code` only follows evaluations). */
   const [editorCode, setEditorCode] = createSignal('');
@@ -385,7 +388,10 @@ export function Deck(props: {
       setCode: (code) => mirror.setCode(code),
       getCode: () => mirror.code,
       setName: deck.setName,
-      setFile: deck.setFile,
+      setFile: (filePath, savedCode, pattern) => {
+        deck.setFile(filePath, savedCode, pattern);
+        if (pattern) onLoad.forEach((f) => f());
+      },
       filePath: () => deck.state.filePath,
       moveFile: deck.setFilePath,
       // The key layer stays with the code (both now unsaved), as setFile alone would reset it.
@@ -406,6 +412,7 @@ export function Deck(props: {
       setCps: (cps) => mirror.repl.setCps(cps),
       afterEval,
       onToggle,
+      onLoad,
     });
 
     onCleanup(() => {

@@ -56,7 +56,12 @@ interface Press {
   after: boolean | null;
   /** The queued toggle, so a cancel can take it back before it runs. */
   job: Job | null;
+  /** The target line when the key went down, re-found against the code when the job (or its revert) runs. */
+  target: Target;
 }
+
+/** A line as last known: re-found by label when it has one, else by number. */
+type Target = { n: number; label: string | null };
 
 /** A hold's revert, queued or waiting out its boundary; `handle` is the wait's timer, null once queued. */
 interface Inverse { slot: string; job: Job; handle: ReturnType<typeof setTimeout> | null }
@@ -103,7 +108,7 @@ export class KeyController {
   /** Letters held on the keyboard and the deck each went to, so a Tab mid-hold still releases the right one. */
   private readonly keyboard = new Map<string, DeckId>();
   /** The target as last found, label included, so a code change re-finds it by name. */
-  private readonly prev: Record<DeckId, { n: number; label: string | null } | null> = { A: null, B: null };
+  private readonly prev: Record<DeckId, Target | null> = { A: null, B: null };
   /** Keyed by deck: the booth's store hands out a proxy of the api that `onReady` passes raw, so the object differs. */
   private readonly attached = new Map<DeckId, { deck: DeckApi; detach: () => void }>();
   /** Reverts not yet run, per deck, so a Stop can run them instead of discarding them with the queue. */
@@ -179,13 +184,16 @@ export class KeyController {
     seen?.detach(); // a remounted deck: the old one's hooks go
     const toggled = (started: boolean) => (started ? this.queues[id].flushNow() : this.dropQueue(id));
     const evaluated = () => this.codeChanged(id);
+    const loaded = () => this.loaded(id);
     raw.onToggle.add(toggled);
     raw.afterEval.add(evaluated);
+    raw.onLoad.add(loaded);
     this.attached.set(id, {
       deck: raw,
       detach: () => {
         raw.onToggle.delete(toggled);
         raw.afterEval.delete(evaluated);
+        raw.onLoad.delete(loaded);
       },
     });
   }
@@ -204,9 +212,9 @@ export class KeyController {
     const binding = this.layout(id)[slot]?.binding;
     if (!binding || !this.trackers[id].down(slot)) return;
     this.mark(this.down, id, slot, true);
-    const press: Press = { binding, ran: false, revert: false, after: null, job: null };
+    const press: Press = { binding, ran: false, revert: false, after: null, job: null, target: this.pressedOn(id) };
     this.presses.set(`${id}|${slot}`, press);
-    press.job = this.toggleJob(id, slot, binding, press);
+    press.job = this.toggleJob(id, slot, binding, press.target, press);
     this.push(id, slot, press.job);
   }
 
@@ -238,9 +246,10 @@ export class KeyController {
   nudge(id: DeckId, slot: Slot, dir: 'up' | 'down'): void {
     const binding = this.layout(id)[slot]?.binding;
     if (!binding || binding.kind === 'line') return;
+    const pressed = this.pressedOn(id);
     this.push(id, slot, () => {
       const w = this.work!;
-      const target = this.targetIn(id, patternLines(w.code));
+      const target = refindTarget(pressed, patternLines(w.code));
       this.land(w, slot, target ? nudge(w.code, target, binding, dir) : { ok: false, reason: REFUSED_LINE });
     });
   }
@@ -370,7 +379,8 @@ export class KeyController {
     const id = this.deps.performing();
     const plain = !e.ctrlKey && !e.altKey && !e.shiftKey;
     if (e.code === 'Escape') {
-      if (!plain || doc.querySelector('.save-backdrop')) return;
+      // Already handled: a menu closing, or the editor's own Escape.
+      if (!plain || e.defaultPrevented || doc.querySelector('.save-backdrop')) return;
       e.preventDefault();
       this.togglePerform();
       return;
@@ -434,6 +444,12 @@ export class KeyController {
     return refindTarget(this.prev[id] ?? { n: 1, label: null }, lines);
   }
 
+  /** The target as a key goes down, so the job lands there even if a digit moves the target before the bar. */
+  private pressedOn(id: DeckId): Target {
+    const line = this.targetIn(id, this.lines(id));
+    return line ? { n: line.n, label: line.label } : (this.prev[id] ?? { n: 1, label: null });
+  }
+
   private setTarget(id: DeckId, line: PatternLine | null): void {
     if (line) this.prev[id] = { n: line.n, label: line.label };
     const n = line?.n ?? null;
@@ -456,22 +472,22 @@ export class KeyController {
     this.presses.delete(key);
     if (!held || !press) return;
     if (!press.ran) press.revert = true;
-    else if (press.after !== null) this.queueInverse(id, this.inverse(id, slot, press.binding, !press.after));
+    else if (press.after !== null) this.queueInverse(id, this.inverse(id, slot, press.binding, !press.after, press.target));
   }
 
   /** A method or macro toggles on the target line; a line key flips its own line's underscore. */
-  private toggleJob(id: DeckId, slot: Slot, binding: Binding, press?: Press): Job {
+  private toggleJob(id: DeckId, slot: Slot, binding: Binding, target: Target, press?: Press): Job {
     const job: Job = () => {
       const w = this.work!;
       const lines = patternLines(w.code);
-      const line = binding.kind === 'line' ? lines.find((l) => l.label === binding.label) : this.targetIn(id, lines);
+      const line = binding.kind === 'line' ? lines.find((l) => l.label === binding.label) : refindTarget(target, lines);
       let outcome: Outcome = { ok: false, reason: REFUSED_LINE };
       if (line) outcome = binding.kind === 'line' ? flipMute(w.code, line) : toggle(w.code, line, binding);
       this.land(w, slot, outcome);
       if (!press) return;
       press.ran = true;
       press.after = outcome.ok ? outcome.on : null;
-      if (press.revert && press.after !== null) w.after.push(this.inverse(id, slot, binding, !press.after));
+      if (press.revert && press.after !== null) w.after.push(this.inverse(id, slot, binding, !press.after, target));
     };
     return job;
   }
@@ -481,13 +497,13 @@ export class KeyController {
    * there. A blind toggle would act on whatever the deck holds by then: a pattern loaded before the bar
    * would gain the method the hold was auditioning on the old one.
    */
-  private inverse(id: DeckId, slot: Slot, binding: Binding, wanted: boolean): Inverse {
+  private inverse(id: DeckId, slot: Slot, binding: Binding, wanted: boolean, target: Target): Inverse {
     const inv: Inverse = { slot, handle: null, job: () => {} };
     inv.job = () => {
       this.inverses[id].delete(inv);
       const w = this.work!;
       const lines = patternLines(w.code);
-      const line = binding.kind === 'line' ? lines.find((l) => l.label === binding.label) : this.targetIn(id, lines);
+      const line = binding.kind === 'line' ? lines.find((l) => l.label === binding.label) : refindTarget(target, lines);
       if (!line || isOn(w.code, line, binding) === wanted) return;
       this.land(w, slot, binding.kind === 'line' ? flipMute(w.code, line) : toggle(w.code, line, binding));
     };
@@ -582,6 +598,18 @@ export class KeyController {
     this.pending[1]((p) => ({ ...p, [id]: new Set() }));
     // The deck is stopped by now, so each push flushes at once.
     reverts.forEach((inv) => this.queueInverse(id, inv));
+    this.countdown();
+  }
+
+  /**
+   * The deck was pointed at a newly loaded pattern: queued presses and recalls were aimed at the old code, so
+   * they go; a hold's revert stays (queued again, or still waiting out its boundary) and runs by its own rule.
+   */
+  private loaded(id: DeckId): void {
+    const queued = [...this.inverses[id]].filter((inv) => inv.handle === null);
+    this.queues[id].drop();
+    this.pending[1]((p) => ({ ...p, [id]: new Set([...this.inverses[id]].filter((inv) => inv.handle !== null).map((inv) => inv.slot)) }));
+    queued.forEach((inv) => this.queueInverse(id, inv));
     this.countdown();
   }
 

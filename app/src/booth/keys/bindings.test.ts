@@ -117,6 +117,10 @@ describe('other edits', () => {
     expect(out.bindings).toEqual({ KeyW: method(lpenv) });
     expect(base.bindings.KeyQ).toBeDefined();
   });
+  it('withMoved onto a bound slot swaps the two', () => {
+    const out = withMoved({ bindings: { KeyQ: method(lpenv), KeyW: method(room) } }, 'KeyQ', 'KeyW');
+    expect(out.bindings).toEqual({ KeyQ: method(room), KeyW: method(lpenv) });
+  });
   it('withCleared removes the slot', () => {
     const out = withCleared(base, 'KeyQ');
     expect('KeyQ' in out.bindings).toBe(false);

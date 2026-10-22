@@ -15,7 +15,10 @@ export function ContextMenu(props: { x: number; y: number; items: MenuItem[]; on
     if (!menu.contains(e.target as Node)) props.onClose();
   };
   const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') props.onClose();
+    if (e.key !== 'Escape') return;
+    // Handled here, so the booth's Escape (perform mode) leaves it alone.
+    e.preventDefault();
+    props.onClose();
   };
   onMount(() => {
     // Capture, so a click on another row closes this menu before that row handles it.

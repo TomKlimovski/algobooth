@@ -55,7 +55,7 @@ function callsOf(text: string, name: string): Call[] {
 const partsOf = (binding: Binding): MethodPart[] =>
   binding.kind === 'macro' ? binding.parts : binding.kind === 'method' ? [binding] : [];
 
-/** Each part's call in order (the first after the previous part's); null when one is missing. */
+/** Each part's call in order (the first after the previous part's call ends, so one nested in its argument does not count); null when one is missing. */
 function presence(text: string, parts: MethodPart[]): Call[] | null {
   const found: Call[] = [];
   let after = -1;
@@ -63,7 +63,7 @@ function presence(text: string, parts: MethodPart[]): Call[] | null {
     const call = callsOf(text, part.name).find((c) => c.from > after);
     if (!call) return null;
     found.push(call);
-    after = call.from;
+    after = call.to < 0 ? call.from : call.to - 1;
   }
   return found;
 }
@@ -98,7 +98,8 @@ export function toggle(code: string, line: PatternLine, binding: Binding): Outco
     return { ok: true, edits, on: false };
   }
   const at = landingOffset(code, line.lastLine);
-  if (at === null) return { ok: false, reason: REFUSED_LINE };
+  // A bare label with no body would send the snippet down onto the next pattern line.
+  if (at === null || at < line.from || at > line.to) return { ok: false, reason: REFUSED_LINE };
   return { ok: true, edits: [{ from: at, to: at, insert: parts.map((p) => p.snippet).join('') }], on: true };
 }
 

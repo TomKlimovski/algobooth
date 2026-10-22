@@ -153,3 +153,24 @@ describe('applyEdits', () => {
     expect(applyEdits('abcdef', [{ from: 0, to: 1, insert: 'XX' }, { from: 4, to: 6, insert: '' }])).toBe('XXbcd');
   });
 });
+
+describe('review fixes', () => {
+  it('refuses a bare label with no body rather than editing the next pattern line', () => {
+    for (const code of ['_fills:\nsamples("x")\nbass: s("bd")', '_fills:\n\nbass: s("bd")']) {
+      expect(toggle(code, find(code, 'fills'), lpenv)).toEqual({ ok: false, reason: REFUSED_LINE });
+    }
+  });
+
+  it('a macro part nested in an earlier part\'s argument does not count, and no overlapping edits come out', () => {
+    const macro: Binding = { kind: 'macro', parts: [{ name: 'lpf', snippet: '.lpf(800)', argRange: [5, 8] }, { name: 'room', snippet: '.room(1)', argRange: [6, 7] }] };
+    const code = 'a: s("bd").lpf(x.room(1))';
+    const line = find(code, 'a');
+    expect(isOn(code, line, macro)).toBe(false);
+    const o = toggle(code, line, macro);
+    expect(o.ok).toBe(true);
+    if (!o.ok) return;
+    const sorted = [...o.edits].sort((p, q) => p.from - q.from);
+    sorted.slice(1).forEach((e, i) => expect(e.from).toBeGreaterThanOrEqual(sorted[i].to));
+    expect(applyEdits(code, o.edits)).toBe('a: s("bd").lpf(x.room(1)).lpf(800).room(1)');
+  });
+});

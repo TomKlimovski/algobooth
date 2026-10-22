@@ -94,3 +94,22 @@ describe('lineAt', () => {
     expect(lineAt(lines, 3)).toBeNull();
   });
 });
+
+describe('setup blocks and bare labels', () => {
+  it('swallows a multi-line samples({...}) block: pattern lines start at drums', () => {
+    const code = 'samples({\n  bd: "x.wav",\n})\ndrums: s("bd")\nhats: s("hh")';
+    expect(patternLines(code).map((l) => [l.n, l.label, l.firstLine, l.lastLine])).toEqual([[1, 'drums', 3, 3], [2, 'hats', 4, 4]]);
+  });
+
+  it('swallows a multi-line const block', () => {
+    const code = 'const x = stack(\n  s("bd"),\n  s("hh")\n)\ndrums: x\n_hats: s("hh")';
+    expect(patternLines(code).map((l) => [l.n, l.label, l.firstLine])).toEqual([[1, 'drums', 4], [2, 'hats', 5]]);
+  });
+
+  it('a bare label followed by blank or comment lines, then another label, is a line with an empty body', () => {
+    for (const code of ['_fills:\n\nbass: s("bd")', '_fills:\n// later\nbass: s("bd")']) {
+      const lines = patternLines(code);
+      expect(lines.map((l) => [l.label, l.muted, l.firstLine, l.lastLine])).toEqual([['fills', true, 0, 0], ['bass', false, 2, 2]]);
+    }
+  });
+});

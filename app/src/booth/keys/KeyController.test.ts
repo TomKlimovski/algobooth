@@ -412,3 +412,92 @@ test('a cancelled press that already landed reverts, leaving the code as it was'
   ctl.release('A', 'KeyQ');
   expect(a.getCode()).toBe(CODE);
 });
+
+describe('the target is the one pressed on', () => {
+  const global: Layout = { bindings: { KeyQ: LPENV, KeyW: FAST } };
+
+  test('digit, key, digit, key in one window: each lands on its own line', () => {
+    const { ctl, a } = setup({ started: true, now: 0.25, cps: 0.5, global });
+    ctl.togglePerform();
+    ctl.selectLine('A', 1);
+    tap(ctl, 'A', 'KeyQ');
+    ctl.selectLine('A', 2);
+    tap(ctl, 'A', 'KeyW');
+    vi.advanceTimersByTime(1500);
+    expect(a.getCode()).toBe('setcpm(120/4)\ndrums: s("bd*4").lpenv(2)\nhats: s("hh*8").fast(2)');
+  });
+
+  test('retarget mid-hold, release: the hold reverts on the original line', () => {
+    const { ctl, a } = setup({ global });
+    ctl.togglePerform();
+    ctl.selectLine('A', 1);
+    ctl.press('A', 'KeyQ');
+    expect(a.getCode()).toContain('drums: s("bd*4").lpenv(2)');
+    ctl.selectLine('A', 2);
+    vi.advanceTimersByTime(300);
+    ctl.release('A', 'KeyQ');
+    expect(a.getCode()).toBe(CODE);
+  });
+
+  test('a nudge works on the line it was pressed on', () => {
+    const code = 'drums: s("bd").lpenv(2)\nhats: s("hh").lpenv(2)';
+    const { ctl, a } = setup({ code, started: true, now: 0.25, cps: 0.5, global });
+    ctl.togglePerform();
+    ctl.selectLine('A', 1);
+    ctl.nudge('A', 'KeyQ', 'up');
+    ctl.selectLine('A', 2);
+    vi.advanceTimersByTime(1500);
+    expect(a.getCode()).toBe('drums: s("bd").lpenv(4)\nhats: s("hh").lpenv(2)');
+  });
+});
+
+describe('a load clears the queue', () => {
+  const pattern = (code: string) => ({ name: 'new', code, cpm: 120, key: '', tags: [], source: { kind: 'manual' }, notes: '' }) as never;
+  const load = (deck: FakeDeck, code: string) => {
+    deck.setCode(code);
+    deck.setFile('new.strudel', code, pattern(code));
+  };
+
+  test('a recall queued before a load does not land on the new pattern', () => {
+    const { ctl, a, deckState } = setup({ started: true, now: 0.25, cps: 0.5 });
+    deckState.A.setKeys({ bindings: {}, snapshots: { F1: '$: s("old")' } });
+    ctl.snapshot('A', 'F1', false);
+    expect(deckState.A.state.queued).toBe(1);
+    load(a, 'fresh: s("cp")');
+    vi.advanceTimersByTime(1500);
+    expect(a.getCode()).toBe('fresh: s("cp")');
+    expect(a.applyEdits).not.toHaveBeenCalled();
+    expect(ctl.shown('A').F1).toBeUndefined();
+  });
+
+  test('a tap queued before a load is dropped, but a pending hold revert still runs', () => {
+    const { ctl, a } = setup({ started: true, now: 0.25, cps: 0.5, global: { bindings: { KeyQ: LPENV, KeyW: FAST } } });
+    ctl.togglePerform();
+    ctl.press('A', 'KeyQ');
+    vi.advanceTimersByTime(300);
+    ctl.release('A', 'KeyQ');
+    vi.advanceTimersByTime(1200); // the bar line: the hold lands
+    const held = a.getCode();
+    expect(held).toContain('.lpenv(2)');
+    a.scheduler.now.mockReturnValue(1);
+    vi.advanceTimersByTime(30); // past the boundary: the revert is queued for the next bar
+    tap(ctl, 'A', 'KeyW');
+    load(a, held); // the same text reloaded from disk
+    vi.advanceTimersByTime(2100);
+    expect(a.getCode()).toBe(CODE);
+  });
+});
+
+test('an Escape something else already handled (a menu, the editor) does not toggle perform mode', () => {
+  const { ctl, booth } = setup();
+  const uninstall = ctl.install(window);
+  const handled = (e: Event) => e.preventDefault();
+  document.addEventListener('keydown', handled, true);
+  try {
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true, cancelable: true }));
+    expect(booth.state.perform).toBe(false);
+  } finally {
+    document.removeEventListener('keydown', handled, true);
+    uninstall();
+  }
+});

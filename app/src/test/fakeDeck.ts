@@ -24,6 +24,7 @@ export interface FakeDeckOptions {
  */
 export function fakeDeck(opts: FakeDeckOptions = {}) {
   const onToggle = new Set<(started: boolean) => void>();
+  const onLoad = new Set<() => void>();
   const editor = { code: opts.code ?? '' };
   const write = (code: string) => {
     editor.code = code;
@@ -52,7 +53,10 @@ export function fakeDeck(opts: FakeDeckOptions = {}) {
     setCode: vi.fn((code: string) => write(code)),
     getCode: vi.fn(() => editor.code),
     setName: vi.fn(),
-    setFile: vi.fn(),
+    // A pattern given is a load, as the real deck's api fires it.
+    setFile: vi.fn((_path: string | null, _saved: string | null, pattern?: unknown) => {
+      if (pattern) onLoad.forEach((f) => f());
+    }),
     diskChanged: vi.fn(),
     filePath: vi.fn(() => null),
     moveFile: vi.fn(),
@@ -68,6 +72,7 @@ export function fakeDeck(opts: FakeDeckOptions = {}) {
     setCps: vi.fn((cps: number) => { scheduler.cps = cps; }),
     afterEval: new Set<() => void>(),
     onToggle,
+    onLoad,
   } satisfies DeckApi;
   return deck;
 }
