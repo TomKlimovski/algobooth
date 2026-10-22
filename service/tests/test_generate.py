@@ -23,6 +23,7 @@ def analysis(drums: dict[str, list[tuple[int, int]]], bars: int) -> Analysis:
         ("drums_only", "Around The World", 72, 88),
         ("sustain", "Around The World", 72, 88),
         ("solomun", "Solomun – Live at Alexandra Palace, London (2026) (Official Film)", 2200, 2220),
+        ("solomun2", "Solomun – Live at Alexandra Palace, London (2026) (Official Film)", 2930, 2940),
         ("build", "Build", 0, 16),  # the header bass_fixture.py writes for the synthetic build
     ],
 )
@@ -59,7 +60,7 @@ def test_bass_lines_write_the_loop_and_a_muted_layer():
     s = choose_sounds(with_loop)
     assert bass_lines(with_loop, s) == [
         f'bass: note("[~ ~ g1 g1] [~ g1 ~ g1] [~ ~ g1 g1] [~ g1 g1 g2]").s("{s.bass_sound}").lpf({s.bass_lpf})',
-        "// bars 5–9 add this under the bass (a build): remove the underscore to hear it (match 0.92 without, 0.97 with)",
+        "// bars 5–9 add this under the bass (a variation): remove the underscore to hear it (match 0.92 without, 0.97 with)",
         f'_bass2: note("[g1 g1 ~ ~] [g1 ~ g1 ~] [g1 g1 ~ ~] [g1 ~ ~ ~]").s("{s.bass_sound}").lpf({s.bass_lpf}).gain(0.6)',
     ]
     assert bass_lines(a.model_copy(update={"bass": []}), s) == []
@@ -87,9 +88,8 @@ def test_no_fills_line_without_fills_and_no_drum_lines_without_hits():
     assert drum_lines(analysis(drums={}, bars=4), choose_sounds(a)) == []
 
 
-def test_a_voice_with_no_regular_part_lives_only_in_fills():
+def test_a_voice_every_fourth_bar_is_written_as_a_four_bar_cycle():
     bars = {b: {2, 6, 10, 14} for b in (0, 4, 8)}
     a = analysis(drums={"bd": [(b, s) for b in range(9) for s in (0, 4, 8, 12)], "sd": [], "hh": [], "oh": [(b, s) for b, steps in bars.items() for s in steps]}, bars=9)
     lines = drum_lines(a, choose_sounds(a))
-    assert not any(line.startswith("hats:") for line in lines)
-    assert lines[-1].startswith('_fills: s("<[~ oh]*4 ~ ~ ~ [~ oh]*4 ~ ~ ~ [~ oh]*4>")')
+    assert lines[-1] == f'hats: s("<[~ oh]*4 ~ ~ ~>").bank("{choose_sounds(a).drum_bank}")'

@@ -213,9 +213,11 @@ def _retriggered(starts: dict[int, Note], lo: int, hi: int) -> str | None:
 def notes_bar_mini(notes: list[Note]) -> str:
     """One bar of notes in four beat groups, or one flat @-weighted sequence when a note sustains past its group.
 
-    A note sounds until the next note starts or the bar ends.
+    A note sounds until the next note starts or the bar ends. A bar with no notes is a rest.
     """
     starts = one_per_step(notes)
+    if not starts:
+        return "~"
     if any(slot + _length(starts, slot, STEPS_PER_BAR) > slot - slot % BEAT + BEAT for slot in starts):
         return _flat_bar(starts)
     if (retriggered := _retriggered(starts, 0, STEPS_PER_BAR)) is not None:

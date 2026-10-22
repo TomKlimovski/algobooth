@@ -1,35 +1,147 @@
 [
   {
     "line": "_bass2",
-    "cycle": 0,
-    "step": 0,
-    "length": 1,
-    "note": "g1"
-  },
-  {
-    "line": "_bass2",
-    "cycle": 0,
-    "step": 1,
-    "length": 1,
-    "note": "g1"
-  },
-  {
-    "line": "_bass2",
-    "cycle": 0,
-    "step": 4,
-    "length": 1,
-    "note": "g1"
-  },
-  {
-    "line": "_bass2",
-    "cycle": 0,
+    "cycle": 4,
     "step": 8,
     "length": 1,
     "note": "g1"
   },
   {
     "line": "_bass2",
-    "cycle": 0,
+    "cycle": 4,
+    "step": 12,
+    "length": 1,
+    "note": "g1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 5,
+    "step": 0,
+    "length": 1,
+    "note": "g2"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 5,
+    "step": 4,
+    "length": 1,
+    "note": "g1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 5,
+    "step": 8,
+    "length": 1,
+    "note": "g1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 6,
+    "step": 0,
+    "length": 1,
+    "note": "g1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 6,
+    "step": 1,
+    "length": 1,
+    "note": "g1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 6,
+    "step": 4,
+    "length": 1,
+    "note": "g1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 6,
+    "step": 8,
+    "length": 1,
+    "note": "g1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 6,
+    "step": 12,
+    "length": 1,
+    "note": "g1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 7,
+    "step": 0,
+    "length": 1,
+    "note": "g1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 7,
+    "step": 1,
+    "length": 1,
+    "note": "g1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 7,
+    "step": 6,
+    "length": 1,
+    "note": "g1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 7,
+    "step": 8,
+    "length": 2,
+    "note": "g1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 7,
+    "step": 12,
+    "length": 1,
+    "note": "g1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 8,
+    "step": 0,
+    "length": 1,
+    "note": "g1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 8,
+    "step": 1,
+    "length": 1,
+    "note": "g1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 8,
+    "step": 4,
+    "length": 1,
+    "note": "g1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 8,
+    "step": 6,
+    "length": 1,
+    "note": "g1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 8,
+    "step": 8,
+    "length": 1,
+    "note": "g1"
+  },
+  {
+    "line": "_bass2",
+    "cycle": 8,
     "step": 12,
     "length": 1,
     "note": "g1"

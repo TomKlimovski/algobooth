@@ -1068,6 +1068,44 @@
       ]
     ],
     "layer": [
+      [],
+      [],
+      [],
+      [],
+      [
+        {
+          "bar": 0,
+          "step": 8,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 12,
+          "length": 1,
+          "midi": 31
+        }
+      ],
+      [
+        {
+          "bar": 0,
+          "step": 0,
+          "length": 1,
+          "midi": 43
+        },
+        {
+          "bar": 0,
+          "step": 4,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 8,
+          "length": 1,
+          "midi": 31
+        }
+      ],
       [
         {
           "bar": 0,
@@ -1099,6 +1137,76 @@
           "length": 1,
           "midi": 31
         }
+      ],
+      [
+        {
+          "bar": 0,
+          "step": 0,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 1,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 6,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 8,
+          "length": 2,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 12,
+          "length": 1,
+          "midi": 31
+        }
+      ],
+      [
+        {
+          "bar": 0,
+          "step": 0,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 1,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 4,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 6,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 8,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 12,
+          "length": 1,
+          "midi": 31
+        }
       ]
     ],
     "layer_bars": [
@@ -1106,6 +1214,7 @@
       9
     ],
     "match": 0.8,
-    "match_with_layer": 0.8
-  }
+    "match_with_layer": 0.94
+  },
+  "drum_summary": null
 }

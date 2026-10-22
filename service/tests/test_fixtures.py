@@ -18,7 +18,7 @@ from algorip.sounds import choose_sounds
 GOLDEN = Path(__file__).parent / "golden"
 
 
-@pytest.mark.parametrize("name", ["solomun", "build"])
+@pytest.mark.parametrize("name", ["solomun", "solomun2", "build"])
 def test_bass_events_match_the_committed_file(name):
     a = Analysis.model_validate_json((GOLDEN / f"{name}.analysis.json").read_text())
     assert json.loads((GOLDEN / f"{name}.bass-events.json").read_text()) == bass_events(a.bass_loop)
@@ -57,7 +57,9 @@ def test_solomun_build_is_a_layer_of_g1_over_bars_5_to_9():
     loop = choose_bass_loop(bg, g, a.bass)
     assert loop.layer is not None and loop.layer_bars == (5, 9)
     notes = [n for phase in loop.layer for n in phase]
-    assert notes and all(n.midi == 31 for n in notes)  # G1
+    # the build is written bar by bar (it fills in gradually): the root G1 almost throughout, one G2 at bar 6's downbeat
+    assert notes and all(n.midi % 12 == 7 for n in notes)  # all G
+    assert sum(n.midi == 31 for n in notes) >= 0.9 * len(notes)
     assert sum(n.length for n in notes) >= 4  # at least a beat of the bar
     # Over its own bars the layer closes most of the gap. match_with_layer stacks it over every bar
     # (the spec's measure: what unmuting _bass2 plays), and bars 1-4 do not carry it, so there it is
@@ -65,7 +67,7 @@ def test_solomun_build_is_a_layer_of_g1_over_bars_5_to_9():
     lo, hi = loop.layer_bars
     over_its_bars = [n for n in expand(loop.layer, a.bars) if lo - 1 <= n.bar <= hi - 1]
     assert score(bg, g, expand(loop.templates, a.bars), over_its_bars).match > loop.match + 0.05
-    assert loop.match_with_layer == pytest.approx(loop.match, abs=0.01)
+    assert loop.match_with_layer >= loop.match + 0.1  # written bar by bar, the build is heard: 0.80 -> 0.94
     assert a.bass_loop == loop
     assert "_bass2: note(" in (GOLDEN / "solomun.strudel").read_text()
 

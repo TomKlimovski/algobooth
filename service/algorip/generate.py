@@ -53,7 +53,7 @@ def bass_lines(a: Analysis, s: SoundChoice) -> list[str]:
     if loop.layer is not None and loop.layer_bars is not None:
         lo, hi = loop.layer_bars
         lines.append(
-            f"// bars {lo}–{hi} add this under the bass (a build): remove the underscore to hear it "
+            f"// bars {lo}–{hi} add this under the bass (a variation): remove the underscore to hear it "
             f"(match {loop.match:.2f} without, {loop.match_with_layer:.2f} with)"
         )
         lines.append(f'_bass2: note("{loop_mini(loop.layer)}").s("{s.bass_sound}"){lpf}.gain(0.6)')

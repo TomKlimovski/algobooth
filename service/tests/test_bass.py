@@ -129,12 +129,14 @@ def test_harmonic_ratio_is_zero_without_notes():
     assert harmonic_ratio(np.zeros(SR, dtype=np.float32), SR, [], G) == 0.0
 
 
-def test_a_phase_with_no_core_bar_does_not_raise():
-    # The shape of test_loop's phase-without-core case as notes: E1 (28) drifting on even bars, A1 (33) steady.
+def test_drifting_even_bars_over_a_steady_odd_bar_make_a_two_bar_loop():
+    # E1 (28) on even bars sharing three onsets and adding others, A1 (33) steady on odd bars: by containment the
+    # shared onsets are the loop and the rest is variation (this shape once had no core bar and returned None).
     g = Grid(bpm=120, first_downbeat=0.0, bars=6)
     even = [(0, 8, 9, 12), (0, 4, 9, 12), (0, 2, 4, 8, 10, 12)]
     steps = [even[b // 2] if b % 2 == 0 else (0, 8) for b in range(6)]
     midi = [[(28 if b % 2 == 0 else 33) if s in steps[b] else None for s in range(16)] for b in range(6)]
     bg = BassGrid(bars=6, midi=midi, starts=[[m is not None for m in bar] for bar in midi])
     notes = [Note(bar=b, step=s, length=1, midi=midi[b][s]) for b in range(6) for s in steps[b]]
-    assert choose_bass_loop(bg, g, notes) is None
+    loop = choose_bass_loop(bg, g, notes)
+    assert loop is not None and loop.period == 2 and loop.layer is not None

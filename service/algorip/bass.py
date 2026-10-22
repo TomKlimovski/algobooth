@@ -111,16 +111,13 @@ def _phase_notes(heard: list[dict[int, Note]], templates: list[dict[int, int]]) 
     ]
 
 
-def _layer_notes(bg: BassGrid, deviating: list[int], extra: list[dict[int, int]]) -> list[list[Note]]:
-    """Each phase of the layer as notes: a run of steps on one pitch class is one held note, split where the
-    deviating bars at that phase mostly retrigger it, at the midi they mostly sound it at.
-
-    The deviating bars are at the phases find_loop searched them in (their order, modulo the layer's period).
+def _layer_notes(bg: BassGrid, extra: list[dict[int, int]], extra_from: list[list[int]]) -> list[list[Note]]:
+    """Each phase of the variation as notes: a run of steps on one pitch class is one held note, split where the
+    bars it was drawn from mostly retrigger it, at the midi they mostly sound it at.
     """
-    period = len(extra)
     phases = []
     for phase, template in enumerate(extra):
-        bars = deviating[phase::period]
+        bars = extra_from[phase]
         notes: list[Note] = []
         for step in sorted(template):
             pc = template[step]
@@ -149,9 +146,9 @@ def choose_bass_loop(bg: BassGrid, grid: Grid, notes: list[Note]) -> BassLoop | 
     loop = find_loop([{step: n.midi % OCTAVE for step, n in bar.items()} for bar in heard], sounding=sounding)
     if loop is None or not any(loop.templates):
         return None  # no repeat, or the only thing that repeats is silence (a silent stem)
-    # Only the core bars name the template's notes; a build must not pick their midi or length.
-    core = [heard[i] if i in loop.core else {} for i in range(grid.bars)]
-    templates = _phase_notes(core, loop.templates)
+    # Only the bars that voted the template name its notes; a build must not pick their midi or length.
+    clean = [heard[i] if i in loop.clean else {} for i in range(grid.bars)]
+    templates = _phase_notes(clean, loop.templates)
 
     best_match, chosen = None, []
     for letter, written in candidates(templates):
@@ -165,7 +162,7 @@ def choose_bass_loop(bg: BassGrid, grid: Grid, notes: list[Note]) -> BassLoop | 
 
     layer = layer_bars = match_with_layer = None
     if loop.extra is not None and loop.extra_bars is not None:
-        layer = _layer_notes(bg, loop.deviating, loop.extra)
+        layer = _layer_notes(bg, loop.extra, loop.extra_from or [])
         layer_bars = (loop.extra_bars[0] + 1, loop.extra_bars[1] + 1)
         match_with_layer = score(bg, grid, expand(winner, grid.bars), expand(layer, grid.bars)).match
 

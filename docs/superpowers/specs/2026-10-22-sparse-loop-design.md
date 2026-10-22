@@ -26,7 +26,19 @@ is the right tool (a step-grid special case of the self-similarity lag search); 
    missing one of three template steps is still not core.
 2. **An all-empty template is not a loop.** A period whose templates are all empty is skipped, so
    a voice that never repeats still falls through to None (the verbatim path) rather than to "a
-   loop of silence". Drums keep their verbatim golden behaviour.
+   loop of silence". Drums keep their verbatim golden behaviour. A phase that no bar contains after
+   the first vote fails there too.
+2a. **The cleanest bars vote the template.** Found while building: with build bars admitted to the
+   core by containment, a build longer than the loop section outvotes it (five build bars with the
+   root on step 8 against four clean bars put step 8 in the loop). So the second vote is taken by
+   each phase's core bars that add the least beyond the first vote, at least half of them. The loop
+   is the pattern as the track states it, not as its busiest bars play it.
+2b. **A longer period must earn its length.** Containment alone makes everything period 1 (whatever
+   the bars share is the loop, the rest variation), which turns a two-bar alternation into a one-bar
+   loop with an alternating variation. So each candidate period's loop is scored by the share of all
+   steps its templates explain, and a longer period replaces a shorter one only when it explains at
+   least `LOOP_GAIN = 0.2` more. An alternation gains 50% and wins; a varying beat gains nothing and
+   stays a variation.
 3. **The variation comes from every bar, per bar.** The layer (`Loop.extra`) is now one dict per
    clip bar: the bar's starts and sounding steps beyond its phase template, core bars included
    (a stray in a core bar is still heard). `extra_bars` is the range of bars with any; `extra` is
@@ -49,7 +61,7 @@ is the right tool (a step-grid special case of the self-similarity lag search); 
 
 ## Decided
 
-- Containment at 0.8; the layer threshold is a total of four steps over the clip, not per bar, so a
+- Containment at 0.8, the cleanest-half vote, a 0.2 gain for a longer period; the layer threshold is a total of four steps over the clip, not per bar, so a
   one-step real note (bar 2's lone D#) is kept once the clip has a variation at all.
 - Shortest period first, as before: this clip reads as one bar plus variation, not as a two-bar
   alternation of beat 4.
