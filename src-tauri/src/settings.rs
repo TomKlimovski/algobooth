@@ -35,6 +35,21 @@ pub struct Settings {
   /// Optional; the tidy pass is off unless this is set.
   #[serde(default)]
   pub claude_api_key: String,
+  /// The default method keyboard layout, used by patterns that carry none. Opaque here; the webview
+  /// owns its shape.
+  #[serde(default = "default_keys")]
+  pub keys: serde_json::Value,
+  /// When a key press takes effect: `now`, `beat` or `bar`.
+  #[serde(default = "default_key_quantise")]
+  pub key_quantise: String,
+}
+
+fn default_keys() -> serde_json::Value {
+  serde_json::json!({"bindings": {}})
+}
+
+fn default_key_quantise() -> String {
+  "bar".into()
 }
 
 fn default_rip_cache_dir() -> String {
@@ -51,6 +66,8 @@ pub fn default_settings() -> Settings {
     rip_cache_dir: default_rip_cache_dir(),
     keep_downloads: false,
     claude_api_key: String::new(),
+    keys: default_keys(),
+    key_quantise: default_key_quantise(),
   }
 }
 
@@ -117,6 +134,16 @@ mod tests {
     assert_eq!(s.rip_cache_dir, home.join("Algobooth").join("cache").to_string_lossy());
     assert!(!s.keep_downloads);
     assert_eq!(s.claude_api_key, "");
+    assert_eq!(s.keys, serde_json::json!({"bindings": {}}));
+    assert_eq!(s.key_quantise, "bar");
+  }
+
+  #[test]
+  fn old_settings_file_gets_key_defaults() {
+    let s: Settings = serde_json::from_str(r#"{"library_dir":"/l","visualiser":"scope","engine":"webaudio"}"#).unwrap();
+    assert_eq!(s.visualiser, Visualiser::Scope);
+    assert_eq!(s.keys, serde_json::json!({"bindings": {}}));
+    assert_eq!(s.key_quantise, "bar");
   }
 
   #[test]
@@ -130,6 +157,8 @@ mod tests {
       rip_cache_dir: "/tmp/cache".into(),
       keep_downloads: true,
       claude_api_key: "k".into(),
+      keys: serde_json::json!({"bindings": {"KeyQ": {"kind": "line", "label": "x"}}}),
+      key_quantise: "beat".into(),
     };
     write_settings(&path, &s).unwrap();
     assert_eq!(read_settings(&path), s);

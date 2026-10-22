@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { createSignal } from 'solid-js';
+import type { Layout, Quantise } from '../booth/keys/bindings';
 
 export interface Settings {
   library_dir: string;
@@ -10,6 +11,9 @@ export interface Settings {
   keep_downloads: boolean;
   /** Optional; the tidy pass is off unless this is set. */
   claude_api_key: string;
+  /** The default method keyboard layout, for patterns that carry none. */
+  keys: Layout;
+  key_quantise: Quantise;
 }
 
 export function defaultSettings(home: string): Settings {
@@ -20,6 +24,8 @@ export function defaultSettings(home: string): Settings {
     rip_cache_dir: `${home}/Algobooth/cache`,
     keep_downloads: false,
     claude_api_key: '',
+    keys: { bindings: {} },
+    key_quantise: 'bar',
   };
 }
 

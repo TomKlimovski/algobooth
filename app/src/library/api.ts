@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import type { Layout } from '../booth/keys/bindings';
 
 /** Mirrors the Rust `NodeKind`, `TreeNode`, `Source` and `Pattern` in src-tauri/src/library.rs. */
 export type NodeKind = 'heading' | 'pattern' | 'unreadable';
@@ -26,6 +27,8 @@ export interface Pattern {
   tags: string[];
   source: Source;
   notes: string;
+  /** The deck's method keyboard layout; absent when the pattern has none. */
+  keys?: Layout;
 }
 
 /**

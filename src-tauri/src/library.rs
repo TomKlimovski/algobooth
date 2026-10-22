@@ -29,6 +29,10 @@ pub struct Pattern {
   pub source: Source,
   #[serde(default)]
   pub notes: String,
+  /// The method keyboard layout for this pattern. Opaque here: the webview owns its shape, and a
+  /// file without one serialises without the field.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub keys: Option<serde_json::Value>,
 }
 
 fn default_cpm() -> f64 {
@@ -446,6 +450,7 @@ mod tests {
       tags: vec![],
       source: Source::Mine,
       notes: String::new(),
+      keys: None,
     }
   }
 
@@ -730,5 +735,18 @@ mod tests {
     assert_eq!(root.get().unwrap(), Path::new("/first/library"));
     root.set("/second/library").unwrap();
     assert_eq!(root.get().unwrap(), Path::new("/second/library"));
+  }
+
+  #[test]
+  fn keys_round_trip_and_are_absent_when_none() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    let p = Pattern { name: "k".into(), code: "c".into(), cpm: 120.0, key: String::new(), tags: vec![], source: Source::Mine, notes: String::new(), keys: None };
+    let path = write_pattern(root, "", &p).unwrap();
+    let text = fs::read_to_string(root.join(&path)).unwrap();
+    assert!(!text.contains("\"keys\""));
+    let with = Pattern { keys: Some(serde_json::json!({"bindings": {"KeyQ": {"kind":"method","name":"lpenv","snippet":".lpenv(2)","argRange":[7,8]}}})), ..p.clone() };
+    save_pattern(root, &path, &with).unwrap();
+    assert_eq!(read_pattern(root, &path).unwrap().keys, with.keys);
   }
 }

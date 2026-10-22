@@ -1,4 +1,5 @@
 import { createDeckState, type DeckFields } from './deckState';
+import type { Layout } from './keys/bindings';
 import { isDirty, newPatternDecision, onDiskChange, patternFromDeck, unpointsDecks } from './deckFile';
 
 const deck = ({ cpm, ...rest }: Pick<DeckFields, 'name' | 'code'> & { cpm: number }) => ({ ...rest, codeCpm: cpm });
@@ -54,4 +55,13 @@ test('changing the library folder unpoints the decks; loading the first folder d
   expect(unpointsDecks(null, '/lib')).toBe(false);
   expect(unpointsDecks('/lib', '/other')).toBe(true);
   expect(unpointsDecks('/lib', '/lib')).toBe(false);
+});
+
+test('patternFromDeck writes keys only when the layout has something', () => {
+  const base = { name: 'n', code: 'c', codeCpm: 120 };
+  expect(patternFromDeck(base)).not.toHaveProperty('keys');
+  expect(patternFromDeck({ ...base, keys: { bindings: {} } })).not.toHaveProperty('keys');
+  const keys: Layout = { bindings: { KeyQ: { kind: 'method', name: 'lpenv', snippet: '.lpenv(2)', argRange: [7, 8] } } };
+  expect(patternFromDeck({ ...base, keys }).keys).toEqual(keys);
+  expect(patternFromDeck({ ...base, keys: { bindings: {}, snapshots: { F1: 'x' } } }).keys).toEqual({ bindings: {}, snapshots: { F1: 'x' } });
 });

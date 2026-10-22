@@ -1,5 +1,6 @@
 import type { Pattern } from '../library/api';
 import type { DeckFields } from './deckState';
+import type { Layout } from './keys/bindings';
 
 /** CodeMirror keeps LF line endings, so a CRLF file on disk must not count as a difference. */
 const normalise = (code: string): string => code.replace(/\r\n/g, '\n');
@@ -44,9 +45,15 @@ export function newPatternDecision(dirty: boolean, confirmed: boolean): NewPatte
 
 /**
  * The pattern file for a deck; `existing` (the loaded pattern) keeps its key, tags, notes and source.
+ * `keys` is written only when the layout has a binding or a snapshot, so files without keys stay as they were.
  * The tempo is the code's own (`codeCpm`), never the header's effective tempo, which sync may have set.
  */
-export function patternFromDeck(deck: Pick<DeckFields, 'name' | 'code' | 'codeCpm'>, existing?: Pattern): Pattern {
+export function patternFromDeck(
+  deck: Pick<DeckFields, 'name' | 'code' | 'codeCpm'> & { keys?: Layout | null },
+  existing?: Pattern,
+): Pattern {
+  const layout = deck.keys;
+  const hasKeys = !!layout && (Object.keys(layout.bindings).length > 0 || Object.keys(layout.snapshots ?? {}).length > 0);
   return {
     name: deck.name,
     code: deck.code,
@@ -55,6 +62,7 @@ export function patternFromDeck(deck: Pick<DeckFields, 'name' | 'code' | 'codeCp
     tags: existing?.tags ?? [],
     source: existing?.source ?? { kind: 'mine' },
     notes: existing?.notes ?? '',
+    ...(hasKeys ? { keys: layout } : {}),
   };
 }
 
