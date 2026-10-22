@@ -508,7 +508,8 @@
         8,
         15
       ]
-    ]
+    ],
+    "gh": []
   },
   "four_on_the_floor": true,
   "bass": [
@@ -756,7 +757,7 @@
       "bar": 5,
       "step": 15,
       "length": 1,
-      "midi": 31
+      "midi": 43
     },
     {
       "bar": 6,
@@ -816,7 +817,7 @@
       "bar": 6,
       "step": 15,
       "length": 1,
-      "midi": 31
+      "midi": 43
     },
     {
       "bar": 7,
@@ -828,7 +829,7 @@
       "bar": 7,
       "step": 1,
       "length": 3,
-      "midi": 31
+      "midi": 43
     },
     {
       "bar": 7,
@@ -864,7 +865,7 @@
       "bar": 7,
       "step": 15,
       "length": 2,
-      "midi": 31
+      "midi": 43
     },
     {
       "bar": 8,
@@ -912,10 +913,10 @@
       "bar": 8,
       "step": 15,
       "length": 1,
-      "midi": 31
+      "midi": 43
     }
   ],
-  "bass_harmonics": 0.8182859117399124,
+  "bass_harmonics": 0.8012998112944643,
   "chords": [
     "G",
     "G",
@@ -1068,6 +1069,44 @@
       ]
     ],
     "layer": [
+      [],
+      [],
+      [],
+      [],
+      [
+        {
+          "bar": 0,
+          "step": 8,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 12,
+          "length": 1,
+          "midi": 31
+        }
+      ],
+      [
+        {
+          "bar": 0,
+          "step": 0,
+          "length": 1,
+          "midi": 43
+        },
+        {
+          "bar": 0,
+          "step": 4,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 8,
+          "length": 1,
+          "midi": 31
+        }
+      ],
       [
         {
           "bar": 0,
@@ -1099,6 +1138,76 @@
           "length": 1,
           "midi": 31
         }
+      ],
+      [
+        {
+          "bar": 0,
+          "step": 0,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 1,
+          "length": 1,
+          "midi": 43
+        },
+        {
+          "bar": 0,
+          "step": 6,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 8,
+          "length": 2,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 12,
+          "length": 1,
+          "midi": 31
+        }
+      ],
+      [
+        {
+          "bar": 0,
+          "step": 0,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 1,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 4,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 6,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 8,
+          "length": 1,
+          "midi": 31
+        },
+        {
+          "bar": 0,
+          "step": 12,
+          "length": 1,
+          "midi": 31
+        }
       ]
     ],
     "layer_bars": [
@@ -1106,6 +1215,34 @@
       9
     ],
     "match": 0.8,
-    "match_with_layer": 0.8
-  }
+    "match_with_layer": 0.94
+  },
+  "drum_summary": null,
+  "drum_tone": {
+    "levels": {
+      "bd": -17.1,
+      "sd": -25.9,
+      "oh": -34.1
+    },
+    "falls": {
+      "bd": 30.0,
+      "sd": 77.5,
+      "oh": 40.0
+    }
+  },
+  "bass_envelope": {
+    "attack_ms": 3.4,
+    "hold_ms": 113.2,
+    "fall_ms": 6.3,
+    "end_db": -1.4,
+    "hold_share": 0.83
+  },
+  "bass_tone": {
+    "open_hz": 602.9,
+    "hold_hz": 366.1,
+    "close_ms": 40.0,
+    "wobble_hz": null,
+    "wobble_db": null
+  },
+  "tuning_cents": -8.6
 }

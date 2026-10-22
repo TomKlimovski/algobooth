@@ -1,0 +1,30 @@
+[
+  {
+    "line": "bass",
+    "cycle": 0,
+    "step": 3,
+    "length": 2,
+    "note": "d#2"
+  },
+  {
+    "line": "bass",
+    "cycle": 0,
+    "step": 6,
+    "length": 3,
+    "note": "d#1"
+  },
+  {
+    "line": "bass",
+    "cycle": 0,
+    "step": 10,
+    "length": 3,
+    "note": "e3"
+  },
+  {
+    "line": "bass",
+    "cycle": 0,
+    "step": 14,
+    "length": 2,
+    "note": "d#2"
+  }
+]

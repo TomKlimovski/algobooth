@@ -15,23 +15,31 @@ def fmt_time(seconds: float) -> str:
     return f"{hours}:{minutes:02d}:{secs:02d}" if hours else f"{minutes}:{secs:02d}"
 
 
+def _voice_name(voice: str, s: SoundChoice) -> str:
+    """The sample a voice plays, with the bank index inline (Strudel's `bd:3`) when the shape chose one."""
+    base = s.snare_name if voice == "sd" else "hh" if voice == "gh" else voice
+    n = s.drum_samples.get(voice)
+    return f"{base}:{n}" if n else base
+
+
 def drum_lines(a: Analysis, s: SoundChoice) -> list[str]:
-    """Each drum voice's loop on its line; every hit a loop does not play on a muted fills line after them."""
+    """One line per drum voice (its loop, the bank, its gain); every hit a loop does not play on a muted fills line after them."""
     loops = drum_loops(a)
-    names = {"sd": s.snare_name}
     lines = []
     for label, voices in VOICE_LINES.items():
-        parts = [
-            cycle([bar_mini(names.get(voice, voice), t) for t in loop.templates])
-            for voice in voices
-            if (loop := loops.voices.get(voice)) is not None and any(loop.templates)
-        ]
-        if parts:
-            lines.append(f'{label}: s("{", ".join(parts)}").bank("{s.drum_bank}")')
+        present = [v for v in voices if (loop := loops.voices.get(v)) is not None and any(loop.templates)]
+        if not present:
+            continue
+        parts = [cycle([bar_mini(_voice_name(v, s), t) for t in loops.voices[v].templates]) for v in present]
+        if label == "snare" and s.snare_name == "cp":
+            label = "claps"
+        main = max(present, key=lambda v: len(a.drums.get(v, [])))  # a line with two voices takes the busier one's gain
+        gain = s.drum_gains.get(main)
+        lines.append(f'{label}: s("{", ".join(parts)}").bank("{s.drum_bank}")' + (f".gain({gain:g})" if gain is not None else ""))
     if loops.fill_bars is not None:
         lo, hi = loops.fill_bars
         fills = [
-            cycle([bar_mini(names.get(voice, voice), f) for f in loop.fills])
+            cycle([bar_mini(_voice_name(voice, s), f) for f in loop.fills])
             for voices in VOICE_LINES.values()
             for voice in voices
             if (loop := loops.voices.get(voice)) is not None and any(loop.fills)
@@ -45,18 +53,30 @@ def bass_lines(a: Analysis, s: SoundChoice) -> list[str]:
     """The bass voice: the loop's phases when one was found, else the consensus line; a muted layer after it."""
     if not a.bass:
         return []
-    lpf = f".lpf({s.bass_lpf})" if s.bass_lpf is not None else ""
+    suffix = f".lpf({s.bass_lpf})" if s.bass_lpf is not None else ""
+    # the filter's opening and closing, measured on the stem, when it moves at least an octave
+    f = s.bass_filter_env
+    if f is not None and s.bass_lpf is not None:
+        suffix += f".lpenv({f.octaves:g}).lpdecay({f.close:g}).lpsustain(0)"
+    # the measured gate, when the stem's notes die before their end; a held bass gets none
+    e = s.bass_envelope
+    if e is not None:
+        suffix += f".attack({e.attack:g})" + (f".clip({e.clip:g})" if e.clip is not None else "") + f".release({e.release:g})"
+    # the level wobble the notes carry, as a tremolo
+    tr = s.bass_tremolo
+    if tr is not None:
+        suffix += f".tremolo({tr.rate:g}).tremolodepth({tr.depth:g})"
     loop = a.bass_loop
     if loop is None:
-        return [f'bass: note("{notes_mini(fold_octaves(a.bass), a.bars)}").s("{s.bass_sound}"){lpf}']
-    lines = [f'bass: note("{loop_mini(loop.templates)}").s("{s.bass_sound}"){lpf}']
+        return [f'bass: note("{notes_mini(fold_octaves(a.bass), a.bars)}").s("{s.bass_sound}"){suffix}']
+    lines = [f'bass: note("{loop_mini(loop.templates)}").s("{s.bass_sound}"){suffix}']
     if loop.layer is not None and loop.layer_bars is not None:
         lo, hi = loop.layer_bars
         lines.append(
-            f"// bars {lo}–{hi} add this under the bass (a build): remove the underscore to hear it "
+            f"// bars {lo}–{hi} add this under the bass (a variation): remove the underscore to hear it "
             f"(match {loop.match:.2f} without, {loop.match_with_layer:.2f} with)"
         )
-        lines.append(f'_bass2: note("{loop_mini(loop.layer)}").s("{s.bass_sound}"){lpf}.gain(0.6)')
+        lines.append(f'_bass2: note("{loop_mini(loop.layer)}").s("{s.bass_sound}"){suffix}.gain(0.6)')
     return lines
 
 

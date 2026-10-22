@@ -6,19 +6,19 @@ the main line is exactly the loop and nothing the classifier heard is lost. Fill
 at their own position, rather than as find_loop's layer, so a one-off fill or a phrase-end fill stays
 in its bar.
 
-A drum voice differs from the bass in one way: a phase template with no hits, while that phase's bars
-do have some (open hats every fourth bar vote a period-4 loop with three silent bars), is not a loop.
-When the found loop has such an empty phase, the voice has no regular part: it gets no main line and
-every hit is a fill at its bar position (find_loop already tried the shorter periods, and a one-bar
-majority vote would write a loop the track does not play). This rule lives here so the bass is untouched.
+A loop with an empty phase over bars that do have hits is refused by find_loop itself, so a voice
+either loops (open hats every fourth bar are a period-4 loop with three silent phases) or, when nothing
+repeats over more than one bar, has no regular part: no main line, every hit a fill at its bar. A
+one-bar clip is its own loop.
 """
 
 from dataclasses import dataclass
 
-from algorip.loop import Loop, find_loop
+from algorip.loop import find_loop
 from algorip.schema import Analysis
 
-VOICE_LINES: dict[str, tuple[str, ...]] = {"drums": ("bd", "sd"), "hats": ("hh", "oh")}
+# One line per voice, so each can carry its own gain (generate names the "snare" line "claps" on the 909).
+VOICE_LINES: dict[str, tuple[str, ...]] = {"drums": ("bd",), "snare": ("sd",), "hats": ("hh", "oh"), "ghosts": ("gh",)}
 
 # A bar's strays over the voices that have a loop are written as a fill only from this many hits; below it
 # they are dropped from the fills line (they still count as unplayed in `match`). Set on Solomun, where the
@@ -41,13 +41,6 @@ class DrumLoops:
     match: float  # F1 of the hits the loops play against the classified hits
 
 
-def _has_empty_phase(found: Loop[bool], bars: list[set[int]]) -> bool:
-    return any(
-        not template and any(bars[i] for i in range(phase, len(bars), found.period))
-        for phase, template in enumerate(found.templates)
-    )
-
-
 def _loop(period: int, templates: list[set[int]], bars: list[set[int]]) -> VoiceLoop:
     return VoiceLoop(period, templates, [bar - templates[i % period] for i, bar in enumerate(bars)])
 
@@ -56,13 +49,11 @@ def voice_loop(bars: list[set[int]]) -> VoiceLoop:
     """One voice's loop over its bars of steps hit."""
     steps = [dict.fromkeys(bar, True) for bar in bars]
     found = find_loop(steps)
-    if found is None:  # nothing repeats, or the clip is too short: the bars as heard
-        return _loop(len(bars), [set(bar) for bar in bars], bars)
-    # the spec's retry over shorter periods is vacuous: find_loop returns the shortest qualifying period
-    if not _has_empty_phase(found, bars):
-        return _loop(found.period, [set(t) for t in found.templates], bars)
-    # an empty phase: the voice has no regular part, and every hit is a fill
-    return _loop(1, [set()], bars)
+    if found is None:
+        if len(bars) == 1:  # one bar is its own loop
+            return _loop(1, [set(bars[0])], bars)
+        return _loop(1, [set()], bars)  # nothing repeats: no regular part, every hit a fill
+    return _loop(found.period, [set(t) for t in found.templates], bars)
 
 
 def _f1(played: set[tuple[str, int, int]], heard: set[tuple[str, int, int]]) -> float:
@@ -86,6 +77,12 @@ def drum_loops(a: Analysis) -> DrumLoops:
             heard.add((voice, bar, step))
         v = voices[voice] = voice_loop(bars)
         played |= {(voice, b, s) for b in range(a.bars) for s in v.templates[b % v.period]}
+    if "gh" in voices:  # a ghost's strays are not worth a fill
+        gh = voices["gh"]
+        gh.fills = [set() for _ in gh.fills]
+        if "hh" in voices:  # a closed hat the ghosts line already plays (the same sample) on that step is not a fill
+            for b in range(a.bars):
+                voices["hh"].fills[b] -= gh.templates[b % gh.period]
     looped = [v for v in voices.values() if any(v.templates)]
     for b in range(a.bars):
         if sum(len(v.fills[b]) for v in looped) < FILL_MIN_HITS:

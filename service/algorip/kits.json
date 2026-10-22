@@ -1,0 +1,596 @@
+{
+ "tr909": {
+  "bd": [
+   {
+    "n": 0,
+    "file": "Bassdrum-01.wav",
+    "level_db": -3.9,
+    "fall_ms": 30.0
+   },
+   {
+    "n": 1,
+    "file": "Bassdrum-02.wav",
+    "level_db": -2.2,
+    "fall_ms": 45.0
+   },
+   {
+    "n": 2,
+    "file": "Bassdrum-03.wav",
+    "level_db": -4.5,
+    "fall_ms": 70.0
+   },
+   {
+    "n": 3,
+    "file": "Bassdrum-04.wav",
+    "level_db": -5.5,
+    "fall_ms": 110.0
+   }
+  ],
+  "sd": [
+   {
+    "n": 0,
+    "file": "naredrum.wav",
+    "level_db": -23.5,
+    "fall_ms": 160.0
+   },
+   {
+    "n": 1,
+    "file": "sd01.wav",
+    "level_db": -19.3,
+    "fall_ms": 110.0
+   },
+   {
+    "n": 2,
+    "file": "sd02.wav",
+    "level_db": -21.7,
+    "fall_ms": 65.0
+   },
+   {
+    "n": 3,
+    "file": "sd03.wav",
+    "level_db": -23.0,
+    "fall_ms": 105.0
+   },
+   {
+    "n": 4,
+    "file": "sd04.wav",
+    "level_db": -23.6,
+    "fall_ms": 105.0
+   },
+   {
+    "n": 5,
+    "file": "sd05.wav",
+    "level_db": -24.9,
+    "fall_ms": 45.0
+   },
+   {
+    "n": 6,
+    "file": "sd06.wav",
+    "level_db": -20.8,
+    "fall_ms": 105.0
+   },
+   {
+    "n": 7,
+    "file": "sd07.wav",
+    "level_db": -26.3,
+    "fall_ms": 110.0
+   },
+   {
+    "n": 8,
+    "file": "sd08.wav",
+    "level_db": -25.7,
+    "fall_ms": 50.0
+   },
+   {
+    "n": 9,
+    "file": "sd09.wav",
+    "level_db": -25.9,
+    "fall_ms": 125.0
+   },
+   {
+    "n": 10,
+    "file": "sd10.wav",
+    "level_db": -20.8,
+    "fall_ms": 140.0
+   },
+   {
+    "n": 11,
+    "file": "sd11.wav",
+    "level_db": -25.0,
+    "fall_ms": 130.0
+   },
+   {
+    "n": 12,
+    "file": "sd12.wav",
+    "level_db": -22.0,
+    "fall_ms": 85.0
+   },
+   {
+    "n": 13,
+    "file": "sd13.wav",
+    "level_db": -22.6,
+    "fall_ms": 150.0
+   },
+   {
+    "n": 14,
+    "file": "sd14.wav",
+    "level_db": -23.4,
+    "fall_ms": 125.0
+   },
+   {
+    "n": 15,
+    "file": "sd15.wav",
+    "level_db": -22.7,
+    "fall_ms": 140.0
+   }
+  ],
+  "cp": [
+   {
+    "n": 0,
+    "file": "Clap.wav",
+    "level_db": -14.6,
+    "fall_ms": 30.0
+   },
+   {
+    "n": 1,
+    "file": "cp01.wav",
+    "level_db": -16.0,
+    "fall_ms": 40.0
+   },
+   {
+    "n": 2,
+    "file": "cp02.wav",
+    "level_db": -12.4,
+    "fall_ms": 35.0
+   },
+   {
+    "n": 3,
+    "file": "cp03.wav",
+    "level_db": -11.7,
+    "fall_ms": 35.0
+   },
+   {
+    "n": 4,
+    "file": "cp04.wav",
+    "level_db": -15.4,
+    "fall_ms": 45.0
+   }
+  ],
+  "hh": [
+   {
+    "n": 0,
+    "file": "hh01.wav",
+    "level_db": -13.7,
+    "fall_ms": 25.0
+   },
+   {
+    "n": 1,
+    "file": "hh02.wav",
+    "level_db": -13.8,
+    "fall_ms": 40.0
+   },
+   {
+    "n": 2,
+    "file": "hh03.wav",
+    "level_db": -14.0,
+    "fall_ms": 65.0
+   },
+   {
+    "n": 3,
+    "file": "hh04.wav",
+    "level_db": -13.2,
+    "fall_ms": 55.0
+   }
+  ],
+  "oh": [
+   {
+    "n": 0,
+    "file": "Hat Open.wav",
+    "level_db": -12.2,
+    "fall_ms": 90.0
+   },
+   {
+    "n": 1,
+    "file": "oh01.wav",
+    "level_db": -15.4,
+    "fall_ms": 55.0
+   },
+   {
+    "n": 2,
+    "file": "oh02.wav",
+    "level_db": -15.3,
+    "fall_ms": 60.0
+   },
+   {
+    "n": 3,
+    "file": "oh03.wav",
+    "level_db": -15.2,
+    "fall_ms": 90.0
+   },
+   {
+    "n": 4,
+    "file": "oh04.wav",
+    "level_db": -14.8,
+    "fall_ms": 90.0
+   }
+  ]
+ },
+ "tr808": {
+  "bd": [
+   {
+    "n": 0,
+    "file": "BD0000.WAV",
+    "level_db": -10.6,
+    "fall_ms": 15.0
+   },
+   {
+    "n": 1,
+    "file": "BD0010.WAV",
+    "level_db": -4.7,
+    "fall_ms": 275.0
+   },
+   {
+    "n": 2,
+    "file": "BD0025.WAV",
+    "level_db": -6.4,
+    "fall_ms": 55.0
+   },
+   {
+    "n": 3,
+    "file": "BD0050.WAV",
+    "level_db": -5.2,
+    "fall_ms": 80.0
+   },
+   {
+    "n": 4,
+    "file": "BD0075.WAV",
+    "level_db": -4.8,
+    "fall_ms": 210.0
+   },
+   {
+    "n": 5,
+    "file": "BD1000.WAV",
+    "level_db": -9.8,
+    "fall_ms": 15.0
+   },
+   {
+    "n": 6,
+    "file": "BD1010.WAV",
+    "level_db": -3.8,
+    "fall_ms": 295.0
+   },
+   {
+    "n": 7,
+    "file": "BD1025.WAV",
+    "level_db": -5.5,
+    "fall_ms": 55.0
+   },
+   {
+    "n": 8,
+    "file": "BD1050.WAV",
+    "level_db": -4.2,
+    "fall_ms": 100.0
+   },
+   {
+    "n": 9,
+    "file": "BD1075.WAV",
+    "level_db": -3.9,
+    "fall_ms": 240.0
+   },
+   {
+    "n": 10,
+    "file": "BD2500.WAV",
+    "level_db": -10.4,
+    "fall_ms": 15.0
+   },
+   {
+    "n": 11,
+    "file": "BD2510.WAV",
+    "level_db": -4.5,
+    "fall_ms": 275.0
+   },
+   {
+    "n": 12,
+    "file": "BD2525.WAV",
+    "level_db": -6.3,
+    "fall_ms": 45.0
+   },
+   {
+    "n": 13,
+    "file": "BD2550.WAV",
+    "level_db": -4.8,
+    "fall_ms": 100.0
+   },
+   {
+    "n": 14,
+    "file": "BD2575.WAV",
+    "level_db": -4.6,
+    "fall_ms": 220.0
+   },
+   {
+    "n": 15,
+    "file": "BD5000.WAV",
+    "level_db": -10.1,
+    "fall_ms": 15.0
+   },
+   {
+    "n": 16,
+    "file": "BD5010.WAV",
+    "level_db": -4.1,
+    "fall_ms": 275.0
+   },
+   {
+    "n": 17,
+    "file": "BD5025.WAV",
+    "level_db": -5.9,
+    "fall_ms": 55.0
+   },
+   {
+    "n": 18,
+    "file": "BD5050.WAV",
+    "level_db": -4.4,
+    "fall_ms": 130.0
+   },
+   {
+    "n": 19,
+    "file": "BD5075.WAV",
+    "level_db": -4.2,
+    "fall_ms": 230.0
+   },
+   {
+    "n": 20,
+    "file": "BD7500.WAV",
+    "level_db": -9.9,
+    "fall_ms": 15.0
+   },
+   {
+    "n": 21,
+    "file": "BD7510.WAV",
+    "level_db": -3.9,
+    "fall_ms": 275.0
+   },
+   {
+    "n": 22,
+    "file": "BD7525.WAV",
+    "level_db": -5.7,
+    "fall_ms": 55.0
+   },
+   {
+    "n": 23,
+    "file": "BD7550.WAV",
+    "level_db": -4.3,
+    "fall_ms": 90.0
+   },
+   {
+    "n": 24,
+    "file": "BD7575.WAV",
+    "level_db": -4.0,
+    "fall_ms": 240.0
+   }
+  ],
+  "sd": [
+   {
+    "n": 0,
+    "file": "SD0000.WAV",
+    "level_db": -28.8,
+    "fall_ms": 5.0
+   },
+   {
+    "n": 1,
+    "file": "SD0010.WAV",
+    "level_db": -11.8,
+    "fall_ms": 50.0
+   },
+   {
+    "n": 2,
+    "file": "SD0025.WAV",
+    "level_db": -28.6,
+    "fall_ms": 5.0
+   },
+   {
+    "n": 3,
+    "file": "SD0050.WAV",
+    "level_db": -20.2,
+    "fall_ms": 45.0
+   },
+   {
+    "n": 4,
+    "file": "SD0075.WAV",
+    "level_db": -13.9,
+    "fall_ms": 50.0
+   },
+   {
+    "n": 5,
+    "file": "SD1000.WAV",
+    "level_db": -38.5,
+    "fall_ms": 5.0
+   },
+   {
+    "n": 6,
+    "file": "SD1010.WAV",
+    "level_db": -11.7,
+    "fall_ms": 45.0
+   },
+   {
+    "n": 7,
+    "file": "SD1025.WAV",
+    "level_db": -38.1,
+    "fall_ms": 30.0
+   },
+   {
+    "n": 8,
+    "file": "SD1050.WAV",
+    "level_db": -20.3,
+    "fall_ms": 45.0
+   },
+   {
+    "n": 9,
+    "file": "SD1075.WAV",
+    "level_db": -14.6,
+    "fall_ms": 45.0
+   },
+   {
+    "n": 10,
+    "file": "SD2500.WAV",
+    "level_db": -32.1,
+    "fall_ms": 5.0
+   },
+   {
+    "n": 11,
+    "file": "SD2510.WAV",
+    "level_db": -11.9,
+    "fall_ms": 50.0
+   },
+   {
+    "n": 12,
+    "file": "SD2525.WAV",
+    "level_db": -31.6,
+    "fall_ms": 10.0
+   },
+   {
+    "n": 13,
+    "file": "SD2550.WAV",
+    "level_db": -21.4,
+    "fall_ms": 45.0
+   },
+   {
+    "n": 14,
+    "file": "SD2575.WAV",
+    "level_db": -15.6,
+    "fall_ms": 55.0
+   },
+   {
+    "n": 15,
+    "file": "SD5000.WAV",
+    "level_db": -36.3,
+    "fall_ms": 5.0
+   },
+   {
+    "n": 16,
+    "file": "SD5010.WAV",
+    "level_db": -13.1,
+    "fall_ms": 45.0
+   },
+   {
+    "n": 17,
+    "file": "SD5025.WAV",
+    "level_db": -35.4,
+    "fall_ms": 25.0
+   },
+   {
+    "n": 18,
+    "file": "SD5050.WAV",
+    "level_db": -21.1,
+    "fall_ms": 45.0
+   },
+   {
+    "n": 19,
+    "file": "SD5075.WAV",
+    "level_db": -15.1,
+    "fall_ms": 45.0
+   },
+   {
+    "n": 20,
+    "file": "SD7500.WAV",
+    "level_db": -39.9,
+    "fall_ms": 5.0
+   },
+   {
+    "n": 21,
+    "file": "SD7510.WAV",
+    "level_db": -12.6,
+    "fall_ms": 50.0
+   },
+   {
+    "n": 22,
+    "file": "SD7525.WAV",
+    "level_db": -38.6,
+    "fall_ms": 35.0
+   },
+   {
+    "n": 23,
+    "file": "SD7550.WAV",
+    "level_db": -21.1,
+    "fall_ms": 40.0
+   },
+   {
+    "n": 24,
+    "file": "SD7575.WAV",
+    "level_db": -15.5,
+    "fall_ms": 50.0
+   }
+  ],
+  "cp": [
+   {
+    "n": 0,
+    "file": "cp0.wav",
+    "level_db": -12.5,
+    "fall_ms": 55.0
+   },
+   {
+    "n": 1,
+    "file": "cp1.wav",
+    "level_db": -14.3,
+    "fall_ms": 40.0
+   },
+   {
+    "n": 2,
+    "file": "cp2.wav",
+    "level_db": -12.7,
+    "fall_ms": 35.0
+   },
+   {
+    "n": 3,
+    "file": "cp3.wav",
+    "level_db": -13.9,
+    "fall_ms": 45.0
+   },
+   {
+    "n": 4,
+    "file": "cp4.WAV",
+    "level_db": -13.6,
+    "fall_ms": 25.0
+   }
+  ],
+  "hh": [
+   {
+    "n": 0,
+    "file": "CH.WAV",
+    "level_db": -18.6,
+    "fall_ms": 25.0
+   }
+  ],
+  "oh": [
+   {
+    "n": 0,
+    "file": "OH00.WAV",
+    "level_db": -13.7,
+    "fall_ms": 65.0
+   },
+   {
+    "n": 1,
+    "file": "OH10.WAV",
+    "level_db": -15.1,
+    "fall_ms": 350.0
+   },
+   {
+    "n": 2,
+    "file": "OH25.WAV",
+    "level_db": -14.5,
+    "fall_ms": 165.0
+   },
+   {
+    "n": 3,
+    "file": "OH50.WAV",
+    "level_db": -14.6,
+    "fall_ms": 305.0
+   },
+   {
+    "n": 4,
+    "file": "OH75.WAV",
+    "level_db": -14.8,
+    "fall_ms": 360.0
+   }
+  ]
+ }
+}

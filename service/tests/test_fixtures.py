@@ -8,6 +8,7 @@ from algorip.bass import choose_bass_loop
 from algorip.bassgrid import BassGrid
 from algorip.fixtures import bass_events, build_fixture_audio
 from algorip.generate import generate
+from algorip.drumloop import drum_loops
 from algorip.grid import Grid
 from algorip.mini import loop_mini
 from algorip.pipeline import _analyse
@@ -18,7 +19,7 @@ from algorip.sounds import choose_sounds
 GOLDEN = Path(__file__).parent / "golden"
 
 
-@pytest.mark.parametrize("name", ["solomun", "build"])
+@pytest.mark.parametrize("name", ["solomun", "solomun2", "build"])
 def test_bass_events_match_the_committed_file(name):
     a = Analysis.model_validate_json((GOLDEN / f"{name}.analysis.json").read_text())
     assert json.loads((GOLDEN / f"{name}.bass-events.json").read_text()) == bass_events(a.bass_loop)
@@ -47,7 +48,39 @@ def test_solomun_loop_from_its_grid():
     assert loop.period == 1
     assert loop.match == pytest.approx(0.80, abs=0.02)
     assert loop_mini(loop.templates) == "[~ ~ g1@2] [~ g1 ~ g1] [~ ~ g1@2] [~ g1@2 g2]"
-    assert 'bass: note("[~ ~ g1@2] [~ g1 ~ g1] [~ ~ g1@2] [~ g1@2 g2]")' in (GOLDEN / "solomun.strudel").read_text()
+    code = (GOLDEN / "solomun.strudel").read_text()
+    assert 'bass: note("[~ ~ g1@2] [~ g1 ~ g1] [~ ~ g1@2] [~ g1@2 g2]")' in code
+    # the 36:40 grid did not move (its kicks sit 0.13 step from the tracker's beats); the kick line keeps the 909's
+    # first kick, the claps move to their own line with the measured sample and gain
+    assert 'drums: s("bd*4").bank("tr909")' in code and 'claps: s("[cp:4 ~ cp:4 ~] [cp:4 ~ cp:4 ~] [~ ~ cp:4 ~] [~ ~ cp:4 ~]").bank("tr909")' in code
+
+
+def test_solomun2_loop_has_its_fourth_beat_and_a_pluck():
+    bg = BassGrid.model_validate_json((GOLDEN / "solomun2.bassgrid.json").read_text())
+    a = Analysis.model_validate_json((GOLDEN / "solomun2.analysis.json").read_text())
+    g = Grid(bpm=a.bpm, first_downbeat=a.first_downbeat, bars=a.bars)
+    loop = choose_bass_loop(bg, g, a.bass)
+    # beat 4's D#2, which pyin read an octave down at no confidence, comes from the spectrum; beat 3 is the
+    # chromatic E3 the stem plays (a Phrygian figure), no longer snapped to D# minor
+    # the grid sits on the kicks (2026-10-22-drum-deep-dive-design.md), the bar starting so the claps fall on 2 and
+    # 4: the bass is a 16th pickup into beat 2, then the offbeat 8ths, each note crossing into the next beat
+    assert loop_mini(loop.templates) == "~@3 d#2@2 ~ d#1@3 ~ e3@3 ~ d#2@2"
+    assert -20 <= a.tuning_cents <= 0 and a.bass_tone is not None and a.bass_tone.wobble_hz is None
+    assert loop.match >= 0.9
+    code = (GOLDEN / "solomun2.strudel").read_text()
+    # the drums: kicks on the beats on the 909's long kick, claps on 2 and 4, the offbeat open hats on the 909's
+    # third open hat, the 16th-note ticks as ghosts on their own line
+    assert a.first_downbeat == 0.0 and a.bars == 5 and a.four_on_the_floor
+    assert 'drums: s("bd:3*4").bank("tr909")' in code
+    assert 'claps: s("[~ cp:4]*2").bank("tr909")' in code
+    assert 'hats: s("[~ oh:2]*4").bank("tr909").gain(' in code
+    assert 'ghosts: s("hh:1(2,16,1)").bank("tr909").gain(0.1' in code
+    assert drum_loops(a).match >= 0.9  # write_golden strips drum_summary; the loops are recomputed
+    # every note is a gate: held at full level for roughly half to three quarters of its written length, then
+    # cut within about 40 ms, well down by its end
+    e = a.bass_envelope
+    assert e is not None and 0.4 <= e.hold_share <= 0.8 and e.fall_ms <= 80 and e.end_db < -10 and e.attack_ms < 25
+    assert '.clip(' in (GOLDEN / "solomun2.strudel").read_text()
 
 
 def test_solomun_build_is_a_layer_of_g1_over_bars_5_to_9():
@@ -57,7 +90,10 @@ def test_solomun_build_is_a_layer_of_g1_over_bars_5_to_9():
     loop = choose_bass_loop(bg, g, a.bass)
     assert loop.layer is not None and loop.layer_bars == (5, 9)
     notes = [n for phase in loop.layer for n in phase]
-    assert notes and all(n.midi == 31 for n in notes)  # G1
+    # the build is written bar by bar (it fills in gradually): the root G1 mostly, G2 where the spectrum's
+    # second opinion lifts the tracker's unsure sub-octave (step 15, as in the loop's own g2, and step 1 of two bars)
+    assert notes and all(n.midi % 12 == 7 for n in notes)  # all G
+    assert sum(n.midi == 31 for n in notes) >= 0.75 * len(notes)
     assert sum(n.length for n in notes) >= 4  # at least a beat of the bar
     # Over its own bars the layer closes most of the gap. match_with_layer stacks it over every bar
     # (the spec's measure: what unmuting _bass2 plays), and bars 1-4 do not carry it, so there it is
@@ -65,7 +101,7 @@ def test_solomun_build_is_a_layer_of_g1_over_bars_5_to_9():
     lo, hi = loop.layer_bars
     over_its_bars = [n for n in expand(loop.layer, a.bars) if lo - 1 <= n.bar <= hi - 1]
     assert score(bg, g, expand(loop.templates, a.bars), over_its_bars).match > loop.match + 0.05
-    assert loop.match_with_layer == pytest.approx(loop.match, abs=0.01)
+    assert loop.match_with_layer >= loop.match + 0.1  # written bar by bar, the build is heard: 0.80 -> 0.94
     assert a.bass_loop == loop
     assert "_bass2: note(" in (GOLDEN / "solomun.strudel").read_text()
 

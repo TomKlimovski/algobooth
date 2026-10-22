@@ -42,21 +42,21 @@ def test_an_alternation_is_a_two_bar_loop():
     assert v.period == 2 and v.templates == [{0, 10}, {0, 6}] and not any(v.fills)
 
 
-def test_an_empty_phase_is_not_a_loop_for_a_drum_voice():
-    # open hats on bars 0, 4 and 8 only, and nothing elsewhere: period 4 would vote a template with
-    # three empty phases; the voice has no regular part, and every hit is a fill
+def test_a_hit_every_fourth_bar_is_a_four_bar_loop():
+    # open hats on bars 0, 4 and 8 only, and nothing elsewhere: a loop of period 4 with three silent phases
+    # (period 2 would claim hats on bars 2 and 6 too, which lack them, and so explains less)
     bars = [set() for _ in range(9)]
     for b in (0, 4, 8):
         bars[b] = OFF
     v = voice_loop(bars)
-    assert v.period == 1 and v.templates == [set()]
-    assert v.fills[0] == OFF and v.fills[4] == OFF and v.fills[8] == OFF and not v.fills[1]
+    assert v.period == 4 and v.templates == [OFF, set(), set(), set()]
+    assert not any(v.fills)
 
 
-def test_no_repetition_is_verbatim_and_a_one_bar_clip_too():
+def test_no_repetition_is_all_fills_and_a_one_bar_clip_is_its_own_loop():
     bars = [{0}, {2}, {4}, {6}]
     v = voice_loop(bars)
-    assert v.period == 4 and v.templates == bars and not any(v.fills)
+    assert v.period == 1 and v.templates == [set()] and v.fills == bars
     one = voice_loop([FOUR])
     assert one.period == 1 and one.templates == [FOUR] and one.fills == [set()]
 
@@ -76,21 +76,23 @@ def test_hits_off_the_clip_are_ignored():
     assert drum_loops(analysis(drums=stray, bars=4)) == drum_loops(analysis(drums=drums, bars=4))
 
 
-def test_a_loop_with_an_empty_phase_has_no_regular_part():
-    # Solomun's open hats: a period-4 vote leaves a silent phase; the voice is not written as a loop
+def test_solomun_open_hats_are_a_one_bar_loop_with_strays_and_a_break():
+    # Solomun 36:40's open hats: the full vote fails (the step-7 hit is in five bars of nine, and the bars
+    # without it are then under the core share), the sparse seed finds the three-hit bar seven bars contain;
+    # the step-7 hits are fills, and bars 5 and 6 (a break) are dropouts
     bars = [{1, 9, 15}, {1, 7, 9, 15}, {1, 7, 9, 15}, {1, 7, 9}, {1}, set(), {7, 9, 15}, {1, 7, 9, 15}, {1, 9, 15}]
     v = voice_loop(bars)
-    assert v.period == 1 and v.templates == [set()]
-    assert v.fills == bars
+    assert v.period == 1 and v.templates == [{1, 9, 15}]
+    assert v.fills == [set(), {7}, {7}, {7}, set(), set(), {7}, {7}, set()]
 
 
 def test_a_bar_needs_three_strays_over_the_looped_voices_to_be_a_fill():
     assert FILL_MIN_HITS == 3
     bd = [(b, s) for b in range(4) for s in FOUR] + [(1, 2), (1, 3)]  # two strays in bar 2
-    sd = [(b, s) for b in range(4) for s in (4, 12)] + [(1, 14), (3, 14), (3, 15)]  # one in bar 2, two in bar 4
+    sd = [(b, s) for b in range(4) for s in (4, 12)] + [(1, 14), (2, 14), (2, 15)]  # one in bar 2, two in bar 3
     d = drum_loops(analysis(drums={"bd": bd, "sd": sd, "hh": [], "oh": []}, bars=4))
     assert d.voices["bd"].fills == [set(), {2, 3}, set(), set()]  # bar 2: 2 + 1 = 3, kept
-    assert d.voices["sd"].fills == [set(), {14}, set(), set()]  # bar 4: 0 + 2 = 2, dropped
+    assert d.voices["sd"].fills == [set(), {14}, set(), set()]  # bar 3: 0 + 2 = 2, dropped
     assert d.fill_bars == (2, 2)
 
 
@@ -101,10 +103,21 @@ def test_dropped_strays_still_count_as_unplayed():
     assert d.match == pytest.approx(round(2 * 16 / (16 + 17), 2))
 
 
-def test_a_voice_with_no_regular_part_keeps_every_hit_as_a_fill():
+def test_a_voice_looping_every_fourth_bar_has_no_fills():
     bd = [(b, s) for b in range(9) for s in FOUR]
-    oh = [(b, s) for b in (0, 4, 8) for s in OFF]  # every fourth bar, as test_an_empty_phase_is_not_a_loop_for_a_drum_voice
+    oh = [(b, s) for b in (0, 4, 8) for s in OFF]  # every fourth bar, as test_a_hit_every_fourth_bar_is_a_four_bar_loop
     d = drum_loops(analysis(drums={"bd": bd, "sd": [], "hh": [], "oh": oh}, bars=9))
-    assert d.voices["oh"].templates == [set()]
-    assert [bool(f) for f in d.voices["oh"].fills] == [True, False, False, False, True, False, False, False, True]
-    assert d.fill_bars == (1, 9)
+    assert d.voices["oh"].period == 4 and d.voices["oh"].templates[0] == OFF
+    assert not any(d.voices["oh"].fills) and d.fill_bars is None and d.match == 1.0
+
+
+def test_ghost_strays_are_not_fills():
+    from algorip.schema import Analysis
+    from tests.test_generate import HOUSE
+
+    a = HOUSE.model_copy(update={"bars": 4, "drums": {
+        "bd": [(b, s) for b in range(4) for s in (0, 4, 8, 12)],
+        "gh": [(b, 13) for b in range(4)] + [(2, 3), (2, 7), (2, 11)]}})
+    loops = drum_loops(a)
+    assert loops.voices["gh"].templates == [{13}]
+    assert loops.fill_bars is None and all(not f for f in loops.voices["gh"].fills)

@@ -1,3 +1,4 @@
+import pytest
 
 from algorip.audio import SR
 from algorip.drums import classify_drums, is_four_on_the_floor
@@ -102,3 +103,44 @@ def test_closed_hats_over_a_floor_stay_closed():
 def test_a_snare_on_every_kick_is_kept():
     hits = classify_drums(drum_loop({"bd": KICKS, "sd": KICKS}, 124, 2), SR, grid_for(124, 2))
     assert hits["bd"] == KICKS and hits["sd"] == KICKS
+
+
+# The stem's drum tone (2026-10-22-drum-deep-dive-design.md): each voice's level and fall, as kits.json has them.
+from algorip.drums import drum_tone
+
+
+def test_drum_tone_reads_each_voices_fall():
+    hits = {"bd": {(0, 0), (0, 8)}, "hh": {(0, 4)}, "oh": {(0, 12)}}
+    tone = drum_tone(drum_loop(hits, 120, 1), SR, hits, grid_for(120, 1))
+    assert tone is not None and set(tone.falls) == {"bd", "hh", "oh"}
+    assert tone.falls["oh"] > tone.falls["hh"]  # a 300 ms hat against a 30 ms one
+    assert 30 <= tone.falls["bd"] <= 150  # the synthetic kick's 150 ms decay
+
+
+def test_drum_tone_levels_follow_the_mix():
+    hits = {"bd": {(0, 0), (0, 8)}, "oh": {(0, 4), (0, 12)}}
+    loud = drum_loop(hits, 120, 1)
+    quiet = drum_loop({"bd": hits["bd"]}, 120, 1) + 0.3 * drum_loop({"oh": hits["oh"]}, 120, 1)
+    a = drum_tone(loud, SR, hits, grid_for(120, 1))
+    b = drum_tone(quiet, SR, hits, grid_for(120, 1))
+    assert a is not None and b is not None
+    assert (a.levels["oh"] - a.levels["bd"]) - (b.levels["oh"] - b.levels["bd"]) == pytest.approx(10.5, abs=1.0)
+
+
+def test_drum_tone_is_none_without_hits():
+    assert drum_tone(drum_loop({"bd": {(0, 0)}}, 120, 1), SR, {"bd": set(), "sd": set()}, grid_for(120, 1)) is None
+
+
+def test_quiet_sixteenth_hats_are_ghosts():
+    # the 48:50 Solomun clip's 16th-note ticks, 18 dB under its offbeat hats: a gh voice, not full-level oh
+    loud = {"bd": {(b, s) for b in range(2) for s in (0, 4, 8, 12)}, "oh": {(b, s) for b in range(2) for s in (2, 6, 10, 14)}}
+    ghosts = {"hh": {(b, s) for b in range(2) for s in (5, 13)}}
+    y = drum_loop(loud, 124, 2) + 0.1 * drum_loop(ghosts, 124, 2)
+    hits = classify_drums(y, SR, grid_for(124, 2))
+    assert hits["oh"] == loud["oh"]
+    assert hits["gh"] == ghosts["hh"] and hits["hh"] == set()
+
+
+def test_a_lone_hat_is_never_a_ghost():
+    hits = classify_drums(drum_loop({"bd": {(0, 0), (0, 8)}, "hh": {(0, 4)}}, 120, 1), SR, grid_for(120, 1))
+    assert hits["hh"] == {(0, 4)} and hits["gh"] == set()

@@ -193,6 +193,73 @@ def plucked_bass(notes: list[tuple[int, int, int, int]], bpm: float, bars: int, 
     return out.astype(np.float32)
 
 
+def decaying_bass(notes: list[tuple[int, int, int, int]], bpm: float, bars: int, decay_seconds: float) -> np.ndarray:
+    """Like bass_line, but each note is a pluck: a 10 ms attack, then an exponential fall of 60 dB over
+    decay_seconds from the note's start, cut at the note's end."""
+    out = np.zeros(_samples(bars * _bar_seconds(bpm)))
+    for bar, step, length, midi in notes:
+        start = _step_start(bar, step, bpm)
+        n = _step_start(bar, step + length, bpm) - start
+        env = np.exp(-_DECAY_60DB * np.arange(n) / _samples(decay_seconds))
+        attack = min(_samples(0.01), n)
+        env[:attack] *= np.arange(1, attack + 1) / attack
+        _place(out, start, _harmonic_tone(_midi_hz(midi), n, harmonics=6) * env)
+    return out.astype(np.float32)
+
+
+def gated_bass(notes: list[tuple[int, int, int, int]], bpm: float, bars: int, hold_share: float, fall_seconds: float) -> np.ndarray:
+    """Like bass_line, but each note is a gate: a 10 ms attack, full level for hold_share of its length, then a
+    linear fall to silence over fall_seconds (cut at the note's end)."""
+    out = np.zeros(_samples(bars * _bar_seconds(bpm)))
+    for bar, step, length, midi in notes:
+        start = _step_start(bar, step, bpm)
+        n = _step_start(bar, step + length, bpm) - start
+        env = np.zeros(n)
+        hold = min(n, round(hold_share * n))
+        env[:hold] = 1.0
+        fall = min(n - hold, _samples(fall_seconds))
+        if fall:
+            env[hold : hold + fall] = np.arange(fall, 0, -1) / fall
+        attack = min(_samples(0.01), n)
+        env[:attack] *= np.arange(1, attack + 1) / attack
+        _place(out, start, _harmonic_tone(_midi_hz(midi), n, harmonics=6) * env)
+    return out.astype(np.float32)
+
+
+def filtered_bass(notes: list[tuple[int, int, int, int]], bpm: float, bars: int, open_hz: float, hold_hz: float,
+                  close_seconds: float, wobble_hz: float = 0.0, wobble_depth: float = 0.0,
+                  onset_lag_seconds: float = 0.0, click: bool = False) -> np.ndarray:
+    """A bright sawtooth-like tone (harmonics 1..24) through a lowpass that opens at open_hz on each onset and
+    closes exponentially to hold_hz over close_seconds (the 48:50 stem's filter), with an optional tremolo
+    (the level swings between 1 - wobble_depth and 1 at wobble_hz). With onset_lag_seconds the sound starts
+    that long after the grid line, as a real stem's does; with click, a quiet broadband tick (30 dB down)
+    sits in that gap, as bleed does."""
+    out = np.zeros(_samples(bars * _bar_seconds(bpm)))
+    block = _samples(0.005)
+    lag = _samples(onset_lag_seconds)
+    for bar, step, length, midi in notes:
+        start = _step_start(bar, step, bpm) + lag
+        n = _step_start(bar, step + length, bpm) - start
+        if click and lag:
+            tick = _noise(_samples(0.004), seed=bar * 16 + step) * 0.03
+            _place(out, start - lag + _samples(0.005), tick)
+        tone = _harmonic_tone(_midi_hz(midi), n, harmonics=24) * _ramps(n, 0.01)
+        shaped = np.zeros(n)
+        zi = None
+        for i in range(0, n, block):
+            t = i / SR
+            cutoff = hold_hz + (open_hz - hold_hz) * np.exp(-3 * t / close_seconds)
+            sos = signal.butter(2, min(cutoff, SR / 2 - 1), btype="low", fs=SR, output="sos")
+            if zi is None:
+                zi = signal.sosfilt_zi(sos) * tone[i]
+            shaped[i : i + block], zi = signal.sosfilt(sos, tone[i : i + block], zi=zi)
+        if wobble_hz:
+            t = np.arange(n) / SR
+            shaped *= 1 - wobble_depth / 2 + wobble_depth / 2 * np.sin(2 * np.pi * wobble_hz * t)
+        _place(out, start, shaped)
+    return _normalise(out).astype(np.float32)
+
+
 def swept_bass(notes: list[tuple[int, int, int, int]], bpm: float, bars: int, sweep_semitones: float, sweep_seconds: float) -> np.ndarray:
     """Like bass_line, but without the fundamental (harmonics 2..6) and each note starting sharp.
 

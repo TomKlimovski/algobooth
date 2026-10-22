@@ -7,9 +7,9 @@ function result(over: Partial<RipResult> = {}): RipResult {
     title: 'Song',
     analysis: {
       bpm: 120, key: 'A minor', meter: '4/4', bars: 8, steps_per_bar: 16, first_downbeat: 0,
-      drums: {}, four_on_the_floor: true, bass: [], bass_harmonics: 0, chords: [], melody: null, bass_loop: null, drum_summary: null,
+      drums: {}, four_on_the_floor: true, bass: [], bass_harmonics: 0, bass_envelope: null, bass_tone: null, tuning_cents: 0, chords: [], melody: null, bass_loop: null, drum_summary: null, drum_tone: null,
     },
-    sounds: { drum_bank: 'RolandTR909', snare_name: 'sd', bass_sound: 'sine', bass_lpf: null, chord_sound: 'sawtooth', chord_lpf: 1200, room: 0.4 },
+    sounds: { drum_bank: 'RolandTR909', snare_name: 'sd', bass_sound: 'sine', bass_lpf: null, bass_envelope: null, bass_filter_env: null, bass_tremolo: null, drum_samples: {}, drum_gains: {}, chord_sound: 'sawtooth', chord_lpf: 1200, room: 0.4 },
     code: 'generated code', tidied_code: null, tidy_error: null, stems: [],
     ...over,
   };

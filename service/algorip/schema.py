@@ -21,12 +21,60 @@ class BassLoop(BaseModel):
     match_with_layer: float | None  # the loop plus the layer, over every bar
 
 
+class MeasuredEnvelope(BaseModel):
+    """How the bass stem's notes shape over time, each a median over the transcribed notes."""
+
+    attack_ms: float  # from a note's onset (20 dB under its peak) to within 3 dB of it
+    hold_ms: float  # from the onset to the last moment within 3 dB of the peak
+    fall_ms: float  # from the end of the hold to 20 dB down, capped at the note's end
+    end_db: float  # the level just before the note's end, relative to its peak
+    hold_share: float  # hold_ms over the note's written length
+
+
+class StrudelEnvelope(BaseModel):
+    """The gate written on the bass lines, in Strudel's units: a fast attack, full level for the hold, a short release."""
+
+    attack: float  # seconds
+    clip: float | None  # the hold as a share of the written note; None when the note holds to its end
+    release: float  # seconds
+
+
+class BassTone(BaseModel):
+    """How the bass stem's notes sound, each a median over the transcribed notes."""
+
+    open_hz: float  # the 85% spectral rolloff over a note's first 25 ms
+    hold_hz: float  # ...and over its hold
+    close_ms: float  # from the onset until the rolloff settles within a quarter octave of the hold
+    wobble_hz: float | None  # the strongest periodic level wobble on the hold, 5 to 20 Hz, when the notes carry one
+    wobble_db: float | None  # ...and its peak-to-trough depth
+
+
+class FilterEnvelope(BaseModel):
+    """The lowpass envelope written on the bass lines: opens `octaves` above the cutoff, closes over `close` seconds."""
+
+    octaves: float
+    close: float
+
+
+class Tremolo(BaseModel):
+    rate: float  # Hz
+    depth: float  # 0..1, superdough's: the level swings between 1 - depth and 1
+
+
 class DrumSummary(BaseModel):
     """The drum voices as loops, in brief: how long the longest loop is and how much of the hits they play."""
 
     period: int  # the longest period among voices with a regular part; 0 when none has one
     match: float  # F1 of the hits the loops play against the classified hits
     fill_bars: tuple[int, int] | None  # 1-based inclusive; None when no voice fills
+
+
+class DrumTone(BaseModel):
+    """Each drum voice on the stem, by shape and level: the voice band's median peak (dB) and the median time
+    for the first 12 dB of its fall (ms), over the voice's hits. The kick is the level reference."""
+
+    levels: dict[str, float]
+    falls: dict[str, float]
 
 
 class Analysis(BaseModel):
@@ -44,6 +92,10 @@ class Analysis(BaseModel):
     melody: list[Note] | None
     bass_loop: BassLoop | None = None
     drum_summary: DrumSummary | None = None
+    drum_tone: DrumTone | None = None
+    bass_envelope: MeasuredEnvelope | None = None
+    bass_tone: BassTone | None = None
+    tuning_cents: float = 0.0  # the clip's offset from 440 tuning, removed before the bass was rounded
 
 
 class SoundChoice(BaseModel):
@@ -54,6 +106,11 @@ class SoundChoice(BaseModel):
     chord_sound: str = "sawtooth"
     chord_lpf: int = 1200
     room: float = 0.4
+    bass_envelope: StrudelEnvelope | None = None
+    bass_filter_env: FilterEnvelope | None = None
+    bass_tremolo: Tremolo | None = None
+    drum_samples: dict[str, int] = {}  # voice -> the bank sample's index, when not 0 (chosen by shape)
+    drum_gains: dict[str, float] = {}  # voice -> the line's gain, when 2 dB or more from Strudel's 0.8
 
 
 class RipRequest(BaseModel):

@@ -427,6 +427,9 @@ export function RipTab(props: {
                       </>
                     )}
                   </Show>
+                  <Show when={Math.abs(res().analysis.tuning_cents) >= 10}>
+                    {' '}· tuning {res().analysis.tuning_cents > 0 ? '+' : '−'}{Math.round(Math.abs(res().analysis.tuning_cents))} cents
+                  </Show>
                 </p>
               )}
             </Show>

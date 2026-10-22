@@ -1,11 +1,13 @@
 // Solomun – Live at Alexandra Palace, London (2026) (Official Film) 36:40 to 37:00 · 129 cpm · G minor · 9 bars
 setcpm(129/4)
 
-drums: s("bd*4, [cp ~ cp ~] [cp ~ cp ~] [~ ~ cp ~] [~ ~ cp ~]").bank("tr909")
-// bars 1–9 add these hits (a fill): remove the underscore to hear them
-_fills: s("<[~ ~ ~ [~ ~ ~ bd]] ~ ~ ~ ~ ~ ~ ~ ~>, <[~ [~ ~ ~ cp] [cp ~ ~ ~] [cp ~ ~ ~]] ~ ~ ~ ~ ~ ~ ~ ~>, <[[~ oh ~ ~] ~ [~ oh ~ ~] [~ ~ ~ oh]] [[~ oh ~ ~] [~ ~ ~ oh] [~ oh ~ ~] [~ ~ ~ oh]] [[~ oh ~ ~] [~ ~ ~ oh] [~ oh ~ ~] [~ ~ ~ oh]] [[~ oh ~ ~] [~ ~ ~ oh] [~ oh ~ ~] ~] [[~ oh ~ ~] ~ ~ ~] ~ [~ [~ ~ ~ oh] [~ oh ~ ~] [~ ~ ~ oh]] [[~ oh ~ ~] [~ ~ ~ oh] [~ oh ~ ~] [~ ~ ~ oh]] [[~ oh ~ ~] ~ [~ oh ~ ~] [~ ~ ~ oh]]>").bank("tr909")
-bass: note("[~ ~ g1@2] [~ g1 ~ g1] [~ ~ g1@2] [~ g1@2 g2]").s("sawtooth").lpf(800)
-// bars 5–9 add this under the bass (a build): remove the underscore to hear it (match 0.80 without, 0.80 with)
-_bass2: note("[g1 g1 ~ ~] [g1 ~ ~ ~] [g1 ~ ~ ~] [g1 ~ ~ ~]").s("sawtooth").lpf(800).gain(0.6)
+drums: s("bd*4").bank("tr909")
+claps: s("[cp:4 ~ cp:4 ~] [cp:4 ~ cp:4 ~] [~ ~ cp:4 ~] [~ ~ cp:4 ~]").bank("tr909").gain(1)
+hats: s("[~ oh:1 ~ ~] ~ [~ oh:1 ~ ~] [~ ~ ~ oh:1]").bank("tr909").gain(0.42)
+// bars 1–7 add these hits (a fill): remove the underscore to hear them
+_fills: s("<[~ ~ ~ [~ ~ ~ bd]] ~ ~ ~ ~ ~ [[~ ~ bd ~] ~ ~ ~] ~ ~>, <[~ [~ ~ ~ cp:4] [cp:4 ~ ~ ~] [cp:4 ~ ~ ~]] [~ ~ [cp:4 ~ ~ ~] [cp:4 ~ ~ ~]] ~ [~ ~ ~ [cp:4 ~ ~ cp:4]] ~ ~ [[~ cp:4 ~ ~] ~ ~ ~] ~ ~>, <~ [~ [~ ~ ~ oh:1] ~ ~] ~ [~ [~ ~ ~ oh:1] ~ ~] ~ ~ [~ [~ ~ ~ oh:1] ~ ~] ~ ~>").bank("tr909")
+bass: note("[~ ~ g1@2] [~ g1 ~ g1] [~ ~ g1@2] [~ g1@2 g2]").s("sawtooth").lpf(370)
+// bars 5–9 add this under the bass (a variation): remove the underscore to hear it (match 0.80 without, 0.94 with)
+_bass2: note("<~ ~ ~ ~ [~ ~ [g1 ~ ~ ~] [g1 ~ ~ ~]] [[g2 ~ ~ ~] [g1 ~ ~ ~] [g1 ~ ~ ~] ~] [[g1 g1 ~ ~] [g1 ~ ~ ~] [g1 ~ ~ ~] [g1 ~ ~ ~]] [[g1 g2 ~ ~] [~ ~ g1 ~] [g1@2 ~ ~] [g1 ~ ~ ~]] [[g1 g1 ~ ~] [g1 ~ g1 ~] [g1 ~ ~ ~] [g1 ~ ~ ~]]>").s("sawtooth").lpf(370).gain(0.6)
 chords: chord("<G G G G G G G Gm G>").voicing().s("sawtooth").lpf(1200).room(0.4).gain(0.6)
 melody: note("<[[~ g3@3] ~ ~ [~ ~ ~ g3]] [[~ ~ g3@2] ~ ~ [~ ~ ~ g3]] [[~ g3@3] ~ ~ [~ ~ ~ g3]] [[~ g3 g3@2] ~ ~ [~ ~ ~ g3]] [[~ g3@3] ~ ~ ~] [[~ g3 g3@2] ~ ~ ~] [[~ g3@3] ~ ~ ~] [[~ ~ c5@2] [~ ~ c5 ~] ~ ~] [~ ~ [d3@2 ~ ~] ~]>").s("triangle").gain(0.5)

@@ -104,7 +104,7 @@ def test_a_note_sustaining_past_its_beat_group_renders_the_bar_flat():
 
 def test_a_note_stops_at_the_bar_end_and_within_its_group_keeps_the_groups():
     assert notes_bar_mini([Note(bar=0, step=14, length=8, midi=33)]) == "~ ~ ~ [~ ~ a1@2]"
-    assert notes_bar_mini([]) == "~ ~ ~ ~"
+    assert notes_bar_mini([]) == "~"  # an empty bar is one rest, as bar_mini writes it
 
 
 def test_repeated_and_short_notes_are_kept():

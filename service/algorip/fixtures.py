@@ -72,7 +72,9 @@ def write_golden(golden_dir: Path, name: str, analysis: Analysis, bg: BassGrid,
                  title: str, start: float, end: float) -> None:
     """<name>.analysis.json, .bassgrid.json, .strudel and .bass-events.json under golden_dir."""
     golden_dir.mkdir(parents=True, exist_ok=True)
-    (golden_dir / f"{name}.analysis.json").write_text(analysis.model_dump_json(indent=2) + "\n")
+    # The goldens carry no drum_summary: generate does not read it, and the round-trip test checks it on its own.
+    bare = analysis.model_copy(update={"drum_summary": None})
+    (golden_dir / f"{name}.analysis.json").write_text(bare.model_dump_json(indent=2) + "\n")
     (golden_dir / f"{name}.bassgrid.json").write_text(bg.model_dump_json(indent=2) + "\n")
     (golden_dir / f"{name}.strudel").write_text(generate(analysis, choose_sounds(analysis), title, start, end))
     events = bass_events(analysis.bass_loop)

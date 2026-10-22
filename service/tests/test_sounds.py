@@ -72,3 +72,20 @@ def test_job_status_round_trips_as_json():
     m = ModelStatus(ready=False, torch_installed=True, weights_present=False, installing=True,
                     stage="weights", progress=0.5, error=None)
     assert ModelStatus.model_validate(m.model_dump(mode="json")) == m
+
+
+def test_drum_samples_by_shape_and_gains_by_level():
+    # 2026-10-22-drum-deep-dive-design.md, measured on the 48:50 Solomun stem against the 909's samples
+    from algorip.schema import DrumTone
+    from algorip.sounds import gain_for
+
+    a = analysis(bpm=129, drum_tone=DrumTone(levels={"bd": -8.0, "oh": -21.5, "sd": -25.0, "hh": -16.5},
+                                             falls={"bd": 150, "oh": 62, "sd": 65, "hh": 40}))
+    s = choose_sounds(a)
+    assert s.drum_samples == {"bd": 3, "oh": 2, "sd": 4, "hh": 1}
+    assert s.drum_gains["oh"] == pytest.approx(0.52, abs=0.03)
+    assert s.drum_gains["sd"] == pytest.approx(0.32, abs=0.03)
+    # the closed hats here sit where the samples put them (within 2 dB): no gain
+    assert "hh" not in s.drum_gains and "bd" not in s.drum_gains
+    assert gain_for(1.9) is None and gain_for(-2.0) == pytest.approx(0.64, abs=0.01) and gain_for(6.0) == 1.0
+    assert choose_sounds(analysis()).drum_samples == {} and choose_sounds(analysis()).drum_gains == {}

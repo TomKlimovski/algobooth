@@ -18,24 +18,19 @@ import numpy as np
 from scipy import signal
 
 from algorip.grid import Grid
+from algorip.kits import VOICE_BANDS, _fall_ms
+from algorip.kits import _rms_envelope as _band_envelope
+from algorip.schema import DrumTone
+from algorip.onsets import _DELTA, _LEAD_IN_SECONDS, _detect, _lead_in, band, band_onsets  # noqa: F401  (re-exported)
 
-VOICES = ("bd", "sd", "hh", "oh")
+VOICES = ("bd", "sd", "hh", "oh", "gh")  # gh: ghost hats, quiet ticks on their own line
 DrumHits = dict[str, set[tuple[int, int]]]
 
-_HOP = 512  # librosa's default onset-strength hop
-_DELTA = 0.2  # peak threshold as a fraction of the envelope's range (_detect min-max normalises it)
 # The snare band picks up hat and kick leakage on the log-scaled onset envelope: in the house
 # loop at up to 0.43 of its max, against 0.61 for the weakest real snare; under full kicks a
 # gain-0.15 snare lets the kick on step 8 through at 0.4 but not at 0.6. Hats under an open-hat
 # tail peak at 0.34 in theirs, so no single delta serves both bands; the snare band uses a higher one.
 _SNARE_DELTA = 0.6
-_WAIT_SECONDS = 0.05  # minimum gap between onsets in one band
-# librosa's onset envelope is zero for its first few frames, so a hit at t=0 would be lost.
-# Detection runs on y behind this much silence, shifted back after. The silence goes in before
-# the band filter: the zero-phase filter rings ahead of each hit, and a hit at sample 0 with its
-# pre-ringing cut off reads as a much louder onset than the same hit mid-file.
-_LEAD_IN_SECONDS = 0.1
-_EDGE_SECONDS = 0.03  # frames past the lead-in's end left out of the envelope's maximum
 
 # A band whose peak RMS (5 ms hops) is under its voice's gate, relative to the whole stem's
 # peak RMS, carries only leakage from other voices and gets no onsets: the onset threshold is
@@ -131,21 +126,16 @@ _SNARE_OVER_LOW_DB = 15.0
 _LOW_BEFORE_SECONDS = 0.01
 _LOW_AFTER_SECONDS = 0.06
 
+# Ghosts. A hat that is not on a kick or a snare, and lies more than this under the level (over the floor) of
+# the loud such hats, is a ghost: the 48:50 Solomun clip's offbeat open hats sit 24 to 26 dB over the floor,
+# its 16th-note ticks 6 to 10. The loud hats' level is the upper quartile of all such hats, so ticks that
+# outnumber the real hats do not pull the reference down to themselves. Judged before D3, closed and open
+# hats pooled; a lone hat is never a ghost.
+GHOST_DB = 12.0
+_GHOST_REFERENCE_PERCENTILE = 75
+
 _FOUR_ON_THE_FLOOR_STEPS = (0, 4, 8, 12)
 _FOUR_ON_THE_FLOOR_SHARE = 0.75
-
-
-def band(y: np.ndarray, sr: int, low: float | None, high: float | None) -> np.ndarray:
-    """y through a zero-phase 4th-order Butterworth: band-pass, low-pass (low=None) or high-pass (high=None)."""
-    if low is None and high is None:
-        return np.asarray(y, dtype=float)
-    if low is None:
-        sos = signal.butter(4, high, btype="lowpass", fs=sr, output="sos")
-    elif high is None:
-        sos = signal.butter(4, low, btype="highpass", fs=sr, output="sos")
-    else:
-        sos = signal.butter(4, [low, high], btype="bandpass", fs=sr, output="sos")
-    return signal.sosfiltfilt(sos, np.asarray(y, dtype=float))
 
 
 def _rms_envelope(y: np.ndarray, sr: int) -> np.ndarray:
@@ -158,51 +148,6 @@ def _rms_envelope(y: np.ndarray, sr: int) -> np.ndarray:
 def _peak_rms(y: np.ndarray, sr: int) -> float:
     env = _rms_envelope(y, sr)
     return float(env.max()) if len(env) else 0.0
-
-
-def _detect(filtered: np.ndarray, sr: int, delta: float) -> np.ndarray:
-    """Onset times in seconds, in the filtered (lead-in padded) signal's own timeline.
-
-    The envelope is min-max normalised as librosa would, except that its maximum skips the frames
-    where the lead-in silence meets the clip: a stem that starts on a continuous bed (a separated
-    hat band always does) jumps out of digital silence there, and that one jump would otherwise
-    set the scale and bury every real onset under delta.
-    """
-    env = librosa.onset.onset_strength(y=filtered.astype(np.float32), sr=sr, hop_length=_HOP)
-    wait_frames = max(1, round(_WAIT_SECONDS * sr / _HOP))
-    edge = round((_LEAD_IN_SECONDS + _EDGE_SECONDS) * sr / _HOP)
-    low = float(env.min()) if len(env) else 0.0
-    peak = float(env[edge:].max()) if len(env) > edge else float(env.max(initial=0.0))
-    env = (env - low) / (peak - low) if peak > low else env - low
-    return librosa.onset.onset_detect(
-        onset_envelope=env,
-        sr=sr,
-        hop_length=_HOP,
-        units="time",
-        backtrack=False,
-        normalize=False,
-        delta=delta,
-        wait=wait_frames,
-    )
-
-
-def _lead_in(y: np.ndarray, sr: int) -> tuple[np.ndarray, int]:
-    lead = round(_LEAD_IN_SECONDS * sr)
-    return np.concatenate([np.zeros(lead), np.asarray(y, dtype=float)]), lead
-
-
-def band_onsets(
-    y: np.ndarray, sr: int, low: float | None, high: float | None, delta: float = _DELTA
-) -> np.ndarray:
-    """Onset times in seconds of y's energy in one band.
-
-    librosa takes `wait` in frames, so 50 ms is converted at the onset envelope's hop. The envelope
-    is min-max normalised before peak picking (see _detect), and the lead-in silence pins its
-    minimum at zero, so `delta` (0.2 by default) is a fraction of the envelope's maximum. A peak
-    must clear the local mean of the envelope by delta.
-    """
-    padded, lead = _lead_in(y, sr)
-    return _detect(band(padded, sr, low, high), sr, delta) - lead / sr
 
 
 def _attack_time(y: np.ndarray, sr: int, t: float) -> float:
@@ -335,8 +280,12 @@ def classify_drums(drums: np.ndarray, sr: int, grid: Grid) -> DrumHits:
 
     others = [over for _, over, _, shared in hats if not shared]
     own_level = float(np.median(others)) - _OWN_LEVEL_DB if others else None
+    ghost_level = float(np.percentile(others, _GHOST_REFERENCE_PERCENTILE)) - GHOST_DB if len(others) >= 2 else None
     for t, over, rate, shared in hats:
         if shared and own_level is not None and over < own_level:
+            continue
+        if ghost_level is not None and over < ghost_level:
+            add("gh", t)
             continue
         add("oh" if rate <= _OPEN_DB_PER_MS else "hh", t)  # D3
     return hits
@@ -349,3 +298,42 @@ def is_four_on_the_floor(hits: DrumHits, bars: int) -> bool:
     kicks = hits.get("bd", set())
     full = sum(all((bar, s) in kicks for s in _FOUR_ON_THE_FLOOR_STEPS) for bar in range(bars))
     return full >= _FOUR_ON_THE_FLOOR_SHARE * bars
+
+
+# drum_tone: which sample list each voice is measured against (the snare voice's band is the clap's too; a ghost
+# is a closed hat).
+_TONE_VOICE = {"bd": "bd", "sd": "sd", "hh": "hh", "oh": "oh", "gh": "hh"}
+
+
+def drum_tone(drums: np.ndarray, sr: int, hits: DrumHits, grid: Grid) -> DrumTone | None:
+    """Each voice's level and fall on the stem, measured as kits.json measures the bank's samples.
+
+    Per hit, the voice band's 5 ms RMS peak within half a step either side of the hit's grid time; its level in
+    dB and the time from it to 12 dB under, cut at the voice's next hit (the time to that hit when it never gets
+    there). Medians over the voice's hits. None when no voice has a hit.
+    """
+    y = np.asarray(drums, dtype=float)
+    hop = max(1, round(_ENV_HOP_SECONDS * sr))
+    half = grid.step_seconds / 2
+    levels: dict[str, float] = {}
+    falls: dict[str, float] = {}
+    for voice, steps in hits.items():
+        if not steps or voice not in _TONE_VOICE:
+            continue
+        env = _band_envelope(band(y, sr, *VOICE_BANDS[_TONE_VOICE[voice]]), sr)
+        times = sorted(grid.time_of(bar, step) for bar, step in steps)
+        peaks, falls_ms = [], []
+        for k, t in enumerate(times):
+            lo, hi = max(0, round((t - half) * sr / hop)), min(len(env), round((t + half) * sr / hop) + 1)
+            if hi <= lo:
+                continue
+            peak = lo + int(np.argmax(env[lo:hi]))
+            if env[peak] <= 0:
+                continue
+            until = round((times[k + 1] - half) * sr / hop) if k + 1 < len(times) else None
+            peaks.append(20 * np.log10(env[peak]))
+            falls_ms.append(_fall_ms(env, peak, until))
+        if peaks:
+            levels[voice] = round(float(np.median(peaks)), 1)
+            falls[voice] = round(float(np.median(falls_ms)), 1)
+    return DrumTone(levels=levels, falls=falls) if levels else None

@@ -37,6 +37,35 @@ PYIN_RESOLUTION = 0.2
 # of pyin's 186 ms frame, and on a real stem (Solomun, steps 5/7/13) its frames read 0.02-0.15 while
 # pitch was tracked correctly, so those hits were dropped as rests.
 VOICED_PROB = 0.02
+# A step whose voiced frames' median probability is under this is not pyin's to call: the 48:50 Solomun
+# clip's beat 4, a D#2 as loud as any note in the bar, reads an octave down at 0.01-0.09 (YIN's trough at
+# the double period) while a plain spectrum has the fundamental as its strongest peak. Such a step, when
+# loud enough to be a note, takes its pitch from the harmonic product spectrum instead.
+PYIN_CONFIDENT = 0.3
+HPS_HARMONICS = 3
+# The spectrum's window: the step and half a step either side, at least this long. A step further would
+# reach the next step's kick (its bleed lifted the D#1 partial under beat 4 of the 48:50 clip from 0.11
+# to 0.29 of the peak and swung the reading an octave down).
+HPS_WINDOW_SECONDS = 0.2
+HPS_MIN_SECONDS = 0.1  # under this a window cannot resolve a semitone at the bottom of the range
+# Only a step this loud (of the clip's loudest step) gets a second opinion: a quiet step pyin is unsure of
+# is a tail or bleed, and the spectrum would name a note for it (the 48:50 clip's tails read D#1 at -15 dB).
+HPS_LOUD = 0.4
+# The spectrum's candidate must be a real partial: at least this share of the window's strongest bin.
+# A tone outside FMIN..FMAX leaves only noise in the band, and noise never reaches it.
+HPS_PARTIAL = 0.2
+# Whether a pitch pyin heard an octave under the spectrum's is a real missing-fundamental reading: its odd
+# partials (the sub-octave itself, its third and fifth harmonics), which the octave above does not have,
+# against its even ones (the octave above and that note's harmonics), at least this ratio. Bleed under the
+# 48:50 clip's beat 4 reads 0.23; a sawtooth with a weak fundamental reads 0.31; a full one 0.66.
+HPS_SUPPORT = 0.3
+HPS_REFINE_PARTIAL = 0.06  # a harmonic this share of the strongest bin helps re-read the fundamental
+_HPS_FLOOR = 1e-3  # of the strongest bin: a factor under it is sidelobe leakage, not a harmonic
+_HPS_FFT = 1 << 15  # 0.34 Hz bins at PYIN_SR
+_EXACT_FFT = 1 << 13  # 1.35 Hz bins: with the peak interpolated, a cent at the third harmonic; every step pays for this one
+# The exact read must agree with pyin's within this, or pyin's stands: on retriggered 16ths the smeared peak reads
+# 27 cents sharp, which the "clear note" rule would then trust. pyin's bins are 20 cents wide, so a true offset passes.
+EXACT_TRUST_CENTS = 20.0
 # A same-pitch step is a retrigger when the short RMS around its start dips below this share of the
 # quieter of the two steps' levels. Synthetic retriggers (10 ms release + 10 ms attack) dip to 0.35
 # (G1 to G1) and 0.36 (G1 to G2); held notes and plucked tails stay at or above 0.89, and the
@@ -57,6 +86,9 @@ class BassGrid(BaseModel):
     steps_per_bar: int = STEPS_PER_BAR
     midi: list[list[int | None]]  # [bar][step]; None when unpitched or quiet
     starts: list[list[bool]]  # [bar][step]; a note starts here
+    hz: list[list[float | None]] = []  # [bar][step]; the fundamental the midi was rounded from, when heard
+    retriggers: list[list[bool]] = []  # [bar][step]; the short envelope dips at the step's start (a new attack)
+    tuning_cents: float = 0.0  # the clip's offset from 440 tuning, removed before the midi was rounded
 
 
 def _step_edges(grid: Grid) -> np.ndarray:
@@ -82,15 +114,147 @@ def _retriggered(env: np.ndarray, t: np.ndarray, edges: np.ndarray, i: int) -> b
     return float(around.min()) < RETRIGGER_DIP * min(float(np.median(before)), float(np.median(after)))
 
 
-def _strongest_midi(hz: np.ndarray, prob: np.ndarray) -> int:
-    """The semitone the frames hear most surely: the one with the largest summed voiced probability.
+def _spectrum(y: np.ndarray, sr: int) -> tuple[np.ndarray, np.ndarray]:
+    spectrum = np.abs(np.fft.rfft(np.asarray(y, dtype=np.float64) * np.hanning(len(y)), n=_HPS_FFT))
+    return spectrum, np.fft.rfftfreq(_HPS_FFT, 1.0 / sr)
 
-    Not the median: a step's frames reach into its neighbours, so a lone G2 between G1s holds G1 frames
-    too (weakly) and the median of two pitches is a third that nobody played.
+
+def _peak_near(spectrum: np.ndarray, freqs: np.ndarray, hz: float, width: float = 0.03) -> float:
+    band = (freqs >= hz * (1 - width)) & (freqs <= hz * (1 + width))
+    return float(spectrum[band].max()) if band.any() else 0.0
+
+
+def hps_midi(y: np.ndarray, sr: int) -> int | None:
+    """The semitone of `hps_hz`'s reading, or None."""
+    hz = hps_hz(y, sr)
+    return None if hz is None else int(np.round(librosa.hz_to_midi(hz)))
+
+
+def hps_hz(y: np.ndarray, sr: int) -> float | None:
+    """The strongest fundamental in `y`, in Hz, by a harmonic product spectrum over FMIN..FMAX.
+
+    The magnitude spectrum is multiplied by itself compressed by 2 and 3, so a fundamental is where its
+    harmonics line up and a dominant second harmonic does not win on its own. None when `y` is too short,
+    or when the candidate is not a real partial of the window (nothing in the range sounds).
+    """
+    if len(y) < HPS_MIN_SECONDS * sr:
+        return None
+    spectrum, freqs = _spectrum(y, sr)
+    # Each factor is floored, so a pure sine (no harmonics to line up) is not dragged flat by sidelobe leakage.
+    floored = np.maximum(spectrum, _HPS_FLOOR * spectrum.max())
+    product = np.ones_like(spectrum)
+    for k in range(1, HPS_HARMONICS + 1):
+        product[: len(spectrum) // k] *= floored[::k][: len(spectrum) // k]
+    band = (freqs >= FMIN) & (freqs <= FMAX)
+    candidate = freqs[band][np.argmax(product[band])]
+    # the peak itself is read from the raw spectrum within a semitone of the candidate
+    near = band & (freqs >= candidate / 2 ** (1 / 12)) & (freqs <= candidate * 2 ** (1 / 12))
+    peak = freqs[near][np.argmax(spectrum[near])]
+    if spectrum[near].max() < HPS_PARTIAL * spectrum.max():
+        return None
+    peak = _refined(spectrum, freqs, peak)
+    # A note under FMIN puts its harmonics in the band and would read an octave up: a real partial at half
+    # the candidate, under the floor, says the fundamental is out of range, so the step is a rest as for pyin.
+    if peak / 2 < FMIN and _peak_near(spectrum, freqs, peak / 2) >= HPS_PARTIAL * spectrum.max():
+        return None
+    return float(peak)
+
+
+def _refined(spectrum: np.ndarray, freqs: np.ndarray, hz: float, width: float = 0.04) -> float:
+    """The fundamental re-read from where its first three harmonics peak (each divided by its number, the median).
+
+    A short window's lobe at the bottom of the range meets its mirror at 0 Hz and pulls the fundamental's peak
+    down (C1 read B0 at 232 ms); the harmonics sit clear of it.
+    """
+    estimates = []
+    for k in range(1, HPS_HARMONICS + 1):
+        band = (freqs >= k * hz * (1 - width)) & (freqs <= k * hz * (1 + width))
+        if band.any() and spectrum[band].max() >= HPS_REFINE_PARTIAL * spectrum.max():
+            estimates.append(freqs[band][np.argmax(spectrum[band])] / k)
+    return float(np.median(estimates)) if estimates else hz
+
+
+def sub_octave_supported(y: np.ndarray, sr: int, midi: int) -> bool:
+    """Whether `midi`, heard an octave under the spectrum's candidate, is a missing-fundamental reading rather
+    than YIN's double-period error: its odd partials (itself, its third and fifth harmonics), which the octave
+    above does not have, weigh HPS_SUPPORT of its even ones (the octave above and that note's own harmonics).
+    Measured against the note's own partials, so loud bleed elsewhere in the window does not decide it."""
+    spectrum, freqs = _spectrum(y, sr)
+    hz = 440.0 * 2.0 ** ((midi - 69) / 12)
+    odd = sum(_peak_near(spectrum, freqs, k * hz) for k in (1, 3, 5))
+    even = sum(_peak_near(spectrum, freqs, k * hz) for k in (2, 4, 6))
+    return even > 0 and odd / even >= HPS_SUPPORT
+
+
+def _strongest_hz(hz: np.ndarray, prob: np.ndarray) -> float:
+    """The fundamental the frames hear most surely: the median Hz of the frames on the semitone with the
+    largest summed voiced probability.
+
+    Not the median of all frames: a step's frames reach into its neighbours, so a lone G2 between G1s holds
+    G1 frames too (weakly) and the median of two pitches is a third that nobody played.
     """
     semitones = np.round(librosa.hz_to_midi(hz)).astype(int)
     values = np.unique(semitones)
-    return int(values[np.argmax([prob[semitones == v].sum() for v in values])])
+    best = values[np.argmax([prob[semitones == v].sum() for v in values])]
+    return float(np.median(hz[semitones == best]))
+
+
+def _strongest_midi(hz: np.ndarray, prob: np.ndarray) -> int:
+    return int(np.round(librosa.hz_to_midi(_strongest_hz(hz, prob))))
+
+
+def _step_window(y: np.ndarray, edges: np.ndarray, i: int) -> np.ndarray:
+    """The audio of step i and half a step either side, at least HPS_WINDOW_SECONDS."""
+    step = edges[i + 1] - edges[i]
+    reach = max(step / 2, (HPS_WINDOW_SECONDS - step) / 2)
+    lo, hi = max(0, int((edges[i] - reach) * PYIN_SR)), int((edges[i + 1] + reach) * PYIN_SR)
+    return y[lo:hi]
+
+
+def _interpolated_peak(spectrum: np.ndarray, freqs: np.ndarray, band: np.ndarray) -> float:
+    """The frequency of the band's strongest bin, refined by a parabola through it and its neighbours."""
+    idx = np.flatnonzero(band)
+    k = int(idx[np.argmax(spectrum[idx])])
+    if 0 < k < len(spectrum) - 1:
+        a, b, c = spectrum[k - 1], spectrum[k], spectrum[k + 1]
+        denominator = a - 2 * b + c
+        shift = 0.5 * (a - c) / denominator if denominator != 0 else 0.0
+        return float(freqs[k] + shift * (freqs[1] - freqs[0]))
+    return float(freqs[k])
+
+
+def _exact_hz(y: np.ndarray, edges: np.ndarray, i: int, hz: float) -> float:
+    """The step's fundamental to the cent: the spectrum's peak within a semitone of `hz`, re-read from where its
+    first three harmonics peak (each interpolated and divided by its number, the median)."""
+    window = _step_window(y, edges, i)
+    if len(window) < HPS_MIN_SECONDS * PYIN_SR:
+        return hz
+    spectrum = np.abs(np.fft.rfft(np.asarray(window, dtype=np.float64) * np.hanning(len(window)), n=_EXACT_FFT))
+    freqs = np.fft.rfftfreq(_EXACT_FFT, 1.0 / PYIN_SR)
+    near = (freqs >= hz / 2 ** (1 / 12)) & (freqs <= hz * 2 ** (1 / 12))
+    if not near.any() or spectrum[near].max() < HPS_PARTIAL * spectrum.max():
+        return hz
+    base = _interpolated_peak(spectrum, freqs, near)
+    estimates = []
+    for k in range(1, HPS_HARMONICS + 1):
+        band = (freqs >= k * base * 0.96) & (freqs <= k * base * 1.04)
+        if band.any() and spectrum[band].max() >= HPS_REFINE_PARTIAL * spectrum.max():
+            estimates.append(_interpolated_peak(spectrum, freqs, band) / k)
+    exact = float(np.median(estimates)) if estimates else base
+    return exact if abs(1200 * np.log2(exact / hz)) <= EXACT_TRUST_CENTS else hz
+
+
+def _second_opinion(y: np.ndarray, edges: np.ndarray, i: int, pyin_hz: float | None) -> float | None:
+    """A loud step pyin is not sure of: the spectrum's reading (Hz), unless pyin's pitch is an octave under it
+    and the spectrum supports that octave (a missing fundamental), or pyin's reading stands on its own."""
+    window = _step_window(y, edges, i)
+    spectral = hps_hz(window, PYIN_SR)
+    if pyin_hz is None:
+        return spectral
+    pyin_midi = int(np.round(librosa.hz_to_midi(pyin_hz)))
+    if spectral is not None and int(np.round(librosa.hz_to_midi(spectral))) - pyin_midi == 12 and not sub_octave_supported(window, PYIN_SR, pyin_midi):
+        return spectral
+    return pyin_hz
 
 
 def bass_grid(y: np.ndarray, sr: int, grid: Grid) -> BassGrid:
@@ -122,31 +286,39 @@ def bass_grid(y: np.ndarray, sr: int, grid: Grid) -> BassGrid:
     # The median ignores the frames at a step's edges, which hear its neighbours.
     level = np.array([np.median(rms[f]) if len(f) else 0.0 for f in steps])
     floor = max(RMS_FLOOR * level[1:].max(initial=0.0), np.finfo(np.float32).tiny)  # the grid's own steps
-    midi: list[int | None] = []
+    hz: list[float | None] = []
     for i, (frames, loud) in enumerate(zip(steps, level)):
         heard = frames[voiced[frames]]
-        if loud >= floor and len(frames) and len(heard) >= VOICED_SHARE * len(frames):
-            midi.append(_strongest_midi(f0[heard], voiced_prob[heard]))
+        if loud < floor or not len(frames):
+            hz.append(None)
         else:
-            midi.append(None)
+            pyin_hz = _strongest_hz(f0[heard], voiced_prob[heard]) if len(heard) >= VOICED_SHARE * len(frames) else None
+            sure = pyin_hz is not None and np.median(voiced_prob[heard]) >= PYIN_CONFIDENT
+            if not sure and loud >= HPS_LOUD * level[1:].max(initial=0.0):
+                hz.append(_second_opinion(y, edges, i, pyin_hz))
+            else:
+                hz.append(pyin_hz)
     if not whole_before:
-        midi[0] = None
+        hz[0] = None
+    # pyin's pitch bins are 0.2 semitones wide and start at FMIN, so a step's Hz is re-read from its own
+    # spectrum (the step and half a step either side) around pyin's semitone: the clip's tuning needs cents.
+    for i, h in enumerate(hz):
+        if h is not None:
+            hz[i] = _exact_hz(y, edges, i, h)
+    midi: list[int | None] = [None if h is None else int(np.round(librosa.hz_to_midi(h))) for h in hz]
 
     starts = [False]
+    retriggers = [False]
     for i in range(1, len(midi)):
         m, prev = midi[i], midi[i - 1]
-        starts.append(
-            m is not None and (prev is None or prev % 12 != m % 12 or _retriggered(env, env_t, edges, i))
-        )
+        retrig = m is not None and prev is not None and prev % 12 == m % 12 and _retriggered(env, env_t, edges, i)
+        retriggers.append(retrig)
+        starts.append(m is not None and (prev is None or prev % 12 != m % 12 or retrig))
 
     spb = grid.steps_per_bar
-    midi, starts = midi[1:], starts[1:]
-    return BassGrid(
-        bars=grid.bars,
-        steps_per_bar=spb,
-        midi=[midi[b * spb : (b + 1) * spb] for b in range(grid.bars)],
-        starts=[starts[b * spb : (b + 1) * spb] for b in range(grid.bars)],
-    )
+    midi, starts, hz, retriggers = midi[1:], starts[1:], hz[1:], retriggers[1:]
+    rows = lambda xs: [xs[b * spb : (b + 1) * spb] for b in range(grid.bars)]  # noqa: E731
+    return BassGrid(bars=grid.bars, steps_per_bar=spb, midi=rows(midi), starts=rows(starts), hz=rows(hz), retriggers=rows(retriggers))
 
 
 def grid_to_notes(bg: BassGrid) -> list[Note]:

@@ -76,7 +76,7 @@ def test_run_rip_reports_every_stage_and_builds_a_result(tmp_path, tmp_wav):
     assert result.title == "Test House"
     assert result.analysis.four_on_the_floor and result.sounds.drum_bank == "tr909"
     assert result.analysis.key == "A minor" and result.analysis.bars >= 1
-    assert sorted(result.analysis.drums) == ["bd", "hh", "oh", "sd"]
+    assert sorted(result.analysis.drums) == ["bd", "gh", "hh", "oh", "sd"]
     assert result.analysis.bass and result.analysis.melody is None
     assert result.code.startswith("// ") and "setcpm(" in result.code
     assert result.tidied_code is None and result.tidy_error is None
