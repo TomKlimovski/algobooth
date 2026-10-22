@@ -1,5 +1,9 @@
 import { createStore } from 'solid-js/store';
 import type { Pattern } from '../library/api';
+import type { Layout } from './keys/bindings';
+
+/** A fresh empty layer each time: the store wraps what it holds in place, and EMPTY_LAYOUT is frozen. */
+const emptyLayout = (): Layout => ({ bindings: {} });
 
 export type DeckId = 'A' | 'B';
 
@@ -32,6 +36,20 @@ export interface DeckFields {
   pattern: Pattern | null;
   /** The file changed on disk while the deck had unsaved edits; shows the Reload / Keep mine bar. */
   diskChanged: boolean;
+  /**
+   * The live editor text, on every keystroke (`code` only follows evaluations). The key strip's lights
+   * are a derivation over it, so a hand edit relights them without an evaluation.
+   */
+  liveCode: string;
+  /** The pattern's own key layer, in memory: edits make the deck dirty, Save writes them. */
+  keys: Layout;
+  /** `keys` as last loaded or saved; null for a deck never pointed at a file. */
+  savedKeys: Layout | null;
+  /** The pattern line (its 1-based `n`) the keys act on; null when there is none yet. */
+  targetLine: number | null;
+  /** Key edits waiting for the next boundary, and the beats until it (null when nothing waits). */
+  queued: number;
+  beatsLeft: number | null;
 }
 
 export type DeckState = ReturnType<typeof createDeckState>;
@@ -49,6 +67,12 @@ export function createDeckState(id: DeckId) {
     savedCode: null,
     pattern: null,
     diskChanged: false,
+    liveCode: '',
+    keys: emptyLayout(),
+    savedKeys: null,
+    targetLine: null,
+    queued: 0,
+    beatsLeft: null,
   });
   return {
     state,
@@ -58,12 +82,21 @@ export function createDeckState(id: DeckId) {
     setCpm: (cpm: number) => set('cpm', cpm),
     setCodeCpm: (codeCpm: number) => set('codeCpm', codeCpm),
     setName: (name: string) => set('name', name),
-    /** Points the deck at a file (or none) and records what is on disk; clears any pending disk change. */
-    setFile: (filePath: string | null, savedCode: string | null, pattern: Pattern | null = null) =>
-      set({ filePath, savedCode, pattern, diskChanged: false }),
+    /**
+     * Points the deck at a file (or none) and records what is on disk; clears any pending disk change.
+     * The file's key layer comes with it, as both the working and the saved layer.
+     */
+    setFile: (filePath: string | null, savedCode: string | null, pattern: Pattern | null = null) => {
+      const keys = pattern?.keys ?? emptyLayout();
+      set({ filePath, savedCode, pattern, diskChanged: false, keys, savedKeys: keys });
+    },
     /** The deck's file was renamed or moved: same content, new path. */
     setFilePath: (filePath: string) => set('filePath', filePath),
     setPattern: (pattern: Pattern | null) => set('pattern', pattern),
     setDiskChanged: (diskChanged: boolean) => set('diskChanged', diskChanged),
+    setLiveCode: (liveCode: string) => set('liveCode', liveCode),
+    setKeys: (keys: Layout) => set('keys', keys),
+    setTargetLine: (targetLine: number | null) => set('targetLine', targetLine),
+    setQueue: (queued: number, beatsLeft: number | null) => set({ queued, beatsLeft }),
   };
 }

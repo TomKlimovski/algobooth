@@ -18,6 +18,8 @@ export interface BoothFields {
   sync: boolean;
   /** Transient footer notice, such as why Sync refused. */
   message: string | null;
+  /** Perform mode: both editors read-only, the letter keys play the performing deck's strip. */
+  perform: boolean;
 }
 
 export const DEFAULT_KNOBS: KnobValues = DEFAULT_DECK_CONTROLS;
@@ -34,6 +36,7 @@ export function createBoothState() {
     decks: { A: null, B: null },
     sync: false,
     message: null,
+    perform: false,
   });
   return {
     state,
@@ -43,5 +46,6 @@ export function createBoothState() {
     registerDeck: (id: DeckId, api: DeckApi) => set('decks', id, api),
     setSync: (on: boolean) => set('sync', on),
     setMessage: (message: string | null) => set('message', message),
+    setPerform: (perform: boolean) => set('perform', perform),
   };
 }

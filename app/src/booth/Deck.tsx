@@ -1,6 +1,6 @@
 import { createMemo, createSignal, onCleanup, onMount, Show } from 'solid-js';
 import { StrudelMirror } from '@strudel/codemirror';
-import { StateEffect } from '@codemirror/state';
+import { Compartment, EditorState, StateEffect } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { transpiler } from '@strudel/transpiler';
 import { getAudioContext, webaudioOutput } from '@strudel/webaudio';
@@ -11,6 +11,8 @@ import { evaluateExclusive } from '../engine/evalLock';
 import { initEngine } from '../engine/strudel';
 import { isDirty, newPatternDecision, onDiskChange, patternFromDeck, sameCode } from './deckFile';
 import { cpmFromCps, ORBIT, type DeckId, type DeckState } from './deckState';
+import { sameLayout } from './keys/bindings';
+import { REFUSED_ARG, REFUSED_LINE, type Edit } from './keys/press';
 import { insertAtCursor, methodDropExtension, type MethodDrag } from './methodDrop';
 import { SaveDialog, type SaveTarget } from './SaveDialog';
 import './deck.css';
@@ -39,6 +41,14 @@ export interface DeckApi {
   save(): Promise<boolean>;
   /** Inserts a method at the end of the cursor's line (the panel's double-click); false when refused. */
   insertSnippet(drag: MethodDrag): boolean;
+  /** Applies key edits (offsets into the current text) as one transaction, so one Cmd+Z undoes a batch. */
+  applyEdits(edits: Edit[], userEvent?: string): void;
+  /** Perform mode: read-only with no caret, and blurred so letters reach the key handler, not the text. */
+  setLocked(on: boolean): void;
+  /** Puts the cursor at the start of 1-based document line `n` (clamped) and focuses the editor. */
+  focusLine(n: number): void;
+  /** The cursor's document offset, so entering perform mode can target the line being edited. */
+  cursor(): number;
   /** The mirror's Cyclist. `beforeStart` runs (and is awaited) before its clock starts; `clock` is its zyklus clock. */
   scheduler: {
     cps: number;
@@ -67,7 +77,9 @@ const resumeAudio = () => getAudioContext().resume();
 /** Shown in the error slot when a method has nowhere to go. */
 const REFUSED = 'drop onto a pattern line';
 const REFUSED_FUNCTION = 'drop a function where a value goes: inside ( ), after a comma, or on a blank line';
-const REFUSALS = new Set([REFUSED, REFUSED_FUNCTION]);
+// The key strip's refusals too: the next drop or key edit makes them moot, like a drop's.
+const REFUSALS = new Set([REFUSED, REFUSED_FUNCTION, REFUSED_LINE, REFUSED_ARG]);
+const isRefusal = (error: string | null) => !!error && (REFUSALS.has(error) || error.startsWith('no snapshot on '));
 
 /** How long a failed save's message stays under the deck header. */
 const SAVE_ERROR_MS = 5000;
@@ -96,7 +108,10 @@ export function Deck(props: {
   const [dragOver, setDragOver] = createSignal(false);
   /** The live editor text (`deck.state.code` only follows evaluations). */
   const [editorCode, setEditorCode] = createSignal('');
-  const dirty = createMemo(() => isDirty(editorCode(), deck.state.savedCode, DEFAULT_CODE[id]));
+  // A changed key layer is an unsaved change too: Save writes it into the file.
+  const dirty = createMemo(
+    () => isDirty(editorCode(), deck.state.savedCode, DEFAULT_CODE[id]) || !sameLayout(deck.state.keys, deck.state.savedKeys),
+  );
   /** The open Save as dialog's answer; resolves null on cancel. */
   const [asking, setAsking] = createSignal<((target: SaveTarget | null) => void) | null>(null);
   const askTarget = () => new Promise<SaveTarget | null>((resolve) => setAsking(() => resolve));
@@ -178,7 +193,10 @@ export function Deck(props: {
     );
 
   const current = (name: string): Pattern =>
-    patternFromDeck({ name, code: mirror.code, codeCpm: deck.state.codeCpm }, deck.state.pattern ?? undefined);
+    patternFromDeck(
+      { name, code: mirror.code, codeCpm: deck.state.codeCpm, keys: deck.state.keys },
+      deck.state.pattern ?? undefined,
+    );
 
   /** Asks for a name and heading, writes a new file, and points the deck at it. Resolves false if cancelled. */
   const saveAs = async (): Promise<boolean> => {
@@ -248,6 +266,7 @@ export function Deck(props: {
     const initialCode = deck.state.code || DEFAULT_CODE[id];
     deck.setCode(initialCode);
     setEditorCode(initialCode);
+    deck.setLiveCode(initialCode);
     mirror = new StrudelMirror({
       root,
       id: 'deck-' + id,
@@ -284,18 +303,26 @@ export function Deck(props: {
         afterEval.forEach((f) => f());
       },
       // The repl's state carries the editor text on every edit; dirty tracking follows it.
-      onUpdateState: (s: { code: string }) => setEditorCode(s.code),
+      // The key strip's lights follow it too, through `liveCode`.
+      onUpdateState: (s: { code: string }) => {
+        setEditorCode(s.code);
+        deck.setLiveCode(s.code);
+      },
     });
     mirror.evaluate = lockedEvaluate;
     const refuse = (kind: MethodDrag['kind']) => deck.setError(kind === 'function' ? REFUSED_FUNCTION : REFUSED);
+    // Perform mode's lock. Both facets: readOnly alone still shows a caret and takes focus.
+    const lock = new Compartment();
+    const locked = (on: boolean) => [EditorState.readOnly.of(on), EditorView.editable.of(!on)];
     mirror.editor.dispatch({
       effects: StateEffect.appendConfig.of([
         methodDropExtension(() => mirror.editor, refuse),
-        // A drop is an interaction with this deck, like clicking in it: the deck becomes the library's target,
-        // and an earlier refusal no longer applies.
+        lock.of(locked(false)),
+        // A drop or a key press is an interaction with this deck, like clicking in it: the deck becomes the
+        // library's target, and an earlier refusal no longer applies.
         EditorView.updateListener.of((u) => {
-          if (!u.transactions.some((t) => t.isUserEvent('input.drop'))) return;
-          if (REFUSALS.has(deck.state.error ?? '')) deck.setError(null);
+          if (!u.transactions.some((t) => t.isUserEvent('input.drop') || t.isUserEvent('input.key'))) return;
+          if (isRefusal(deck.state.error)) deck.setError(null);
           props.onUse?.();
         }),
       ]),
@@ -304,6 +331,22 @@ export function Deck(props: {
       const ok = insertAtCursor(mirror.editor, drag);
       if (!ok) refuse(drag.kind);
       return ok;
+    };
+
+    const view = (): EditorView => mirror.editor;
+    const applyEdits = (edits: Edit[], userEvent = 'input.key') => {
+      if (edits.length === 0) return;
+      view().dispatch({ changes: edits.map((e) => ({ from: e.from, to: e.to, insert: e.insert })), userEvent });
+    };
+    const setLocked = (on: boolean) => {
+      view().dispatch({ effects: lock.reconfigure(locked(on)) });
+      if (on) view().contentDOM.blur();
+    };
+    const focusLine = (n: number) => {
+      const doc = view().state.doc;
+      const line = doc.line(Math.min(Math.max(Math.round(n), 1), doc.lines));
+      view().dispatch({ selection: { anchor: line.from }, scrollIntoView: true });
+      view().focus();
     };
 
     props.onReady?.({
@@ -316,11 +359,20 @@ export function Deck(props: {
       setFile: deck.setFile,
       filePath: () => deck.state.filePath,
       moveFile: deck.setFilePath,
-      unpointFile: () => deck.setFile(null, null),
+      // The key layer stays with the code (both now unsaved), as setFile alone would reset it.
+      unpointFile: () => {
+        const keys = deck.state.keys;
+        deck.setFile(null, null);
+        deck.setKeys(keys);
+      },
       diskChanged: (paths) => void diskChanged(paths),
       isDirty: dirty,
       save,
       insertSnippet,
+      applyEdits,
+      setLocked,
+      focusLine,
+      cursor: () => view().state.selection.main.head,
       scheduler: mirror.repl.scheduler,
       setCps: (cps) => mirror.repl.setCps(cps),
       afterEval,

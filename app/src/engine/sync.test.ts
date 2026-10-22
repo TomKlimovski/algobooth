@@ -1,56 +1,7 @@
 import { vi } from 'vitest';
-import type { DeckApi } from '../booth/Deck';
+import { fakeDeck } from '../test/fakeDeck';
 import { StartCancelled } from './evalLock';
 import { secondsToNextBoundary, SyncController } from './sync';
-
-type Clock = { duration?: number; minLatency?: number };
-
-/**
- * A DeckApi whose scheduler behaves like Cyclist where sync relies on it:
- * start() awaits beforeStart before it starts, and both start and stop fire onToggle.
- * The clock defaults to zero lead so the plan's cycle math reads directly;
- * `clock: null` drops it to exercise the fallback.
- */
-function fakeDeck(opts: { id?: 'A' | 'B'; started?: boolean; cps?: number; now?: number; clock?: Clock | null } = {}) {
-  const onToggle = new Set<(started: boolean) => void>();
-  const scheduler = {
-    cps: opts.cps ?? 0.5,
-    started: opts.started ?? false,
-    now: vi.fn(() => opts.now ?? 0),
-    clock: opts.clock === null ? undefined : (opts.clock ?? { duration: 0, minLatency: 0 }),
-    beforeStart: undefined as undefined | (() => unknown),
-    start: vi.fn(async () => {
-      await scheduler.beforeStart?.();
-      scheduler.started = true;
-      onToggle.forEach((f) => f(true));
-    }),
-    stop: vi.fn(() => {
-      scheduler.started = false;
-      onToggle.forEach((f) => f(false));
-    }),
-  };
-  const deck = {
-    id: opts.id ?? 'A',
-    evaluate: vi.fn(async () => {}),
-    stop: vi.fn(),
-    setCode: vi.fn(),
-    getCode: vi.fn(() => ''),
-    setName: vi.fn(),
-    setFile: vi.fn(),
-    diskChanged: vi.fn(),
-    filePath: vi.fn(() => null),
-    moveFile: vi.fn(),
-    unpointFile: vi.fn(),
-    isDirty: vi.fn(() => false),
-    save: vi.fn(async () => true),
-    insertSnippet: vi.fn(() => true),
-    scheduler,
-    setCps: vi.fn((cps: number) => { scheduler.cps = cps; }),
-    afterEval: new Set<() => void>(),
-    onToggle,
-  } satisfies DeckApi;
-  return deck;
-}
 
 type Timer = [() => void, number];
 const recordTimers = () => {

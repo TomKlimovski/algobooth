@@ -1,4 +1,4 @@
-import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
+import { createEffect, createSignal, For, on, onCleanup, onMount, Show } from 'solid-js';
 import { initEngine } from '../engine/strudel';
 import { LibraryTree } from '../library/LibraryTree';
 import type { LibraryStore } from '../library/store';
@@ -13,6 +13,8 @@ import { MasterStrip } from './MasterStrip';
 import { MethodPanel } from './MethodPanel';
 import { isTransportKey, transportAction } from './spaceToggle';
 import { DECK_CONTROLS, MASTER_CONTROLS } from '../engine/controlMap';
+import { settings, updateSettings } from '../settings/settings';
+import { KeyController } from './keys/KeyController';
 import './booth.css';
 
 const DECK_IDS: DeckId[] = ['A', 'B'];
@@ -116,6 +118,24 @@ export function Booth(props: {
   onMount(() => window.addEventListener('keydown', onKey));
   onCleanup(() => window.removeEventListener('keydown', onKey));
 
+  // The method keyboard: letters play the performing deck (the library's target) in perform mode.
+  const keys = new KeyController({
+    decks: () => booth.state.decks,
+    deckState: decks,
+    performing: () => props.library.state.target,
+    setPerforming: (id) => props.library.setTarget(id),
+    booth,
+    global: () => settings().keys,
+    setGlobal: (layout) => updateSettings({ ...settings(), keys: layout }),
+    quantise: () => settings().key_quantise,
+    boothShowing: () => ready() && (props.active?.() ?? true),
+  });
+  let uninstallKeys: (() => void) | undefined;
+  onMount(() => (uninstallKeys = keys.install(window)));
+  onCleanup(() => uninstallKeys?.());
+  // Every edit, by hand or by key, re-finds the target (by label, else by number) so it never points past the end.
+  for (const id of DECK_IDS) createEffect(on(() => decks[id].state.liveCode, () => keys.codeChanged(id), { defer: true }));
+
   const deckKnobs = (id: DeckId) => (
     <div class="booth-knobs" data-deck={id}>
       <For each={KNOBS}>
@@ -165,7 +185,10 @@ export function Booth(props: {
               {(id) => (
                 <Deck
                   state={decks[id]}
-                  onReady={(api) => booth.registerDeck(id, api)}
+                  onReady={(api) => {
+                    booth.registerDeck(id, api);
+                    keys.attach(id, api);
+                  }}
                   onDropPattern={(path) => loadDropped(path, id)}
                   target={props.library.state.target === id}
                   onUse={() => props.library.setTarget(id)}

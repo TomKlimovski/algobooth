@@ -1,0 +1,320 @@
+import { vi } from 'vitest';
+import { fakeDeck, type FakeDeck } from '../../test/fakeDeck';
+import { createBoothState } from '../boothState';
+import { createDeckState, type DeckId } from '../deckState';
+import type { Binding, Layout, MethodPart, Quantise } from './bindings';
+import { KeyController } from './KeyController';
+
+const LPENV: Binding = { kind: 'method', name: 'lpenv', snippet: '.lpenv(2)', argRange: [7, 8] };
+const FAST: Binding = { kind: 'method', name: 'fast', snippet: '.fast(2)', argRange: [6, 7] };
+const ROOM: MethodPart = { name: 'room', snippet: '.room(0.5)', argRange: [6, 9] };
+const CODE = 'setcpm(120/4)\ndrums: s("bd*4")\nhats: s("hh*8")';
+
+function setup(opts: { code?: string; started?: boolean; now?: number; cps?: number; quantise?: Quantise; global?: Layout } = {}) {
+  const deckState = { A: createDeckState('A'), B: createDeckState('B') };
+  const make = (id: DeckId): FakeDeck => {
+    const code = opts.code ?? CODE;
+    deckState[id].setLiveCode(code);
+    return fakeDeck({
+      id,
+      code,
+      started: opts.started ?? false,
+      now: opts.now ?? 0,
+      cps: opts.cps ?? 0.5,
+      onCode: (c) => deckState[id].setLiveCode(c),
+    });
+  };
+  const decks = { A: make('A'), B: make('B') };
+  const booth = createBoothState();
+  let performing: DeckId = 'A';
+  let global: Layout = opts.global ?? { bindings: { KeyQ: LPENV } };
+  const setPerforming = vi.fn((id: DeckId) => { performing = id; });
+  const setGlobal = vi.fn(async (l: Layout) => { global = l; });
+  const ctl = new KeyController({
+    decks: () => decks,
+    deckState,
+    performing: () => performing,
+    setPerforming,
+    booth,
+    global: () => global,
+    setGlobal,
+    quantise: () => opts.quantise ?? 'bar',
+    boothShowing: () => true,
+  });
+  return { ctl, decks, deckState, booth, setPerforming, setGlobal, a: decks.A, b: decks.B };
+}
+
+const tap = (ctl: KeyController, id: DeckId, slot: string) => {
+  ctl.press(id, slot);
+  ctl.release(id, slot);
+};
+
+beforeEach(() => vi.useFakeTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  document.body.innerHTML = '';
+});
+
+test('a tap on a stopped deck toggles the method on the target line, one Update each time', () => {
+  const { ctl, a, deckState } = setup();
+  ctl.togglePerform();
+  expect(deckState.A.state.targetLine).toBe(1);
+  tap(ctl, 'A', 'KeyQ');
+  expect(a.getCode()).toBe('setcpm(120/4)\ndrums: s("bd*4").lpenv(2)\nhats: s("hh*8")');
+  expect(a.applyEdits).toHaveBeenCalledTimes(1);
+  expect(a.applyEdits.mock.calls[0][1]).toBe('input.key');
+  expect(a.evaluate).toHaveBeenCalledTimes(1);
+  expect(a.evaluate).toHaveBeenCalledWith(false);
+  expect(ctl.shown('A').KeyQ?.on).toBe(true);
+  tap(ctl, 'A', 'KeyQ');
+  expect(a.getCode()).toBe(CODE);
+  expect(ctl.shown('A').KeyQ?.on).toBe(false);
+  expect(a.evaluate).toHaveBeenCalledTimes(2);
+});
+
+test('two presses inside one window cancel: no transaction and no Update (review focus 3)', () => {
+  const { ctl, a, deckState } = setup({ started: true, now: 0.25, cps: 0.5 });
+  ctl.togglePerform();
+  tap(ctl, 'A', 'KeyQ');
+  tap(ctl, 'A', 'KeyQ');
+  expect(ctl.shown('A').KeyQ?.pending).toBe(true);
+  expect(deckState.A.state.queued).toBe(2);
+  expect(deckState.A.state.beatsLeft).toBe(3);
+  vi.advanceTimersByTime(1500);
+  expect(a.getCode()).toBe(CODE);
+  expect(a.applyEdits).not.toHaveBeenCalled();
+  expect(a.evaluate).not.toHaveBeenCalled();
+  expect(ctl.shown('A').KeyQ?.pending).toBe(false);
+  vi.advanceTimersByTime(200);
+  expect(deckState.A.state.queued).toBe(0);
+  expect(deckState.A.state.beatsLeft).toBeNull();
+});
+
+test('a hold released before its boundary still auditions for one quantum', () => {
+  const { ctl, a } = setup({ started: true, now: 0.25, cps: 0.5 });
+  ctl.togglePerform();
+  ctl.press('A', 'KeyQ');
+  expect(ctl.shown('A').KeyQ?.held).toBe(true);
+  vi.advanceTimersByTime(300);
+  ctl.release('A', 'KeyQ');
+  expect(ctl.shown('A').KeyQ?.held).toBe(false);
+  vi.advanceTimersByTime(1200); // the bar line at 1.5 s
+  expect(a.getCode()).toContain('.lpenv(2)');
+  expect(a.evaluate).toHaveBeenCalledTimes(1);
+  a.scheduler.now.mockReturnValue(1); // the deck is on the bar line now: the revert waits a whole bar
+  vi.advanceTimersByTime(1000);
+  expect(a.getCode()).toContain('.lpenv(2)');
+  vi.advanceTimersByTime(1100);
+  expect(a.getCode()).toBe(CODE);
+  expect(a.evaluate).toHaveBeenCalledTimes(2);
+});
+
+test('a hold released after it landed reverts on the next boundary; a tap does not', () => {
+  const { ctl, a } = setup();
+  ctl.togglePerform();
+  ctl.press('A', 'KeyQ');
+  expect(a.getCode()).toContain('.lpenv(2)');
+  vi.advanceTimersByTime(300);
+  ctl.release('A', 'KeyQ');
+  expect(a.getCode()).toBe(CODE);
+  expect(a.evaluate).toHaveBeenCalledTimes(2);
+});
+
+test('a line key mutes and unmutes its own line, whatever the target', () => {
+  const { ctl, a } = setup();
+  ctl.togglePerform();
+  // Z and X are the derived line keys: drums, hats.
+  expect(ctl.shown('A').KeyX?.binding).toEqual({ kind: 'line', label: 'hats' });
+  expect(ctl.shown('A').KeyX?.on).toBe(true);
+  tap(ctl, 'A', 'KeyX');
+  expect(a.getCode()).toContain('\n_hats: s("hh*8")');
+  expect(ctl.shown('A').KeyX?.on).toBe(false);
+  tap(ctl, 'A', 'KeyX');
+  expect(a.getCode()).toBe(CODE);
+});
+
+test('a refusal shows in the error line and marks the key refused until the code changes', () => {
+  const { ctl, deckState, a } = setup({ code: 'drums: s("bd*4").\n  fast(2)+' });
+  ctl.togglePerform();
+  tap(ctl, 'A', 'KeyQ');
+  expect(deckState.A.state.error).toBe('this line cannot take a method');
+  expect(ctl.shown('A').KeyQ?.refused).toBe(true);
+  expect(a.evaluate).not.toHaveBeenCalled();
+  a.setCode('drums: s("bd*4")');
+  expect(ctl.shown('A').KeyQ?.refused).toBe(false);
+});
+
+test('a digit past the last line leaves the target; a recall with fewer lines clamps it (review focus 2)', () => {
+  const code = '$: s("bd")\n$: s("hh")\n$: s("cp")';
+  const { ctl, deckState, a } = setup({ code });
+  ctl.togglePerform();
+  ctl.selectLine('A', 3);
+  expect(deckState.A.state.targetLine).toBe(3);
+  expect(() => ctl.selectLine('A', 9)).not.toThrow();
+  expect(deckState.A.state.targetLine).toBe(3);
+  deckState.A.setKeys({ bindings: {}, snapshots: { F1: '$: s("bd")' } });
+  ctl.snapshot('A', 'F1', false);
+  expect(a.getCode()).toBe('$: s("bd")');
+  expect(deckState.A.state.targetLine).toBe(1);
+  expect(a.evaluate).toHaveBeenCalledTimes(1);
+});
+
+test('snapshots: save writes the current code into the pattern layer; an empty slot says so', () => {
+  const { ctl, deckState, a } = setup();
+  ctl.snapshot('A', 'F3', true);
+  expect(deckState.A.state.keys.snapshots?.F3).toBe(CODE);
+  ctl.snapshot('A', 'F2', false);
+  expect(deckState.A.state.error).toBe('no snapshot on F2');
+  expect(a.applyEdits).not.toHaveBeenCalled();
+});
+
+test('a nudge doubles or halves the argument on the target line', () => {
+  const { ctl, a } = setup();
+  ctl.togglePerform();
+  tap(ctl, 'A', 'KeyQ');
+  ctl.nudge('A', 'KeyQ', 'up');
+  expect(a.getCode()).toContain('.lpenv(4)');
+  ctl.nudge('A', 'KeyQ', 'down');
+  ctl.nudge('A', 'KeyQ', 'down');
+  expect(a.getCode()).toContain('.lpenv(1)');
+});
+
+describe('the key handler', () => {
+  const key = (code: string, init: KeyboardEventInit = {}, target: EventTarget = document.body, type = 'keydown') => {
+    const e = new KeyboardEvent(type, { code, bubbles: true, cancelable: true, ...init });
+    target.dispatchEvent(e);
+    return e;
+  };
+  let uninstall: () => void = () => {};
+  afterEach(() => uninstall());
+
+  test('letters do nothing outside perform mode; Escape enters it', () => {
+    const { ctl, a, booth } = setup();
+    uninstall = ctl.install(window);
+    const e = key('KeyQ');
+    expect(e.defaultPrevented).toBe(false);
+    expect(a.getCode()).toBe(CODE);
+    expect(key('Escape').defaultPrevented).toBe(true);
+    expect(booth.state.perform).toBe(true);
+    expect(key('KeyQ').defaultPrevented).toBe(true);
+    key('KeyQ', {}, document.body, 'keyup');
+    expect(a.getCode()).toContain('.lpenv(2)');
+    key('KeyQ', { shiftKey: true });
+    expect(a.getCode()).toContain('.lpenv(4)');
+    key('KeyQ', { ctrlKey: true });
+    expect(a.getCode()).toContain('.lpenv(2)');
+    const both = key('KeyQ', { ctrlKey: true, shiftKey: true });
+    expect(both.defaultPrevented).toBe(false);
+    expect(key('KeyQ', { altKey: true }).defaultPrevented).toBe(false);
+    expect(a.getCode()).toContain('.lpenv(2)');
+  });
+
+  test('Escape does not enter perform mode while the save dialog is open', () => {
+    const { ctl, booth } = setup();
+    uninstall = ctl.install(window);
+    const backdrop = document.createElement('div');
+    backdrop.className = 'save-backdrop';
+    document.body.append(backdrop);
+    key('Escape');
+    expect(booth.state.perform).toBe(false);
+  });
+
+  test('a form control keeps its keys, Meta passes through, Space is left to the transport (review focus 5)', () => {
+    const { ctl, a, booth } = setup();
+    uninstall = ctl.install(window);
+    key('Escape');
+    const input = document.createElement('input');
+    document.body.append(input);
+    expect(key('KeyQ', {}, input).defaultPrevented).toBe(false);
+    expect(a.getCode()).toBe(CODE);
+    expect(key('KeyQ', { metaKey: true }).defaultPrevented).toBe(false);
+    expect(key('Escape', { metaKey: true }).defaultPrevented).toBe(false);
+    expect(booth.state.perform).toBe(true);
+    expect(key('Space').defaultPrevented).toBe(false);
+    expect(key('KeyQ', { repeat: true }).defaultPrevented).toBe(false);
+    expect(a.getCode()).toBe(CODE);
+  });
+
+  test('digits pick the line, Tab the deck, F-keys work in both modes', () => {
+    const { ctl, deckState, setPerforming } = setup();
+    uninstall = ctl.install(window);
+    expect(key('F1', { shiftKey: true }).defaultPrevented).toBe(true);
+    expect(deckState.A.state.keys.snapshots?.F1).toBe(CODE);
+    expect(key('Digit2').defaultPrevented).toBe(false);
+    key('Escape');
+    expect(key('Digit2').defaultPrevented).toBe(true);
+    expect(deckState.A.state.targetLine).toBe(2);
+    expect(key('Tab').defaultPrevented).toBe(true);
+    expect(setPerforming).toHaveBeenCalledWith('B');
+    expect(deckState.B.state.targetLine).toBe(1);
+  });
+
+  test('blur releases what is down as a hold', () => {
+    const { ctl, a } = setup();
+    uninstall = ctl.install(window);
+    key('Escape');
+    key('KeyQ');
+    expect(a.getCode()).toContain('.lpenv(2)');
+    window.dispatchEvent(new Event('blur'));
+    expect(a.getCode()).toBe(CODE);
+  });
+});
+
+test('perform mode locks both editors, and leaving it focuses the performing deck at its target', () => {
+  const { ctl, a, b, booth } = setup();
+  a.cursor.mockReturnValue(CODE.indexOf('hats'));
+  ctl.togglePerform();
+  expect(booth.state.perform).toBe(true);
+  expect(a.setLocked).toHaveBeenCalledWith(true);
+  expect(b.setLocked).toHaveBeenCalledWith(true);
+  ctl.togglePerform();
+  expect(booth.state.perform).toBe(false);
+  expect(a.setLocked).toHaveBeenLastCalledWith(false);
+  expect(b.setLocked).toHaveBeenLastCalledWith(false);
+  expect(a.focusLine).toHaveBeenCalledWith(3); // hats: pattern line 2, document line 3
+  expect(b.focusLine).not.toHaveBeenCalled();
+});
+
+test('a drop writes to the layer that owns the slot', () => {
+  const { ctl, deckState, setGlobal } = setup();
+  deckState.A.setKeys({ bindings: { KeyW: FAST } });
+  ctl.drop('A', 'KeyW', ROOM);
+  expect(deckState.A.state.keys.bindings.KeyW).toEqual({ kind: 'macro', parts: [
+    { name: 'fast', snippet: '.fast(2)', argRange: [6, 7] }, ROOM,
+  ] });
+  expect(setGlobal).not.toHaveBeenCalled();
+  ctl.drop('A', 'KeyE', ROOM);
+  expect(setGlobal).toHaveBeenCalledWith({ bindings: { KeyQ: LPENV, KeyE: { kind: 'method', ...ROOM } } });
+});
+
+test('the menu: hide writes null into the pattern, clear on a global key removes it globally', () => {
+  const { ctl, deckState, setGlobal } = setup({ global: { bindings: { KeyQ: LPENV, KeyW: FAST } } });
+  ctl.menu('A', 'KeyQ', 'hide');
+  expect(deckState.A.state.keys.bindings.KeyQ).toBeNull();
+  expect(ctl.shown('A').KeyQ).toBeUndefined();
+  ctl.menu('A', 'KeyW', 'clear');
+  expect(setGlobal).toHaveBeenCalledWith({ bindings: { KeyQ: LPENV } });
+  ctl.menu('B', 'KeyQ', 'keep');
+  expect(deckState.B.state.keys.bindings.KeyQ).toEqual(LPENV);
+  ctl.menu('B', 'KeyQ', 'global');
+  expect(deckState.B.state.keys.bindings.KeyQ).toBeUndefined();
+});
+
+test('a move takes the binding to the other slot in its own layer', () => {
+  const { ctl, setGlobal } = setup();
+  ctl.move('A', 'KeyQ', 'KeyW');
+  expect(setGlobal).toHaveBeenCalledWith({ bindings: { KeyW: LPENV } });
+});
+
+test('Stop drops a pending queue; Play lands it at once', () => {
+  const { ctl, a } = setup({ started: true, now: 0.25 });
+  ctl.togglePerform();
+  tap(ctl, 'A', 'KeyQ');
+  a.scheduler.stop();
+  vi.advanceTimersByTime(3000);
+  expect(a.applyEdits).not.toHaveBeenCalled();
+  a.scheduler.started = true;
+  tap(ctl, 'A', 'KeyQ');
+  a.onToggle.forEach((f) => f(true));
+  expect(a.getCode()).toContain('.lpenv(2)');
+});
