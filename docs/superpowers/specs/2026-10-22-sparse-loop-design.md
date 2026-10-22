@@ -68,9 +68,8 @@ is the right tool (a step-grid special case of the self-similarity lag search); 
 - `solomun` (36:40): the loop is unchanged (its core bars contain the template). Its `_bass2` becomes
   the five build bars written out as a cycle instead of one voted bar, and `match_with_layer` rises.
 - `solomun2` (48:50), new, from the cached stems through `bass_fixture.py`: the loop
-  `[~ d#2@2 ~] [d#1@3 ~] [d#3@3 ~] ~` (the `d#3` is the tracker's reading in every bar: a possible
-  octave slip for Tom's ear; the loop path applies no median octave fold, and the match is
-  pitch-class only so it cannot see one) plus a one-bar `_bass2` variation, `~ [~ ~ c#1 ~] ~ [~ ~ f1 ~]`,
+  `[~ d#2@2 ~] [d#1@3 ~] [d#3@3 ~] ~` (the `d#3` is the tracker's reading in every bar; Tom confirmed
+  by ear that it is right, so the loop path stays without an octave fold) plus a one-bar `_bass2` variation, `~ [~ ~ c#1 ~] ~ [~ ~ f1 ~]`,
   for bars 4 to 5; the alternating beat-4 D# is a one-step stray and is dropped.
 - `build` (synthetic): its build bars are identical, so the variation is the same one bar as before.
 - Drum goldens: the 36:40 open hats become a one-bar loop (`[~ oh ~ ~] ~ [~ oh ~ ~] [~ ~ ~ oh]`) with
