@@ -1,9 +1,11 @@
-import { createStore } from 'solid-js/store';
+import { createStore, unwrap } from 'solid-js/store';
 import type { Pattern } from '../library/api';
 import type { Layout } from './keys/bindings';
 
 /** A fresh empty layer each time: the store wraps what it holds in place, and EMPTY_LAYOUT is frozen. */
 const emptyLayout = (): Layout => ({ bindings: {} });
+/** A plain deep copy, so the working layer, the saved layer and the file's own `keys` never share an object. */
+const copyLayout = (l: Layout): Layout => JSON.parse(JSON.stringify(unwrap(l)));
 
 export type DeckId = 'A' | 'B';
 
@@ -87,15 +89,16 @@ export function createDeckState(id: DeckId) {
      * The file's key layer comes with it, as both the working and the saved layer.
      */
     setFile: (filePath: string | null, savedCode: string | null, pattern: Pattern | null = null) => {
-      const keys = pattern?.keys ?? emptyLayout();
-      set({ filePath, savedCode, pattern, diskChanged: false, keys, savedKeys: keys });
+      const keys = pattern?.keys ? copyLayout(pattern.keys) : emptyLayout();
+      set({ filePath, savedCode, pattern, diskChanged: false, keys, savedKeys: copyLayout(keys) });
     },
     /** The deck's file was renamed or moved: same content, new path. */
     setFilePath: (filePath: string) => set('filePath', filePath),
     setPattern: (pattern: Pattern | null) => set('pattern', pattern),
     setDiskChanged: (diskChanged: boolean) => set('diskChanged', diskChanged),
     setLiveCode: (liveCode: string) => set('liveCode', liveCode),
-    setKeys: (keys: Layout) => set('keys', keys),
+    // Root-level, so the layer is replaced: the path form `set('keys', l)` would merge into the old object.
+    setKeys: (keys: Layout) => set({ keys }),
     setTargetLine: (targetLine: number | null) => set('targetLine', targetLine),
     setQueue: (queued: number, beatsLeft: number | null) => set({ queued, beatsLeft }),
   };

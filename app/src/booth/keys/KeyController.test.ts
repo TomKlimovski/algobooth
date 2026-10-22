@@ -1,3 +1,4 @@
+import { createStore } from 'solid-js/store';
 import { vi } from 'vitest';
 import { fakeDeck, type FakeDeck } from '../../test/fakeDeck';
 import { createBoothState } from '../boothState';
@@ -317,4 +318,67 @@ test('Stop drops a pending queue; Play lands it at once', () => {
   tap(ctl, 'A', 'KeyQ');
   a.onToggle.forEach((f) => f(true));
   expect(a.getCode()).toContain('.lpenv(2)');
+});
+
+test('Stop while a hold revert waits out its boundary reverts at once, and only once', () => {
+  const { ctl, a } = setup({ started: true, now: 0.25 });
+  ctl.togglePerform();
+  ctl.press('A', 'KeyQ');
+  vi.advanceTimersByTime(300);
+  ctl.release('A', 'KeyQ');
+  vi.advanceTimersByTime(1200); // lands on the bar; the revert waits lead + 20 ms before queueing
+  expect(a.getCode()).toContain('.lpenv(2)');
+  a.scheduler.stop();
+  expect(a.getCode()).toBe(CODE);
+  vi.advanceTimersByTime(5000);
+  expect(a.getCode()).toBe(CODE);
+  expect(a.evaluate).toHaveBeenCalledTimes(2);
+});
+
+test('Stop while a hold revert is queued runs it instead of discarding it; other presses are dropped', () => {
+  const { ctl, a } = setup({ started: true, now: 0.25 });
+  ctl.togglePerform();
+  tap(ctl, 'A', 'KeyQ');
+  vi.advanceTimersByTime(1500);
+  expect(a.getCode()).toContain('.lpenv(2)');
+  a.scheduler.now.mockReturnValue(1);
+  ctl.press('A', 'KeyX'); // hats muted at the next bar...
+  ctl.release('A', 'KeyX');
+  ctl.press('A', 'KeyQ'); // ...and a hold of Q, already on: its revert re-inserts it
+  vi.advanceTimersByTime(2000);
+  expect(a.getCode()).not.toContain('.lpenv(2)');
+  vi.advanceTimersByTime(300);
+  ctl.release('A', 'KeyQ');
+  tap(ctl, 'A', 'KeyZ'); // a plain press, queued with the revert
+  a.scheduler.stop();
+  expect(a.getCode()).toBe('setcpm(120/4)\ndrums: s("bd*4").lpenv(2)\n_hats: s("hh*8")');
+});
+
+test('a hold revert does nothing to code that no longer has what the hold put there', () => {
+  const { ctl, a } = setup({ started: true, now: 0.25 });
+  ctl.togglePerform();
+  ctl.press('A', 'KeyQ');
+  ctl.press('A', 'KeyX');
+  vi.advanceTimersByTime(1500);
+  expect(a.getCode()).toBe('setcpm(120/4)\ndrums: s("bd*4").lpenv(2)\n_hats: s("hh*8")');
+  a.scheduler.now.mockReturnValue(1);
+  vi.advanceTimersByTime(300);
+  ctl.release('A', 'KeyQ');
+  ctl.release('A', 'KeyX');
+  const loaded = 'drums: s("bd*2")\n_hats: s("oh*4")';
+  a.setCode(loaded); // another pattern, loaded before the bar
+  vi.advanceTimersByTime(2000);
+  // Q is not re-inserted; hats was muted by the hold, so its revert unmutes it.
+  expect(a.getCode()).toBe('drums: s("bd*2")\nhats: s("oh*4")');
+});
+
+test('a deck is hooked once, whether it arrives raw or through the booth store', () => {
+  const { ctl, a } = setup();
+  const [store] = createStore({ deck: a });
+  ctl.attach('A', store.deck);
+  ctl.attach('A', a);
+  ctl.lines('A');
+  ctl.snapshot('A', 'F1', true); // goes through api(), which attaches lazily
+  expect(a.onToggle.size).toBe(1);
+  expect(a.afterEval.size).toBe(1);
 });

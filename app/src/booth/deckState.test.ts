@@ -1,3 +1,6 @@
+import { unwrap } from 'solid-js/store';
+import type { Pattern } from '../library/api';
+import { sameLayout, type Layout } from './keys/bindings';
 import { cpmFromCps, createDeckState } from './deckState';
 test('eval error is stored per deck and cleared on next successful eval', () => {
   const d = createDeckState('A');
@@ -25,4 +28,24 @@ test('setFile points the deck at a file and clears a pending disk change', () =>
   d.setDiskChanged(true);
   d.setFile('mine/x.json', 'code');
   expect(d.state).toMatchObject({ filePath: 'mine/x.json', savedCode: 'code', pattern: null, diskChanged: false });
+});
+
+test('a key edit on a loaded deck differs from what was loaded, and leaves the file object alone', () => {
+  const d = createDeckState('A');
+  const keys: Layout = { bindings: { KeyQ: { kind: 'method', name: 'lpenv', snippet: '.lpenv(2)', argRange: [7, 8] } } };
+  const pattern = { name: 'p', code: 'x', cpm: 120, key: '', tags: [], source: { kind: 'mine' }, keys } as unknown as Pattern;
+  d.setFile('mine/p.json', 'x', pattern);
+  expect(sameLayout(d.state.keys, d.state.savedKeys)).toBe(true);
+  d.setKeys({ bindings: { ...unwrap(d.state.keys).bindings, KeyW: null } });
+  expect(sameLayout(d.state.keys, d.state.savedKeys)).toBe(false);
+  expect(Object.keys(d.state.savedKeys!.bindings)).toEqual(['KeyQ']);
+  expect(Object.keys(pattern.keys!.bindings)).toEqual(['KeyQ']);
+});
+
+test('a key edit on a deck with no file differs from the empty saved layer', () => {
+  const d = createDeckState('A');
+  d.setFile(null, null);
+  d.setKeys({ bindings: { KeyW: null } });
+  expect(sameLayout(d.state.keys, d.state.savedKeys)).toBe(false);
+  expect(d.state.savedKeys!.bindings).toEqual({});
 });

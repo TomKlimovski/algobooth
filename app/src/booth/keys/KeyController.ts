@@ -48,10 +48,19 @@ export interface ControllerDeps {
 export type ShownKey = Shown & { on: boolean; held: boolean; pending: boolean; refused: boolean };
 
 /** A press that may still be waiting in the queue, so a release knows whether its revert must wait for it. */
-interface Press { binding: Binding; ran: boolean; revert: boolean }
+interface Press {
+  binding: Binding;
+  ran: boolean;
+  revert: boolean;
+  /** Whether the key's effect was on after the press landed; null when it was refused (nothing to undo). */
+  after: boolean | null;
+}
+
+/** A hold's revert, queued or waiting out its boundary; `handle` is the wait's timer, null once queued. */
+interface Inverse { slot: string; job: Job; handle: ReturnType<typeof setTimeout> | null }
 
 /** A flush's working copy: each job reads and replaces `code`, so later jobs see earlier ones. */
-interface Work { code: string; refused: Set<string>; reasons: string[]; after: Array<{ slot: string; job: Job }> }
+interface Work { code: string; refused: Set<string>; reasons: string[]; after: Inverse[] }
 
 const DECK_IDS: DeckId[] = ['A', 'B'];
 const other = (id: DeckId): DeckId => (id === 'A' ? 'B' : 'A');
@@ -91,7 +100,10 @@ export class KeyController {
   private readonly keyboard = new Map<string, DeckId>();
   /** The target as last found, label included, so a code change re-finds it by name. */
   private readonly prev: Record<DeckId, { n: number; label: string | null } | null> = { A: null, B: null };
-  private readonly attached = new Map<DeckApi, () => void>();
+  /** Keyed by deck: the booth's store hands out a proxy of the api that `onReady` passes raw, so the object differs. */
+  private readonly attached = new Map<DeckId, { deck: DeckApi; detach: () => void }>();
+  /** Reverts not yet run, per deck, so a Stop can run them instead of discarding them with the queue. */
+  private readonly inverses: Record<DeckId, Set<Inverse>> = { A: new Set(), B: new Set() };
   private readonly deferred = new Set<ReturnType<typeof setTimeout>>();
   private ticker: ReturnType<typeof setTimeout> | null = null;
   private work: Work | null = null;
@@ -147,7 +159,7 @@ export class KeyController {
       this.deferred.clear();
       if (this.ticker !== null) this.clearTimer(this.ticker);
       this.ticker = null;
-      this.attached.forEach((detach) => detach());
+      this.attached.forEach(({ detach }) => detach());
       this.attached.clear();
     };
   }
@@ -157,14 +169,20 @@ export class KeyController {
    * and evaluations (the target is re-found). Idempotent; `api()` calls it for any deck it has not seen.
    */
   attach(id: DeckId, deck: DeckApi): void {
-    if (this.attached.has(deck)) return;
+    const raw = unwrap(deck);
+    const seen = this.attached.get(id);
+    if (seen?.deck === raw) return;
+    seen?.detach(); // a remounted deck: the old one's hooks go
     const toggled = (started: boolean) => (started ? this.queues[id].flushNow() : this.dropQueue(id));
     const evaluated = () => this.codeChanged(id);
-    deck.onToggle.add(toggled);
-    deck.afterEval.add(evaluated);
-    this.attached.set(deck, () => {
-      deck.onToggle.delete(toggled);
-      deck.afterEval.delete(evaluated);
+    raw.onToggle.add(toggled);
+    raw.afterEval.add(evaluated);
+    this.attached.set(id, {
+      deck: raw,
+      detach: () => {
+        raw.onToggle.delete(toggled);
+        raw.afterEval.delete(evaluated);
+      },
     });
   }
 
@@ -182,7 +200,7 @@ export class KeyController {
     const binding = this.layout(id)[slot]?.binding;
     if (!binding || !this.trackers[id].down(slot)) return;
     this.mark(this.down, id, slot, true);
-    const press: Press = { binding, ran: false, revert: false };
+    const press: Press = { binding, ran: false, revert: false, after: null };
     this.presses.set(`${id}|${slot}`, press);
     this.push(id, slot, this.toggleJob(id, slot, binding, press));
   }
@@ -414,8 +432,8 @@ export class KeyController {
     const press = this.presses.get(key);
     this.presses.delete(key);
     if (!held || !press) return;
-    if (press.ran) this.push(id, slot, this.toggleJob(id, slot, press.binding));
-    else press.revert = true;
+    if (!press.ran) press.revert = true;
+    else if (press.after !== null) this.queueInverse(id, this.inverse(id, slot, press.binding, !press.after));
   }
 
   /** A method or macro toggles on the target line; a line key flips its own line's underscore. */
@@ -429,9 +447,34 @@ export class KeyController {
       this.land(w, slot, outcome);
       if (!press) return;
       press.ran = true;
-      if (press.revert) w.after.push({ slot, job: this.toggleJob(id, slot, binding) });
+      press.after = outcome.ok ? outcome.on : null;
+      if (press.revert && press.after !== null) w.after.push(this.inverse(id, slot, binding, !press.after));
     };
     return job;
+  }
+
+  /**
+   * A hold's revert: brings the key back to `wanted` (on or off), and does nothing when the code already is
+   * there. A blind toggle would act on whatever the deck holds by then: a pattern loaded before the bar
+   * would gain the method the hold was auditioning on the old one.
+   */
+  private inverse(id: DeckId, slot: Slot, binding: Binding, wanted: boolean): Inverse {
+    const inv: Inverse = { slot, handle: null, job: () => {} };
+    inv.job = () => {
+      this.inverses[id].delete(inv);
+      const w = this.work!;
+      const lines = patternLines(w.code);
+      const line = binding.kind === 'line' ? lines.find((l) => l.label === binding.label) : this.targetIn(id, lines);
+      if (!line || isOn(w.code, line, binding) === wanted) return;
+      this.land(w, slot, binding.kind === 'line' ? flipMute(w.code, line) : toggle(w.code, line, binding));
+    };
+    return inv;
+  }
+
+  private queueInverse(id: DeckId, inv: Inverse): void {
+    inv.handle = null;
+    this.inverses[id].add(inv);
+    this.push(id, inv.slot, inv.job);
   }
 
   private land(w: Work, slot: Slot, outcome: Outcome): void {
@@ -473,7 +516,7 @@ export class KeyController {
       ...r,
       [id]: w.refused.size ? { slots: w.refused, code: deck.getCode(), target: ds.state.targetLine } : null,
     }));
-    w.after.forEach(({ slot, job }) => this.pushAfterBoundary(id, slot, job));
+    w.after.forEach((inv) => this.pushAfterBoundary(id, inv));
     this.countdown();
   }
 
@@ -482,23 +525,39 @@ export class KeyController {
    * landed on. The flush fires a clock lead before the bar line, so queueing at once would aim at that same
    * line and cancel the audition; a stopped deck has no bar line and reverts at once.
    */
-  private pushAfterBoundary(id: DeckId, slot: string, job: Job): void {
+  private pushAfterBoundary(id: DeckId, inv: Inverse): void {
     const deck = this.api(id);
-    if (!deck?.scheduler.started || this.deps.quantise() === 'now') return this.push(id, slot, job);
+    if (!deck?.scheduler.started || this.deps.quantise() === 'now') return this.queueInverse(id, inv);
     const clock = deck.scheduler.clock;
     const lead = (clock?.duration ?? DEFAULT_CLOCK_DURATION) + (clock?.minLatency ?? DEFAULT_MIN_LATENCY);
-    this.mark(this.pending, id, slot, true);
+    this.mark(this.pending, id, inv.slot, true);
+    this.inverses[id].add(inv);
     const setTimer = this.setTimer;
     const handle = setTimer(() => {
       this.deferred.delete(handle);
-      this.push(id, slot, job);
+      this.queueInverse(id, inv);
     }, lead * 1000 + REVERT_MARGIN_MS);
+    inv.handle = handle;
     this.deferred.add(handle);
   }
 
+  /**
+   * Stop: the queued presses are discarded (nothing to audition on silence), but a hold's revert runs now,
+   * whether it was queued or still waiting out its boundary, so a Stop never leaves an audition stuck on.
+   */
   private dropQueue(id: DeckId): void {
+    const reverts = [...this.inverses[id]];
+    this.inverses[id].clear();
+    const clearTimer = this.clearTimer;
+    for (const inv of reverts) {
+      if (inv.handle === null) continue;
+      clearTimer(inv.handle);
+      this.deferred.delete(inv.handle);
+    }
     this.queues[id].drop();
     this.pending[1]((p) => ({ ...p, [id]: new Set() }));
+    // The deck is stopped by now, so each push flushes at once.
+    reverts.forEach((inv) => this.queueInverse(id, inv));
     this.countdown();
   }
 
