@@ -66,13 +66,13 @@ function codeEnd(line: string, startsInTemplate: boolean): number | 'refuse' | '
  * the argument's range in the new code, for the editor to select.
  */
 export function insertAtLineEnd(code: string, lineIndex: number, drag: MethodDrag): { code: string; selection: [number, number] | null } | null {
-  const at = landing(code, lineIndex);
+  const at = landingOffset(code, lineIndex);
   if (at === null) return null;
   return { code: code.slice(0, at) + drag.snippet + code.slice(at), selection: argSelection(at, drag) };
 }
 
 /** The offset in `code` where a method dropped on line `lineIndex` goes, by the rules of `insertAtLineEnd`. */
-function landing(code: string, lineIndex: number): number | null {
+export function landingOffset(code: string, lineIndex: number): number | null {
   const lines = code.split('\n');
   // Template-literal state carries from the document start; each line's offset with it.
   const starts: boolean[] = [];
@@ -221,7 +221,7 @@ export function applyDrag(view: EditorView, offset: number, drag: MethodDrag): b
   let edit: Edit | null;
   if (drag.kind === 'function') edit = functionEdit(code, offset, drag);
   else {
-    const at = landing(code, view.state.doc.lineAt(offset).number - 1);
+    const at = landingOffset(code, view.state.doc.lineAt(offset).number - 1);
     edit = at === null ? null : { from: at, to: at, insert: drag.snippet, selection: argSelection(at, drag) };
   }
   if (edit === null) return false;
