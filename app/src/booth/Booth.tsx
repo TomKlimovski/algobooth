@@ -14,6 +14,7 @@ import { MethodPanel } from './MethodPanel';
 import { isTransportKey, transportAction } from './spaceToggle';
 import { DECK_CONTROLS, MASTER_CONTROLS } from '../engine/controlMap';
 import { settings, updateSettings } from '../settings/settings';
+import type { Quantise } from './keys/bindings';
 import { KeyController } from './keys/KeyController';
 import './booth.css';
 
@@ -21,6 +22,9 @@ const DECK_IDS: DeckId[] = ['A', 'B'];
 /** The small trim-style sliders; volume gets its own tall fader. */
 const KNOBS: KnobName[] = ['lpf', 'gain', 'reverb'];
 const MESSAGE_MS = 3000;
+const QUANTISE: Quantise[] = ['now', 'beat', 'bar'];
+/** The saved quantise, or the bar for a value this build does not know (a hand-edited or newer settings file). */
+const quantise = (): Quantise => (QUANTISE.includes(settings().key_quantise) ? settings().key_quantise : 'bar');
 
 export function Booth(props: {
   library: LibraryStore;
@@ -127,7 +131,7 @@ export function Booth(props: {
     booth,
     global: () => settings().keys,
     setGlobal: (layout) => updateSettings({ ...settings(), keys: layout }),
-    quantise: () => settings().key_quantise,
+    quantise,
     boothShowing: () => ready() && (props.active?.() ?? true),
   });
   let uninstallKeys: (() => void) | undefined;
@@ -194,6 +198,15 @@ export function Booth(props: {
                   onUse={() => props.library.setTarget(id)}
                   canDropPattern={() => props.library.canDrop({ deck: true })}
                   library={props.library}
+                  controller={keys}
+                  perform={() => booth.state.perform}
+                  performing={() => props.library.state.target === id}
+                  quantise={quantise}
+                  setQuantise={(q) =>
+                    void updateSettings({ ...settings(), key_quantise: q }).catch((e) =>
+                      flash(`Could not save settings: ${e instanceof Error ? e.message : String(e)}`),
+                    )
+                  }
                 />
               )}
             </For>

@@ -34,9 +34,10 @@ body {
 .booth-decks {
   flex: 1;
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 8px;
   padding: 8px;
+  /* A safety net for a very short window; the editors scroll inside their decks first. */
   overflow: auto;
 }
 .booth-decks .deck { flex: 1; min-width: 0; }

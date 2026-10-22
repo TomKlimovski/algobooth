@@ -1,4 +1,4 @@
-import { createMemo, createSignal, onCleanup, onMount, Show } from 'solid-js';
+import { createEffect, createMemo, createSignal, onCleanup, onMount, Show } from 'solid-js';
 import { StrudelMirror } from '@strudel/codemirror';
 import { Compartment, EditorState, StateEffect } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
@@ -11,7 +11,10 @@ import { evaluateExclusive } from '../engine/evalLock';
 import { initEngine } from '../engine/strudel';
 import { isDirty, newPatternDecision, onDiskChange, patternFromDeck, sameCode } from './deckFile';
 import { cpmFromCps, ORBIT, type DeckId, type DeckState } from './deckState';
-import { sameLayout } from './keys/bindings';
+import { sameLayout, type Quantise } from './keys/bindings';
+import type { KeyController } from './keys/KeyController';
+import { KeyStrip } from './keys/KeyStrip';
+import { lineGutterExtension, patternLineDecoration, refreshLines } from './keys/lineGutter';
 import { REFUSED_ARG, REFUSED_LINE, type Edit } from './keys/press';
 import { insertAtCursor, methodDropExtension, type MethodDrag } from './methodDrop';
 import { SaveDialog, type SaveTarget } from './SaveDialog';
@@ -83,6 +86,8 @@ const isRefusal = (error: string | null) => !!error && (REFUSALS.has(error) || e
 
 /** How long a failed save's message stays under the deck header. */
 const SAVE_ERROR_MS = 5000;
+/** The editor's font size, in px: small enough for two decks and a key strip to share the window. */
+const EDITOR_FONT_PX = 13;
 
 export function Deck(props: {
   state: DeckState;
@@ -97,6 +102,14 @@ export function Deck(props: {
   canDropPattern?: () => boolean;
   /** Where Save, Save as and disk reconciliation read and write; without it those buttons are disabled. */
   library?: LibraryStore;
+  /** The booth's method keyboard: the strip under the editor draws and drives it, the gutter shows its lines. */
+  controller: KeyController;
+  /** The booth is in perform mode. */
+  perform: () => boolean;
+  /** This deck is the one the letters play (the library's target). */
+  performing: () => boolean;
+  quantise: () => Quantise;
+  setQuantise: (q: Quantise) => void;
 }) {
   const deck = props.state;
   const id = deck.state.id;
@@ -258,6 +271,10 @@ export function Deck(props: {
     else deck.setDiskChanged(true);
   };
 
+  // Memoised: the gutter asks once per visible line, and each ask would otherwise re-parse the code.
+  const lines = createMemo(() => props.controller.lines(id));
+  const target = () => deck.state.targetLine;
+
   onMount(() => {
     fitCanvas();
     const resize = new ResizeObserver(fitCanvas);
@@ -310,6 +327,10 @@ export function Deck(props: {
       },
     });
     mirror.evaluate = lockedEvaluate;
+    // Strudel restores its own font size and line numbers from localStorage on construction, so a stale
+    // setting would come back on every mount; the deck's density wins. The pattern-line gutter replaces the numbers.
+    mirror.setFontSize(EDITOR_FONT_PX);
+    mirror.reconfigureExtension('isLineNumbersDisplayed', false);
     const refuse = (kind: MethodDrag['kind']) => deck.setError(kind === 'function' ? REFUSED_FUNCTION : REFUSED);
     // Perform mode's lock. Both facets: readOnly alone still shows a caret and takes focus.
     const lock = new Compartment();
@@ -318,6 +339,8 @@ export function Deck(props: {
       effects: StateEffect.appendConfig.of([
         methodDropExtension(() => mirror.editor, refuse),
         lock.of(locked(false)),
+        lineGutterExtension(lines, target),
+        patternLineDecoration(lines, target),
         // A drop or a key press is an interaction with this deck, like clicking in it: the deck becomes the
         // library's target, and an earlier refusal no longer applies.
         EditorView.updateListener.of((u) => {
@@ -334,6 +357,12 @@ export function Deck(props: {
     };
 
     const view = (): EditorView => mirror.editor;
+    // The lines follow `liveCode`, which updates after the editor's own update; redraw once they (or the target) move.
+    createEffect(() => {
+      lines();
+      target();
+      view().dispatch({ effects: refreshLines.of(null) });
+    });
     const applyEdits = (edits: Edit[], userEvent = 'input.key') => {
       if (edits.length === 0) return;
       view().dispatch({ changes: edits.map((e) => ({ from: e.from, to: e.to, insert: e.insert })), userEvent });
@@ -389,7 +418,7 @@ export function Deck(props: {
   return (
     <section
       class="deck"
-      classList={{ 'drop-target': dragOver() }}
+      classList={{ 'drop-target': dragOver(), performing: props.perform() && props.performing() }}
       data-deck={id}
       onDragOver={onDragOver}
       onPointerDown={() => props.onUse?.()}
@@ -407,6 +436,12 @@ export function Deck(props: {
         </span>
         <Show when={props.target}>
           <span class="deck-target" title="A double-click in the library loads here" aria-label="library target">◂ library</span>
+        </Show>
+        <Show when={deck.state.queued > 0}>
+          <span class="deck-countdown" role="status">next {props.quantise()} in {deck.state.beatsLeft}</span>
+        </Show>
+        <Show when={props.perform() && props.performing()}>
+          <span class="deck-perform">perform</span>
         </Show>
         <span class="deck-cpm">{deck.state.cpm} cpm</span>
       </header>
@@ -428,6 +463,15 @@ export function Deck(props: {
       </Show>
       <canvas class="deck-viz" ref={canvas} />
       <div class="deck-editor" ref={root} />
+      <KeyStrip
+        deck={id}
+        controller={props.controller}
+        state={deck}
+        perform={props.perform}
+        performing={props.performing}
+        quantise={props.quantise}
+        setQuantise={props.setQuantise}
+      />
       <div class="deck-error" role="alert">{deck.state.error}</div>
       <div class="deck-transport">
         <button class="deck-btn" classList={{ on: deck.state.playing }} onClick={play}>Play</button>
