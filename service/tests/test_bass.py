@@ -1,4 +1,7 @@
+from pathlib import Path
+
 import numpy as np
+import pytest
 
 from algorip.audio import SR
 from algorip.bass import candidates, choose_bass_loop, harmonic_ratio, transcribe_bass
@@ -6,11 +9,13 @@ from algorip.bassgrid import BassGrid
 from algorip.grid import Grid
 from algorip.key import Key
 from algorip.mini import loop_mini
+from algorip.schema import Analysis
 from algorip.notes import Note, monophonic, quantise, snap_to_key
-from tests.synth import bass_line
+from tests.synth import bass_line, decaying_bass
 
 G = Grid(bpm=120, first_downbeat=0.0, bars=1)   # step = 0.125 s
 AMIN = Key(tonic=9, mode="minor")
+GOLDEN = Path(__file__).parent / "golden"
 GMIN = Key(tonic=7, mode="minor")
 
 
@@ -140,3 +145,36 @@ def test_drifting_even_bars_over_a_steady_odd_bar_make_a_two_bar_loop():
     notes = [Note(bar=b, step=s, length=1, midi=midi[b][s]) for b in range(6) for s in steps[b]]
     loop = choose_bass_loop(bg, g, notes)
     assert loop is not None and loop.period == 2 and loop.layer is not None
+
+
+def test_a_flat_note_has_no_pluck_envelope_and_a_decaying_one_measures_its_fall():
+    from algorip.bass import bass_envelope
+    from algorip.sounds import choose_sounds
+
+    g = Grid(bpm=120, first_downbeat=0.0, bars=2)
+    line = [(b, s, 4, 31) for b in range(2) for s in (0, 4, 8, 12)]  # four beats a bar, each a whole beat (500 ms)
+    flat = transcribe_bass(bass_line(line, 120, 2), SR, g, GMIN)[1]
+    env = bass_envelope(bass_line(line, 120, 2), SR, flat, g)
+    assert env is not None and env.end_db > -3 and env.attack_ms < 30
+    plucked_audio = decaying_bass(line, 120, 2, decay_seconds=0.3)
+    plucked = transcribe_bass(plucked_audio, SR, g, GMIN)[1]
+    env = bass_envelope(plucked_audio, SR, plucked, g)
+    # 60 dB over 300 ms is 12 dB in 60 ms, and 20 dB by the end of a 500 ms note is far below the pluck threshold
+    assert env is not None and 40 <= env.decay_ms <= 80 and env.end_db < -12
+    assert bass_envelope(plucked_audio, SR, [], g) is None
+
+
+def test_choose_sounds_writes_an_envelope_only_for_a_pluck():
+    from algorip.schema import BassEnvelope
+    from algorip.sounds import choose_sounds
+
+    a = Analysis.model_validate_json((GOLDEN / "house.analysis.json").read_text())
+    assert choose_sounds(a.model_copy(update={"bass_envelope": None})).bass_envelope is None
+    held = a.model_copy(update={"bass_envelope": BassEnvelope(attack_ms=8, decay_ms=400, end_db=-2.0)})
+    assert choose_sounds(held).bass_envelope is None
+    pluck = a.model_copy(update={"bass_envelope": BassEnvelope(attack_ms=3, decay_ms=60, end_db=-20.0)})
+    e = choose_sounds(pluck).bass_envelope
+    assert e is not None and e.attack == 0.005 and e.decay == 0.06 and e.sustain == pytest.approx(0.1, abs=0.001)
+    loud_end = a.model_copy(update={"bass_envelope": BassEnvelope(attack_ms=12, decay_ms=150, end_db=-7.0)})
+    e = choose_sounds(loud_end).bass_envelope
+    assert e is not None and e.attack == 0.012 and e.sustain == pytest.approx(0.447, abs=0.001)

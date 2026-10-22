@@ -93,3 +93,16 @@ def test_a_voice_every_fourth_bar_is_written_as_a_four_bar_cycle():
     a = analysis(drums={"bd": [(b, s) for b in range(9) for s in (0, 4, 8, 12)], "sd": [], "hh": [], "oh": [(b, s) for b, steps in bars.items() for s in steps]}, bars=9)
     lines = drum_lines(a, choose_sounds(a))
     assert lines[-1] == f'hats: s("<[~ oh]*4 ~ ~ ~>").bank("{choose_sounds(a).drum_bank}")'
+
+
+def test_the_envelope_is_written_on_both_bass_lines_and_on_the_fallback_line():
+    from algorip.schema import Envelope
+
+    a = Analysis.model_validate_json((GOLDEN / "solomun.analysis.json").read_text())
+    s = choose_sounds(a).model_copy(update={"bass_envelope": Envelope(attack=0.005, decay=0.06, sustain=0.1)})
+    lines = bass_lines(a, s)
+    assert lines[0].endswith('.lpf(800).attack(0.005).decay(0.06).sustain(0.1)')
+    assert lines[-1].endswith('.lpf(800).attack(0.005).decay(0.06).sustain(0.1).gain(0.6)')
+    fallback = bass_lines(a.model_copy(update={"bass_loop": None}), s)
+    assert fallback[0].endswith('.attack(0.005).decay(0.06).sustain(0.1)')
+    assert not any('.attack(' in line for line in bass_lines(a, choose_sounds(a)))

@@ -291,7 +291,7 @@
       "bar": 0,
       "step": 12,
       "length": 2,
-      "midi": 27
+      "midi": 39
     },
     {
       "bar": 1,
@@ -313,9 +313,9 @@
     },
     {
       "bar": 1,
-      "step": 13,
-      "length": 1,
-      "midi": 27
+      "step": 12,
+      "length": 2,
+      "midi": 39
     },
     {
       "bar": 2,
@@ -334,6 +334,12 @@
       "step": 8,
       "length": 3,
       "midi": 51
+    },
+    {
+      "bar": 2,
+      "step": 12,
+      "length": 2,
+      "midi": 39
     },
     {
       "bar": 3,
@@ -397,9 +403,9 @@
     },
     {
       "bar": 4,
-      "step": 13,
-      "length": 1,
-      "midi": 27
+      "step": 12,
+      "length": 2,
+      "midi": 39
     },
     {
       "bar": 4,
@@ -408,7 +414,7 @@
       "midi": 29
     }
   ],
-  "bass_harmonics": 0.5738493578446389,
+  "bass_harmonics": 0.5732865130004448,
   "chords": [
     "D#",
     "Em",
@@ -438,6 +444,12 @@
           "step": 8,
           "length": 3,
           "midi": 51
+        },
+        {
+          "bar": 0,
+          "step": 12,
+          "length": 2,
+          "midi": 39
         }
       ]
     ],
@@ -461,8 +473,13 @@
       4,
       5
     ],
-    "match": 0.79,
-    "match_with_layer": 0.81
+    "match": 0.92,
+    "match_with_layer": 0.92
   },
-  "drum_summary": null
+  "drum_summary": null,
+  "bass_envelope": {
+    "attack_ms": 57.3,
+    "decay_ms": 134.2,
+    "end_db": -19.5
+  }
 }

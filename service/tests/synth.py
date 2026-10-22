@@ -193,6 +193,20 @@ def plucked_bass(notes: list[tuple[int, int, int, int]], bpm: float, bars: int, 
     return out.astype(np.float32)
 
 
+def decaying_bass(notes: list[tuple[int, int, int, int]], bpm: float, bars: int, decay_seconds: float) -> np.ndarray:
+    """Like bass_line, but each note is a pluck: a 10 ms attack, then an exponential fall of 60 dB over
+    decay_seconds from the note's start, cut at the note's end."""
+    out = np.zeros(_samples(bars * _bar_seconds(bpm)))
+    for bar, step, length, midi in notes:
+        start = _step_start(bar, step, bpm)
+        n = _step_start(bar, step + length, bpm) - start
+        env = np.exp(-_DECAY_60DB * np.arange(n) / _samples(decay_seconds))
+        attack = min(_samples(0.01), n)
+        env[:attack] *= np.arange(1, attack + 1) / attack
+        _place(out, start, _harmonic_tone(_midi_hz(midi), n, harmonics=6) * env)
+    return out.astype(np.float32)
+
+
 def swept_bass(notes: list[tuple[int, int, int, int]], bpm: float, bars: int, sweep_semitones: float, sweep_seconds: float) -> np.ndarray:
     """Like bass_line, but without the fundamental (harmonics 2..6) and each note starting sharp.
 

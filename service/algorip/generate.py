@@ -46,6 +46,9 @@ def bass_lines(a: Analysis, s: SoundChoice) -> list[str]:
     if not a.bass:
         return []
     lpf = f".lpf({s.bass_lpf})" if s.bass_lpf is not None else ""
+    # the measured pluck, when the stem's notes die before their end; a held bass gets none
+    e = s.bass_envelope
+    lpf += f".attack({e.attack:g}).decay({e.decay:g}).sustain({e.sustain:g})" if e is not None else ""
     loop = a.bass_loop
     if loop is None:
         return [f'bass: note("{notes_mini(fold_octaves(a.bass), a.bars)}").s("{s.bass_sound}"){lpf}']

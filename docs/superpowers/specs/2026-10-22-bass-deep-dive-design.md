@@ -24,23 +24,38 @@ Beat 4's D#2 has the strongest fundamental in the bar (77.5 Hz, harmonics at 0.4
 pyin reads it as D#1 at a voiced probability of 0.01 to 0.09 (an octave-down trough, under the gate),
 so the step is a rest in most bars and a one-16th stray in the others, which the loop finder drops.
 
-- `bass_grid` keeps pyin as the primary reading. For a step whose level is above the RMS floor but
-  whose pyin reading is not confident (fewer than `VOICED_SHARE` voiced frames, or a median voiced
-  probability under `PYIN_CONFIDENT = 0.3`), the pitch comes from a harmonic product spectrum of the
-  audio from half a step before the step to half a step after it (232 ms at 129 bpm, so a semitone
-  at 77 Hz is resolved once three harmonics are multiplied), limited to `FMIN`..`FMAX`, rounded to a
-  semitone. `snap_to_key` and the register fold apply afterwards as for any step.
-- A step that is confident in pyin is unchanged; the 36:40 golden's grid must not change.
-- Expected on 48:50: beat 4 reads D#2 on steps 12 to 14 in every bar and the loop becomes
-  `[~ d#2@2 ~] [d#1@3 ~] [d#3@3 ~] [d#2@3 ~]`.
+- `bass_grid` keeps pyin as the primary reading. A step within `HPS_LOUD = 0.4` (8 dB) of the clip's
+  loudest step whose pyin reading is not confident (fewer than `VOICED_SHARE` voiced frames, or a
+  median voiced probability under `PYIN_CONFIDENT = 0.3`) gets a second opinion from a harmonic
+  product spectrum (three harmonics) of the step and half a step either side, at least 200 ms,
+  limited to `FMIN`..`FMAX`; the fundamental is re-read from where its harmonics peak, so a short
+  window's lobe at the bottom of the range does not pull C1 down to B0. The second opinion is taken
+  when pyin heard nothing, or when pyin's pitch is an octave under it and that sub-octave's third
+  harmonic is not a real partial (`HPS_SUPPORT = 0.3` of the strongest bin: a missing fundamental
+  keeps pyin's reading, YIN's double-period error does not). A candidate that is not a partial
+  (`HPS_PARTIAL = 0.2`), or whose half is a partial under `FMIN`, is refused. `snap_to_key` and the
+  register fold apply afterwards as for any step.
+- Found while building: a window reaching a whole step either side takes in the next step's kick,
+  whose bleed lifts the sub-octave partial from 0.11 to 0.29 of the peak and swings the reading
+  down; quiet steps (tails 15 dB down) must not get a second opinion or the spectrum names notes for
+  them. Hence the loudness gate and the half-step window.
+- The 36:40 golden's loop line is unchanged. Six steps of its grid move an octave up to G2 (step 15
+  of bars 6 to 9 and step 1 of bars 8 and 9, all in the build, all loud, where pyin was unsure):
+  consistent with the loop's own `g2` on step 15, and the `_bass2` line follows.
+- On 48:50: beat 4 reads D#2 on steps 12 and 13 in every bar (step 14 is 18 dB down, under the
+  loudness gate) and the loop becomes `[~ d#2@2 ~] [d#1@3 ~] [d#3@3 ~] [d#2@2 ~ ~]`; the bass match
+  rises from 0.79 to 0.92.
 
 ## Change 2: a measured amplitude envelope on the bass lines (`bass.py`, `sounds.py`, `generate.py`)
 
 - `bass_envelope(y, sr, notes, grid) -> BassEnvelope | None` in `bass.py`, beside `harmonic_ratio`:
-  for each transcribed note, the short RMS envelope over the note's own span; `attack_ms` the time
-  from the note's start to its peak; `decay_ms` the time from the peak to 12 dB below it, capped at
-  the note's end; `end_db` the level at the note's end relative to its peak. The envelope is the
-  median of each over the notes; None with no notes. `Analysis` carries it as `bass_envelope`.
+  for each transcribed note, the RMS envelope (46 ms frames, so a low note's ripple does not read as
+  decay) over the note's own span; `attack_ms` the time from the note's onset (20 dB under its peak)
+  to its peak, on a 6 ms-frame envelope, since the long frame's own rise reads as a 46 ms attack and
+  the grid line sits tens of milliseconds before a real onset; `decay_ms` the time from the peak to
+  12 dB below it, capped at the note's end; `end_db` the level a frame before the note's end,
+  relative to its peak. The envelope is the median of each over the notes; None with no notes.
+  `Analysis` carries it as `bass_envelope`.
 - `choose_sounds` writes an envelope when the median note has fallen `PLUCK_DB = 6` dB or more by
   its end: `SoundChoice.bass_envelope = {attack, decay, sustain}` with attack in seconds (at least
   0.005), decay in seconds, sustain the end level as a linear gain (`10 ** (end_db / 20)`, at most

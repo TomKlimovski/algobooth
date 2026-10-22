@@ -50,6 +50,19 @@ def test_solomun_loop_from_its_grid():
     assert 'bass: note("[~ ~ g1@2] [~ g1 ~ g1] [~ ~ g1@2] [~ g1@2 g2]")' in (GOLDEN / "solomun.strudel").read_text()
 
 
+def test_solomun2_loop_has_its_fourth_beat_and_a_pluck():
+    bg = BassGrid.model_validate_json((GOLDEN / "solomun2.bassgrid.json").read_text())
+    a = Analysis.model_validate_json((GOLDEN / "solomun2.analysis.json").read_text())
+    g = Grid(bpm=a.bpm, first_downbeat=a.first_downbeat, bars=a.bars)
+    loop = choose_bass_loop(bg, g, a.bass)
+    # beat 4's D#2, which pyin read an octave down at no confidence, comes from the spectrum
+    assert loop_mini(loop.templates) == "[~ d#2@2 ~] [d#1@3 ~] [d#3@3 ~] [d#2@2 ~ ~]"
+    assert loop.match >= 0.9
+    # every note is a pluck: 12 dB down within about 130 ms, near silence by its end
+    assert a.bass_envelope is not None and 100 <= a.bass_envelope.decay_ms <= 170 and a.bass_envelope.end_db < -15
+    assert 'attack(' in (GOLDEN / "solomun2.strudel").read_text()
+
+
 def test_solomun_build_is_a_layer_of_g1_over_bars_5_to_9():
     bg = BassGrid.model_validate_json((GOLDEN / "solomun.bassgrid.json").read_text())
     a = Analysis.model_validate_json((GOLDEN / "solomun.analysis.json").read_text())
@@ -57,9 +70,10 @@ def test_solomun_build_is_a_layer_of_g1_over_bars_5_to_9():
     loop = choose_bass_loop(bg, g, a.bass)
     assert loop.layer is not None and loop.layer_bars == (5, 9)
     notes = [n for phase in loop.layer for n in phase]
-    # the build is written bar by bar (it fills in gradually): the root G1 almost throughout, one G2 at bar 6's downbeat
+    # the build is written bar by bar (it fills in gradually): the root G1 mostly, G2 where the spectrum's
+    # second opinion lifts the tracker's unsure sub-octave (step 15, as in the loop's own g2, and two downbeats)
     assert notes and all(n.midi % 12 == 7 for n in notes)  # all G
-    assert sum(n.midi == 31 for n in notes) >= 0.9 * len(notes)
+    assert sum(n.midi == 31 for n in notes) >= 0.75 * len(notes)
     assert sum(n.length for n in notes) >= 4  # at least a beat of the bar
     # Over its own bars the layer closes most of the gap. match_with_layer stacks it over every bar
     # (the spec's measure: what unmuting _bass2 plays), and bars 1-4 do not carry it, so there it is

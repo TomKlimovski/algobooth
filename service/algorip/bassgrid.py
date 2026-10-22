@@ -43,16 +43,21 @@ VOICED_PROB = 0.02
 # loud enough to be a note, takes its pitch from the harmonic product spectrum instead.
 PYIN_CONFIDENT = 0.3
 HPS_HARMONICS = 3
-# The spectrum's window: the step and one step either side, and at least this long, since a 232 ms Hann
-# window reads C1 as B0 (its lobe meets its mirror at 0 Hz) while 350 ms resolves the whole range.
-HPS_WINDOW_SECONDS = 0.35
+# The spectrum's window: the step and half a step either side, at least this long. A step further would
+# reach the next step's kick (its bleed lifted the D#1 partial under beat 4 of the 48:50 clip from 0.11
+# to 0.29 of the peak and swung the reading an octave down).
+HPS_WINDOW_SECONDS = 0.2
 HPS_MIN_SECONDS = 0.1  # under this a window cannot resolve a semitone at the bottom of the range
+# Only a step this loud (of the clip's loudest step) gets a second opinion: a quiet step pyin is unsure of
+# is a tail or bleed, and the spectrum would name a note for it (the 48:50 clip's tails read D#1 at -15 dB).
+HPS_LOUD = 0.4
 # The spectrum's candidate must be a real partial: at least this share of the window's strongest bin.
 # A tone outside FMIN..FMAX leaves only noise in the band, and noise never reaches it.
 HPS_PARTIAL = 0.2
-# Whether a pitch pyin heard an octave under the spectrum's is a real missing-fundamental reading: a
-# peak at its third harmonic, which the octave above does not have, at least this share of the strongest bin.
-HPS_SUPPORT = 0.1
+# Whether a pitch pyin heard an octave under the spectrum's is a real missing-fundamental reading: a peak
+# at its third harmonic, which the octave above does not have, at least this share of the strongest bin.
+# 0.1 was met by bleed under the 48:50 clip's beat 4 (0.2 to 0.27); a real third harmonic is about 0.5.
+HPS_SUPPORT = 0.3
 _HPS_FFT = 1 << 15  # 0.34 Hz bins at PYIN_SR
 # A same-pitch step is a retrigger when the short RMS around its start dips below this share of the
 # quieter of the two steps' levels. Synthetic retriggers (10 ms release + 10 ms attack) dip to 0.35
@@ -126,11 +131,26 @@ def hps_midi(y: np.ndarray, sr: int) -> int | None:
     peak = freqs[band][np.argmax(product[band])]
     if _peak_near(spectrum, freqs, peak) < HPS_PARTIAL * spectrum.max():
         return None
+    peak = _refined(spectrum, freqs, peak)
     # A note under FMIN puts its harmonics in the band and would read an octave up: a real partial at half
     # the candidate, under the floor, says the fundamental is out of range, so the step is a rest as for pyin.
     if peak / 2 < FMIN and _peak_near(spectrum, freqs, peak / 2) >= HPS_PARTIAL * spectrum.max():
         return None
     return int(np.round(librosa.hz_to_midi(peak)))
+
+
+def _refined(spectrum: np.ndarray, freqs: np.ndarray, hz: float, width: float = 0.04) -> float:
+    """The fundamental re-read from where its first three harmonics peak (each divided by its number, the median).
+
+    A short window's lobe at the bottom of the range meets its mirror at 0 Hz and pulls the fundamental's peak
+    down (C1 read B0 at 232 ms); the harmonics sit clear of it.
+    """
+    estimates = []
+    for k in range(1, HPS_HARMONICS + 1):
+        band = (freqs >= k * hz * (1 - width)) & (freqs <= k * hz * (1 + width))
+        if band.any() and spectrum[band].max() >= HPS_SUPPORT * HPS_PARTIAL * spectrum.max():
+            estimates.append(freqs[band][np.argmax(spectrum[band])] / k)
+    return float(np.median(estimates)) if estimates else hz
 
 
 def sub_octave_supported(y: np.ndarray, sr: int, midi: int) -> bool:
@@ -203,10 +223,11 @@ def bass_grid(y: np.ndarray, sr: int, grid: Grid) -> BassGrid:
             midi.append(None)
         else:
             pyin_midi = _strongest_midi(f0[heard], voiced_prob[heard]) if len(heard) >= VOICED_SHARE * len(frames) else None
-            if pyin_midi is not None and np.median(voiced_prob[heard]) >= PYIN_CONFIDENT:
-                midi.append(pyin_midi)
-            else:
+            sure = pyin_midi is not None and np.median(voiced_prob[heard]) >= PYIN_CONFIDENT
+            if not sure and loud >= HPS_LOUD * level[1:].max(initial=0.0):
                 midi.append(_second_opinion(y, edges, i, pyin_midi))
+            else:
+                midi.append(pyin_midi)
     if not whole_before:
         midi[0] = None
 

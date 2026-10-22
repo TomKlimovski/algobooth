@@ -33,5 +33,12 @@
     "step": 8,
     "length": 3,
     "note": "d#3"
+  },
+  {
+    "line": "bass",
+    "cycle": 0,
+    "step": 12,
+    "length": 2,
+    "note": "d#2"
   }
 ]

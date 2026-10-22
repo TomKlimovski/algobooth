@@ -92,7 +92,9 @@ def test_hps_midi_reads_the_fundamental_even_under_a_louder_second_harmonic():
     # D#2 (39): the 48:50 clip's beat 4, which pyin reads an octave down at no confidence
     assert hps_midi(_tone(39, 0.35, (1.0, 0.5, 0.2, 0.2)), PYIN_SR) == 39
     assert hps_midi(_tone(39, 0.35, (0.5, 1.0, 0.3)), PYIN_SR) == 39
-    assert hps_midi(_tone(24, 0.35, (1.0, 0.5)), PYIN_SR) == 24  # C1, at FMIN's edge: 350 ms resolves it, 232 reads B0
+    assert hps_midi(_tone(24, 0.35, (1.0, 0.5)), PYIN_SR) == 24  # C1, at FMIN's edge
+    assert hps_midi(_tone(24, 0.232, (1.0, 0.5)), PYIN_SR) == 24  # ...even in a 232 ms window, re-read from its harmonics
+    assert hps_midi(_tone(26, 0.232, (1.0, 0.5)), PYIN_SR) == 26
     assert hps_midi(_tone(51, 0.35, (1.0, 0.3)), PYIN_SR) == 51  # D#3, a semitone resolved against E3
     assert hps_midi(np.zeros(100, dtype=np.float32), PYIN_SR) is None  # too short to resolve a bass note
     assert hps_midi(_tone(70, 0.35, (1.0, 0.3)), PYIN_SR) is None  # out of the bass range: nothing in the band is a partial
@@ -123,6 +125,23 @@ def test_a_loud_step_pyin_cannot_voice_gets_its_pitch_from_the_spectrum(monkeypa
     assert bg.midi[0] == [39] * 16
 
 
-def test_a_quiet_step_never_gets_a_fallback_pitch():
+def test_a_quiet_step_never_gets_a_fallback_pitch(monkeypatch):
     bg = bass_grid(bass_line([(0, 0, 4, 39)], BPM, 1), SR, Grid(bpm=BPM, first_downbeat=0.0, bars=1))
     assert bg.midi[0][:4] == [39] * 4 and bg.midi[0][4:] == [None] * 12
+    # a step a quarter as loud as the loudest, which pyin cannot voice at all: a tail, and still a rest
+    import librosa
+
+    from algorip import bassgrid
+
+    real = librosa.pyin
+
+    def deaf_after_half(y, **kw):
+        f0, vf, vp = real(y, **kw)
+        vf[len(f0) // 2 :] = False
+        vp[len(f0) // 2 :] = 0.01
+        return f0, vf, vp
+
+    monkeypatch.setattr(bassgrid.librosa, "pyin", deaf_after_half)
+    y = bass_line([(0, 0, 8, 39)], BPM, 1) + 0.25 * bass_line([(0, 8, 8, 39)], BPM, 1)
+    bg = bass_grid(y, SR, Grid(bpm=BPM, first_downbeat=0.0, bars=1))
+    assert bg.midi[0][:8] == [39] * 8 and bg.midi[0][8:] == [None] * 8

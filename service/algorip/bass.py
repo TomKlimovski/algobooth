@@ -2,6 +2,7 @@
 
 from collections import Counter
 
+import librosa
 import numpy as np
 
 from algorip.bassgrid import BassGrid, bass_grid, grid_to_notes
@@ -10,7 +11,7 @@ from algorip.key import Key
 from algorip.loop import find_loop
 from algorip.mini import OCTAVE, one_per_step, loop_mini, template_note
 from algorip.notes import Note, fold_octaves, snap_to_key
-from algorip.schema import BassLoop
+from algorip.schema import BassEnvelope, BassLoop
 from algorip.score import expand, score
 
 BASS_LOW = 24  # C1
@@ -174,6 +175,54 @@ def choose_bass_loop(bg: BassGrid, grid: Grid, notes: list[Note]) -> BassLoop | 
         layer_bars=layer_bars,
         match=match,
         match_with_layer=match_with_layer,
+    )
+
+
+ENVELOPE_HOP = 64  # 2.9 ms at the service rate; a pluck's 12 dB fall takes about 100 ms
+ENVELOPE_FRAME = 1024  # 46 ms: two periods of a low bass note, so its ripple does not read as decay
+ATTACK_FRAME = 128  # 5.8 ms: the long frame's own rise would read as a 46 ms attack on an instant onset
+DECAY_DB = 12.0
+
+
+def bass_envelope(y: np.ndarray, sr: int, notes: list[Note], grid: Grid) -> BassEnvelope | None:
+    """The median attack, decay and end level of the stem's notes, each measured on the note's own span.
+
+    Attack is the time from the note's onset (20 dB under its peak) to its peak RMS; decay the time from the
+    peak to DECAY_DB below it, capped at the note's end; end_db the level at the note's end relative to the
+    peak. None with no notes.
+    """
+    if not notes:
+        return None
+    y32 = np.asarray(y, dtype=np.float32)
+    env = librosa.feature.rms(y=y32, frame_length=ENVELOPE_FRAME, hop_length=ENVELOPE_HOP)[0]
+    fast = librosa.feature.rms(y=y32, frame_length=ATTACK_FRAME, hop_length=ENVELOPE_HOP)[0]
+    times = librosa.frames_to_time(np.arange(len(env)), sr=sr, hop_length=ENVELOPE_HOP)
+    attacks, decays, ends = [], [], []
+    for note in notes:
+        start = grid.time_of(note.bar, note.step)
+        end = grid.time_of(note.bar, note.step + note.length)
+        lo, hi = np.searchsorted(times, [start, end])
+        span = env[lo:hi]
+        if len(span) < 2 or span.max() <= 0:
+            continue
+        db = 20 * np.log10(span / span.max() + 1e-9)
+        # the peak is where the envelope first comes within a decibel of its maximum: a flat note peaks at once
+        peak = int(np.flatnonzero(db >= -1.0)[0])
+        # the attack runs from the note's onset (20 dB under its peak) to its peak on the short-frame envelope,
+        # not from the grid line, which on a real stem sits tens of milliseconds before the sound
+        quick = fast[lo:hi]
+        qdb = 20 * np.log10(quick / quick.max() + 1e-9)
+        attacks.append((int(np.flatnonzero(qdb >= -1.0)[0]) - int(np.flatnonzero(qdb >= -20.0)[0])) * ENVELOPE_HOP / sr * 1000)
+        below = np.flatnonzero(db[peak:] <= -DECAY_DB)
+        decays.append(((below[0] if len(below) else len(db) - 1 - peak) * ENVELOPE_HOP / sr) * 1000)
+        # the level just before the end, clear of the frame that straddles the note's own release
+        ends.append(float(db[max(peak, len(db) - 1 - ENVELOPE_FRAME // ENVELOPE_HOP)]))
+    if not attacks:
+        return None
+    return BassEnvelope(
+        attack_ms=round(float(np.median(attacks)), 1),
+        decay_ms=round(float(np.median(decays)), 1),
+        end_db=round(float(np.median(ends)), 1),
     )
 
 

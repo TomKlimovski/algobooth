@@ -21,6 +21,22 @@ class BassLoop(BaseModel):
     match_with_layer: float | None  # the loop plus the layer, over every bar
 
 
+class BassEnvelope(BaseModel):
+    """How the bass stem's notes shape over time, each a median over the transcribed notes."""
+
+    attack_ms: float  # from a note's start to its peak
+    decay_ms: float  # from the peak to 12 dB below it, capped at the note's end
+    end_db: float  # the level at the note's end, relative to its peak
+
+
+class Envelope(BaseModel):
+    """The amplitude envelope written on the bass lines, in Strudel's units."""
+
+    attack: float  # seconds
+    decay: float  # seconds
+    sustain: float  # a linear gain
+
+
 class DrumSummary(BaseModel):
     """The drum voices as loops, in brief: how long the longest loop is and how much of the hits they play."""
 
@@ -44,6 +60,7 @@ class Analysis(BaseModel):
     melody: list[Note] | None
     bass_loop: BassLoop | None = None
     drum_summary: DrumSummary | None = None
+    bass_envelope: BassEnvelope | None = None
 
 
 class SoundChoice(BaseModel):
@@ -54,6 +71,7 @@ class SoundChoice(BaseModel):
     chord_sound: str = "sawtooth"
     chord_lpf: int = 1200
     room: float = 0.4
+    bass_envelope: Envelope | None = None
 
 
 class RipRequest(BaseModel):

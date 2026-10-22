@@ -3,7 +3,7 @@ import { abGains, Audition, loopBounds } from './audition';
 
 const analysis = (over: Partial<Analysis> = {}): Analysis => ({
   bpm: 120, key: 'A minor', meter: '4/4', bars: 8, steps_per_bar: 16, first_downbeat: 0,
-  drums: {}, four_on_the_floor: true, bass: [], bass_harmonics: 0, chords: [], melody: null, bass_loop: null, drum_summary: null,
+  drums: {}, four_on_the_floor: true, bass: [], bass_harmonics: 0, bass_envelope: null, chords: [], melody: null, bass_loop: null, drum_summary: null,
   ...over,
 });
 
