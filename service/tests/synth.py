@@ -238,7 +238,7 @@ def filtered_bass(notes: list[tuple[int, int, int, int]], bpm: float, bars: int,
     block = _samples(0.005)
     lag = _samples(onset_lag_seconds)
     for bar, step, length, midi in notes:
-        start = _step_start(bar, step, bpm) + lag
+        start = max(0, _step_start(bar, step, bpm) + lag)  # a negative lag starts the note before its line
         n = _step_start(bar, step + length, bpm) - start
         if click and lag:
             tick = _noise(_samples(0.004), seed=bar * 16 + step) * 0.03

@@ -270,16 +270,17 @@ def bass_envelope(y: np.ndarray, sr: int, notes: list[Note], grid: Grid) -> Meas
     smear = _SMEAR / sr
     hop = ENVELOPE_HOP / sr
     attacks, holds, falls, ends, shares = [], [], [], [], []
+    quarter = grid.step_seconds * LOOKBACK_STEPS
     for note in notes:
         start = grid.time_of(note.bar, note.step)
         end = grid.time_of(note.bar, note.step + note.length)
-        lo, hi = np.searchsorted(times, [start, end])
-        span = env[lo:hi]
-        if len(span) < 2 or span.max() <= 0:
+        from_, lo, hi = np.searchsorted(times, [max(0.0, start - quarter), start, end])
+        span = env[from_:hi]
+        if len(span) < 2 + (lo - from_) or span.max() <= 0:
             continue
         db = 20 * np.log10(span / span.max() + 1e-9)
-        onset = int(np.flatnonzero(db >= ONSET_DB)[0])
-        top = int(np.flatnonzero(db >= HOLD_DB)[0])
+        onset = _onset_from(db, int(lo - from_), -ONSET_DB)
+        top = onset + int(np.flatnonzero(db[onset:] >= HOLD_DB)[0])
         hold_end = int(np.flatnonzero(db >= HOLD_DB)[-1])
         after = np.flatnonzero(db[hold_end:] <= ONSET_DB)
         fall_end = hold_end + (int(after[0]) if len(after) else len(db) - 1 - hold_end)
@@ -298,6 +299,9 @@ def bass_envelope(y: np.ndarray, sr: int, notes: list[Note], grid: Grid) -> Meas
 
 TONE_FFT = 2048
 TONE_HOP = 441  # 10 ms
+# Each note's span is cut this much before its grid line: with the grid on the kicks, a bass that leads
+# the kick starts a little before the line, and read from the line its filter is already closing.
+LOOKBACK_STEPS = 0.25
 ROLLOFF = 0.85
 ONSET_WITHIN_DB = 6.0  # the note sounds from the first frame this close to its loudest; the grid line comes earlier
 TONE_OPEN_FRAMES = 2  # the opening is read over this many frames from the onset
@@ -311,21 +315,30 @@ WOBBLE_DB = 3.0  # a periodic swing under this is not a tremolo
 WOBBLE_MIN_CYCLES = 1  # a span shorter than this many cycles of WOBBLE_LOW (200 ms) cannot resolve a rate
 
 
-def _sounding(x: np.ndarray, sr: int) -> tuple[np.ndarray, int, int] | None:
+def _onset_from(db: np.ndarray, lead: int, within_db: float) -> int:
+    """The first frame within within_db of the loudest, searched from frame 0 when the `lead` frames before the
+    grid line are all more than ONSET_WITHIN_DB under it (sound arriving early, as the bass that leads the kick
+    does), and from the line otherwise (a legato or retriggered note's predecessor is loud there)."""
+    start = 0 if lead > 0 and np.all(db[:lead] < -ONSET_WITHIN_DB) else lead
+    return start + int(np.flatnonzero(db[start:] >= -within_db)[0])
+
+
+def _sounding(x: np.ndarray, sr: int, lead: int = 0) -> tuple[np.ndarray, int, int] | None:
     """The 10 ms RMS envelope of a note's span, and the frames it sounds in: from the first frame within
-    ONSET_WITHIN_DB of its loudest to the last within 20 dB of it. None when there is nothing to hear."""
+    ONSET_WITHIN_DB of its loudest to the last within 20 dB of it. None when there is nothing to hear.
+    `lead` frames of x precede the note's grid line (see _onset_from)."""
     env = librosa.feature.rms(y=x, frame_length=TONE_FFT, hop_length=TONE_HOP, center=False)[0]
-    if len(env) < 4 or env.max() <= 0:
+    if len(env) < 4 + lead or env.max() <= 0:
         return None
     db = 20 * np.log10(env / env.max() + 1e-9)
-    onset = int(np.flatnonzero(db >= -ONSET_WITHIN_DB)[0])
+    onset = _onset_from(db, lead, ONSET_WITHIN_DB)
     last = int(np.flatnonzero(db >= -20.0)[-1])
     return env, onset, max(last, onset + 1)
 
 
-def _note_filter(x: np.ndarray, sr: int) -> tuple[float, float, float] | None:
+def _note_filter(x: np.ndarray, sr: int, lead: int = 0) -> tuple[float, float, float] | None:
     """(open_hz, hold_hz, close_ms) of one note, read from its onset, not from the grid line."""
-    heard = _sounding(x, sr)
+    heard = _sounding(x, sr, lead)
     if heard is None:
         return None
     _, onset, last = heard
@@ -343,10 +356,10 @@ def _note_filter(x: np.ndarray, sr: int) -> tuple[float, float, float] | None:
     return opening, hold, close
 
 
-def _note_wobble(x: np.ndarray, sr: int) -> tuple[float, float] | None:
+def _note_wobble(x: np.ndarray, sr: int, lead: int = 0) -> tuple[float, float] | None:
     """(rate_hz, swing_db) of the strongest periodic level wobble on a note's hold, with the hold's own slope
     (a closing filter, a decay) removed first; None when the hold is too short to resolve one or it is under WOBBLE_DB."""
-    heard = _sounding(x, sr)
+    heard = _sounding(x, sr, lead)
     if heard is None:
         return None
     _, onset, last = heard
@@ -381,20 +394,23 @@ def bass_tone(y: np.ndarray, sr: int, notes: list[Note], grid: Grid) -> BassTone
     if not notes:
         return None
     y32 = np.asarray(y, dtype=np.float32)
+    quarter = grid.step_seconds * LOOKBACK_STEPS
+    lead = int(quarter * sr / TONE_HOP)  # frames (center=False) before the line
     opens, holds, closes, rates, depths = [], [], [], [], []
     for note in notes:
         start = grid.time_of(note.bar, note.step)
         end = grid.time_of(note.bar, note.step + note.length)
-        x = y32[int(start * sr) : int(end * sr)]
-        if len(x) < 2 * TONE_FFT:
+        from_ = int((start - quarter) * sr)
+        x = y32[max(0, from_) : int(end * sr)]
+        if len(x) < 2 * TONE_FFT + lead * TONE_HOP:
             continue
-        measured = _note_filter(x, sr)
+        measured = _note_filter(x, sr, lead if from_ >= 0 else 0)
         if measured is None:
             continue
         opens.append(measured[0])
         holds.append(measured[1])
         closes.append(measured[2])
-        wobble = _note_wobble(x, sr)
+        wobble = _note_wobble(x, sr, lead if from_ >= 0 else 0)
         if wobble is not None:
             rates.append(wobble[0])
             depths.append(wobble[1])
