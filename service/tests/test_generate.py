@@ -101,10 +101,20 @@ def test_the_gate_is_written_on_both_bass_lines_and_on_the_fallback_line():
     a = Analysis.model_validate_json((GOLDEN / "solomun.analysis.json").read_text())
     s = choose_sounds(a).model_copy(update={"bass_envelope": StrudelEnvelope(attack=0.005, clip=0.5, release=0.04)})
     lines = bass_lines(a, s)
-    assert lines[0].endswith('.lpf(800).attack(0.005).clip(0.5).release(0.04)')
-    assert lines[-1].endswith('.lpf(800).attack(0.005).clip(0.5).release(0.04).gain(0.6)')
+    assert lines[0].endswith('.attack(0.005).clip(0.5).release(0.04)')
+    assert lines[-1].endswith('.attack(0.005).clip(0.5).release(0.04).gain(0.6)')
     fallback = bass_lines(a.model_copy(update={"bass_loop": None}), s)
     assert fallback[0].endswith('.attack(0.005).clip(0.5).release(0.04)')
     no_clip = choose_sounds(a).model_copy(update={"bass_envelope": StrudelEnvelope(attack=0.012, clip=None, release=0.025)})
-    assert bass_lines(a, no_clip)[0].endswith('.lpf(800).attack(0.012).release(0.025)')
+    assert bass_lines(a, no_clip)[0].endswith('.attack(0.012).release(0.025)')
     assert not any('.attack(' in line for line in bass_lines(a, choose_sounds(a)))
+
+
+def test_the_filter_envelope_and_tremolo_are_written_after_the_filter():
+    from algorip.schema import FilterEnvelope, Tremolo
+
+    a = Analysis.model_validate_json((GOLDEN / "solomun.analysis.json").read_text())
+    s = choose_sounds(a).model_copy(update={"bass_lpf": 210, "bass_filter_env": FilterEnvelope(octaves=3.0, close=0.118), "bass_tremolo": Tremolo(rate=9.4, depth=0.5)})
+    lines = bass_lines(a, s)
+    assert lines[0].endswith('.s("sawtooth").lpf(210).lpenv(3).lpdecay(0.118).lpsustain(0).tremolo(9.4).tremolodepth(0.5)')
+    assert lines[-1].endswith('.lpsustain(0).tremolo(9.4).tremolodepth(0.5).gain(0.6)')

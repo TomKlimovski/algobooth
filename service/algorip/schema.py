@@ -39,6 +39,28 @@ class StrudelEnvelope(BaseModel):
     release: float  # seconds
 
 
+class BassTone(BaseModel):
+    """How the bass stem's notes sound, each a median over the transcribed notes."""
+
+    open_hz: float  # the 85% spectral rolloff over a note's first 25 ms
+    hold_hz: float  # ...and over its hold
+    close_ms: float  # from the onset until the rolloff settles within a quarter octave of the hold
+    wobble_hz: float | None  # the strongest periodic level wobble on the hold, 5 to 20 Hz, when the notes carry one
+    wobble_db: float | None  # ...and its peak-to-trough depth
+
+
+class FilterEnvelope(BaseModel):
+    """The lowpass envelope written on the bass lines: opens `octaves` above the cutoff, closes over `close` seconds."""
+
+    octaves: float
+    close: float
+
+
+class Tremolo(BaseModel):
+    rate: float  # Hz
+    depth: float  # 0..1, superdough's: the level swings between 1 - depth and 1
+
+
 class DrumSummary(BaseModel):
     """The drum voices as loops, in brief: how long the longest loop is and how much of the hits they play."""
 
@@ -63,6 +85,8 @@ class Analysis(BaseModel):
     bass_loop: BassLoop | None = None
     drum_summary: DrumSummary | None = None
     bass_envelope: MeasuredEnvelope | None = None
+    bass_tone: BassTone | None = None
+    tuning_cents: float = 0.0  # the clip's offset from 440 tuning, removed before the bass was rounded
 
 
 class SoundChoice(BaseModel):
@@ -74,6 +98,8 @@ class SoundChoice(BaseModel):
     chord_lpf: int = 1200
     room: float = 0.4
     bass_envelope: StrudelEnvelope | None = None
+    bass_filter_env: FilterEnvelope | None = None
+    bass_tremolo: Tremolo | None = None
 
 
 class RipRequest(BaseModel):

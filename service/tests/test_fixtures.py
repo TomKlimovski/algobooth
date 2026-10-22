@@ -55,8 +55,10 @@ def test_solomun2_loop_has_its_fourth_beat_and_a_pluck():
     a = Analysis.model_validate_json((GOLDEN / "solomun2.analysis.json").read_text())
     g = Grid(bpm=a.bpm, first_downbeat=a.first_downbeat, bars=a.bars)
     loop = choose_bass_loop(bg, g, a.bass)
-    # beat 4's D#2, which pyin read an octave down at no confidence, comes from the spectrum
-    assert loop_mini(loop.templates) == "[~ d#2@2 ~] [d#1@3 ~] [d#3@3 ~] [d#2@2 ~ ~]"
+    # beat 4's D#2, which pyin read an octave down at no confidence, comes from the spectrum; beat 3 is the
+    # chromatic E3 the stem plays (a Phrygian figure), no longer snapped to D# minor
+    assert loop_mini(loop.templates) == "[~ d#2@2 ~] [d#1@3 ~] [e3@3 ~] [d#2@2 ~ ~]"
+    assert -20 <= a.tuning_cents <= 0 and a.bass_tone is not None and a.bass_tone.wobble_hz is None
     assert loop.match >= 0.9
     # every note is a gate: held at full level for roughly half to three quarters of its written length, then
     # cut within about 40 ms, well down by its end

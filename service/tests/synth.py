@@ -226,6 +226,33 @@ def gated_bass(notes: list[tuple[int, int, int, int]], bpm: float, bars: int, ho
     return out.astype(np.float32)
 
 
+def filtered_bass(notes: list[tuple[int, int, int, int]], bpm: float, bars: int, open_hz: float, hold_hz: float,
+                  close_seconds: float, wobble_hz: float = 0.0, wobble_depth: float = 0.0) -> np.ndarray:
+    """A bright sawtooth-like tone (harmonics 1..24) through a lowpass that opens at open_hz on each onset and
+    closes exponentially to hold_hz over close_seconds (the 48:50 stem's filter), with an optional tremolo:
+    the level swings between 1 - wobble_depth and 1 at wobble_hz."""
+    out = np.zeros(_samples(bars * _bar_seconds(bpm)))
+    block = _samples(0.005)
+    for bar, step, length, midi in notes:
+        start = _step_start(bar, step, bpm)
+        n = _step_start(bar, step + length, bpm) - start
+        tone = _harmonic_tone(_midi_hz(midi), n, harmonics=24) * _ramps(n, 0.01)
+        shaped = np.zeros(n)
+        zi = None
+        for i in range(0, n, block):
+            t = i / SR
+            cutoff = hold_hz + (open_hz - hold_hz) * np.exp(-3 * t / close_seconds)
+            sos = signal.butter(2, min(cutoff, SR / 2 - 1), btype="low", fs=SR, output="sos")
+            if zi is None:
+                zi = signal.sosfilt_zi(sos) * tone[i]
+            shaped[i : i + block], zi = signal.sosfilt(sos, tone[i : i + block], zi=zi)
+        if wobble_hz:
+            t = np.arange(n) / SR
+            shaped *= 1 - wobble_depth / 2 + wobble_depth / 2 * np.sin(2 * np.pi * wobble_hz * t)
+        _place(out, start, shaped)
+    return _normalise(out).astype(np.float32)
+
+
 def swept_bass(notes: list[tuple[int, int, int, int]], bpm: float, bars: int, sweep_semitones: float, sweep_seconds: float) -> np.ndarray:
     """Like bass_line, but without the fundamental (harmonics 2..6) and each note starting sharp.
 

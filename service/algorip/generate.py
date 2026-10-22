@@ -46,10 +46,18 @@ def bass_lines(a: Analysis, s: SoundChoice) -> list[str]:
     if not a.bass:
         return []
     suffix = f".lpf({s.bass_lpf})" if s.bass_lpf is not None else ""
+    # the filter's opening and closing, measured on the stem, when it moves at least an octave
+    f = s.bass_filter_env
+    if f is not None and s.bass_lpf is not None:
+        suffix += f".lpenv({f.octaves:g}).lpdecay({f.close:g}).lpsustain(0)"
     # the measured gate, when the stem's notes die before their end; a held bass gets none
     e = s.bass_envelope
     if e is not None:
         suffix += f".attack({e.attack:g})" + (f".clip({e.clip:g})" if e.clip is not None else "") + f".release({e.release:g})"
+    # the level wobble the notes carry, as a tremolo
+    tr = s.bass_tremolo
+    if tr is not None:
+        suffix += f".tremolo({tr.rate:g}).tremolodepth({tr.depth:g})"
     loop = a.bass_loop
     if loop is None:
         return [f'bass: note("{notes_mini(fold_octaves(a.bass), a.bars)}").s("{s.bass_sound}"){suffix}']

@@ -1223,5 +1223,13 @@
     "fall_ms": 6.3,
     "end_db": -1.4,
     "hold_share": 0.83
-  }
+  },
+  "bass_tone": {
+    "open_hz": 1195.1,
+    "hold_hz": 430.7,
+    "close_ms": 40.0,
+    "wobble_hz": null,
+    "wobble_db": null
+  },
+  "tuning_cents": -9.4
 }

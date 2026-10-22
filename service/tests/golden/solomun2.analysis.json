@@ -285,7 +285,7 @@
       "bar": 0,
       "step": 8,
       "length": 3,
-      "midi": 51
+      "midi": 52
     },
     {
       "bar": 0,
@@ -309,7 +309,7 @@
       "bar": 1,
       "step": 8,
       "length": 3,
-      "midi": 51
+      "midi": 52
     },
     {
       "bar": 1,
@@ -333,7 +333,7 @@
       "bar": 2,
       "step": 8,
       "length": 3,
-      "midi": 51
+      "midi": 52
     },
     {
       "bar": 2,
@@ -363,7 +363,7 @@
       "bar": 3,
       "step": 8,
       "length": 3,
-      "midi": 51
+      "midi": 52
     },
     {
       "bar": 3,
@@ -399,7 +399,7 @@
       "bar": 4,
       "step": 8,
       "length": 3,
-      "midi": 51
+      "midi": 52
     },
     {
       "bar": 4,
@@ -414,7 +414,7 @@
       "midi": 29
     }
   ],
-  "bass_harmonics": 0.5732865130004448,
+  "bass_harmonics": 0.546712922238783,
   "chords": [
     "D#",
     "Em",
@@ -443,7 +443,7 @@
           "bar": 0,
           "step": 8,
           "length": 3,
-          "midi": 51
+          "midi": 52
         },
         {
           "bar": 0,
@@ -483,5 +483,13 @@
     "fall_ms": 35.3,
     "end_db": -12.6,
     "hold_share": 0.63
-  }
+  },
+  "bass_tone": {
+    "open_hz": 4182.8,
+    "hold_hz": 452.2,
+    "close_ms": 70.0,
+    "wobble_hz": null,
+    "wobble_db": null
+  },
+  "tuning_cents": -9.4
 }

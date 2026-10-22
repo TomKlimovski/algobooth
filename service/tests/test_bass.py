@@ -11,7 +11,7 @@ from algorip.key import Key
 from algorip.mini import loop_mini
 from algorip.schema import Analysis
 from algorip.notes import Note, monophonic, quantise, snap_to_key
-from tests.synth import bass_line, gated_bass
+from tests.synth import bass_line, filtered_bass, gated_bass
 
 G = Grid(bpm=120, first_downbeat=0.0, bars=1)   # step = 0.125 s
 AMIN = Key(tonic=9, mode="minor")
@@ -73,7 +73,8 @@ def test_transcribe_bass_snaps_and_folds_into_the_register():
     g = Grid(bpm=129, first_downbeat=0.0, bars=1)
     # B0 (23, 30.9 Hz) folds up; A0 (21, 27.5 Hz) would be under bassgrid's FMIN and heard as a rest.
     bg, notes = transcribe_bass(bass_line([(0, 0, 4, 70), (0, 8, 4, 23)], 129, 1), SR, g, AMIN)
-    assert [n.midi for n in notes] == [57, 35] and bg.midi[0][0] == 57
+    # A#4 (70) is a clear reading, so it stays A# (not in A minor) and folds to 58; only an ambiguous reading snaps
+    assert [n.midi for n in notes] == [58, 35] and bg.midi[0][0] == 58
 
 
 def test_choose_bass_loop_finds_the_one_bar_loop_and_the_build_layer():
@@ -192,3 +193,60 @@ def test_choose_sounds_writes_a_gate_only_when_the_notes_die_before_their_end():
     late = a.model_copy(update={"bass_envelope": MeasuredEnvelope(attack_ms=12, hold_ms=460, fall_ms=25, end_db=-14.0, hold_share=0.92)})
     e = choose_sounds(late).bass_envelope
     assert e is not None and e.attack == 0.012 and e.clip is None and e.release == 0.025
+
+
+def test_the_clip_tuning_is_removed_before_rounding_and_a_clear_chromatic_note_survives_the_snap():
+    g = Grid(bpm=120, first_downbeat=0.0, bars=2)
+    dsharp_minor = Key(tonic=3, mode="minor")
+    # the 48:50 shape, 35 cents flat throughout: D#2, D#1, a chromatic E3 (21 cents flat of E, 79 sharp of D#), D#2
+    flat = [(b, s, 2, m - 0.35) for b in range(2) for s, m in ((0, 39), (4, 27), (8, 52), (12, 39))]
+    bg, notes = transcribe_bass(bass_line(flat, 120, 2), SR, g, dsharp_minor)
+    assert -45 <= bg.tuning_cents <= -25
+    assert [n.midi for n in notes if n.bar == 0] == [39, 27, 52, 39]  # the E3 stays E3: D# minor has no E, but the stem does
+    # the same line in tune reads tuning 0; a note a quarter tone off (50 cents) is ambiguous and snaps to the key
+    ambiguous = [(0, 0, 4, 39), (0, 4, 4, 40.5), (0, 8, 4, 39), (0, 12, 4, 39)]
+    bg, notes = transcribe_bass(bass_line(ambiguous, 120, 1), SR, Grid(bpm=120, first_downbeat=0.0, bars=1), dsharp_minor)
+    assert abs(bg.tuning_cents) <= 15
+    assert [n.midi for n in notes][1] in (39, 41)  # F (41) and D# (39) are in key; E (40) is not, and it was not clearly E
+
+
+def test_bass_tone_measures_the_filter_and_the_wobble():
+    from algorip.bass import bass_tone
+
+    g = Grid(bpm=120, first_downbeat=0.0, bars=2)
+    line = [(b, s, 4, 39) for b in range(2) for s in (0, 4, 8, 12)]
+    # a flat, bright tone: the hold is as open as the attack, no envelope, no wobble
+    flat_audio = bass_line(line, 120, 2)
+    tone = bass_tone(flat_audio, SR, transcribe_bass(flat_audio, SR, g, GMIN)[1], g)
+    assert tone is not None and tone.open_hz < 1.5 * tone.hold_hz and tone.wobble_hz is None
+    # a filter that opens at 2 kHz and closes to 200 Hz in 120 ms, with a 9 Hz, 6 dB tremolo
+    shaped_audio = filtered_bass(line, 120, 2, open_hz=2000, hold_hz=200, close_seconds=0.12, wobble_hz=9, wobble_depth=0.5)
+    tone = bass_tone(shaped_audio, SR, transcribe_bass(shaped_audio, SR, g, GMIN)[1], g)
+    assert tone is not None
+    # the opening is read over 25 ms, by which an exponential 120 ms close has already come halfway down
+    assert 150 <= tone.hold_hz <= 320 and tone.open_hz >= 3 * tone.hold_hz and 60 <= tone.close_ms <= 220
+    assert tone.wobble_hz is not None and 8 <= tone.wobble_hz <= 10 and 4 <= tone.wobble_db <= 8
+    assert bass_tone(shaped_audio, SR, [], g) is None
+
+
+def test_choose_sounds_writes_the_measured_filter_and_tremolo():
+    from algorip.schema import BassTone
+    from algorip.sounds import choose_sounds
+
+    a = Analysis.model_validate_json((GOLDEN / "house.analysis.json").read_text())
+    saw = a.model_copy(update={"bass_harmonics": 0.5})
+    assert choose_sounds(saw.model_copy(update={"bass_tone": None})).bass_lpf == 800  # the old fixed value, with no measurement
+    held_open = saw.model_copy(update={"bass_tone": BassTone(open_hz=900, hold_hz=840, close_ms=10, wobble_hz=None, wobble_db=None)})
+    s = choose_sounds(held_open)
+    assert s.bass_lpf == 840 and s.bass_filter_env is None and s.bass_tremolo is None
+    closing = saw.model_copy(update={"bass_tone": BassTone(open_hz=1700, hold_hz=212, close_ms=118, wobble_hz=9.4, wobble_db=6.0)})
+    s = choose_sounds(closing)
+    assert s.bass_lpf == 210 and s.bass_filter_env is not None and s.bass_filter_env.octaves == 3.0 and s.bass_filter_env.close == 0.118
+    assert s.bass_tremolo is not None and s.bass_tremolo.rate == 9.4 and s.bass_tremolo.depth == pytest.approx(0.5, abs=0.01)
+    # a bright burst that is gone within a frame is an onset click, not a filter opening
+    click = saw.model_copy(update={"bass_tone": BassTone(open_hz=4500, hold_hz=430, close_ms=20, wobble_hz=None, wobble_db=None)})
+    assert choose_sounds(click).bass_filter_env is None and choose_sounds(click).bass_lpf == 430
+    # a sine bass has no filter to write, whatever the tone says
+    sine = a.model_copy(update={"bass_harmonics": 0.1, "bass_tone": BassTone(open_hz=1700, hold_hz=212, close_ms=118, wobble_hz=None, wobble_db=None)})
+    s = choose_sounds(sine)
+    assert s.bass_lpf is None and s.bass_filter_env is None

@@ -11,11 +11,15 @@ from algorip.key import Key
 from algorip.loop import find_loop
 from algorip.mini import OCTAVE, one_per_step, loop_mini, template_note
 from algorip.notes import Note, fold_octaves, snap_to_key
-from algorip.schema import BassLoop, MeasuredEnvelope
+from algorip.schema import BassLoop, BassTone, MeasuredEnvelope
 from algorip.score import expand, score
 
 BASS_LOW = 24  # C1
 BASS_HIGH = 60  # C4
+# A step whose pitch, with the clip's tuning removed, is still this far from a semitone is an ambiguous
+# reading and snaps to the key; a clear reading keeps its note, in key or not (the 48:50 clip's E3 in D# minor).
+SNAP_CENTS = 35
+TUNING_MIN_STEPS = 4  # fewer pitched steps than this cannot say what the clip's tuning is
 # A candidate scoring within this of the best is close enough: among those, the shortest notation wins.
 SIMPLER_TOLERANCE = 0.05
 
@@ -25,20 +29,52 @@ def _in_register(note: Note, key: Key) -> Note:
     return snapped.model_copy(update={"midi": fold_octaves(snapped.midi, BASS_LOW, BASS_HIGH)})
 
 
+def _tuning_cents(hz: list[list[float | None]]) -> float:
+    """The clip's offset from 440 tuning: the median, over the pitched steps, of each step's cents from the nearest semitone."""
+    offsets = [100 * (m - round(m)) for bar in hz for h in bar if h is not None for m in [float(librosa.hz_to_midi(h))]]
+    if len(offsets) < TUNING_MIN_STEPS:
+        return 0.0
+    return float(np.median(offsets))
+
+
+def _retuned(bg: BassGrid, key: Key) -> BassGrid:
+    """The grid's midi re-read from its Hz with the clip's tuning removed; an ambiguous step snaps to the key,
+    a clear one keeps its note; all folded into the bass register."""
+    tuning = _tuning_cents(bg.hz)
+    midi: list[list[int | None]] = []
+    for bar_hz, bar_midi in zip(bg.hz, bg.midi):
+        row: list[int | None] = []
+        for h, m in zip(bar_hz, bar_midi):
+            if h is None:
+                row.append(None if m is None else _in_register(Note(bar=0, step=0, length=1, midi=m), key).midi)
+                continue
+            exact = float(librosa.hz_to_midi(h)) - tuning / 100
+            nearest = int(round(exact))
+            note = Note(bar=0, step=0, length=1, midi=nearest)
+            if abs(exact - nearest) * 100 > SNAP_CENTS:
+                note = snap_to_key([note], key)[0]
+            row.append(fold_octaves(note.midi, BASS_LOW, BASS_HIGH))
+        midi.append(row)
+    # a start is also where the pitch class changes, which the retuning may have moved
+    starts = []
+    prev: int | None = None
+    for bar_midi, bar_starts in zip(midi, bg.starts):
+        row_starts = []
+        for m, s in zip(bar_midi, bar_starts):
+            row_starts.append(m is not None and (s or prev is None or prev % 12 != m % 12))
+            prev = m
+        starts.append(row_starts)
+    return bg.model_copy(update={"midi": midi, "starts": starts, "tuning_cents": round(tuning, 1)})
+
+
 def transcribe_bass(y: np.ndarray, sr: int, grid: Grid, key: Key) -> tuple[BassGrid, list[Note]]:
-    """The bass stem's step grid and its notes, both in key and folded into the bass register.
+    """The bass stem's step grid and its notes, retuned to the clip, in key where ambiguous, folded into the bass register.
 
-    The grid's pitches are snapped and folded like the notes so that, as the scorer's truth, it sits in
-    the same register as anything written from them.
+    The grid's pitches are rounded, snapped and folded like the notes so that, as the scorer's truth, it
+    sits in the same register as anything written from them.
     """
-    bg = bass_grid(y, sr, grid)
-    notes = [_in_register(n, key) for n in grid_to_notes(bg)]
-
-    def step_midi(m: int | None) -> int | None:
-        return None if m is None else _in_register(Note(bar=0, step=0, length=1, midi=m), key).midi
-
-    bg = bg.model_copy(update={"midi": [[step_midi(m) for m in bar] for bar in bg.midi]})
-    return bg, notes
+    bg = _retuned(bass_grid(y, sr, grid), key)
+    return bg, grid_to_notes(bg)
 
 
 def _clip(line: list[Note]) -> list[Note]:
@@ -226,6 +262,77 @@ def bass_envelope(y: np.ndarray, sr: int, notes: list[Note], grid: Grid) -> Meas
     med = lambda xs: round(float(np.median(xs)), 1)  # noqa: E731
     return MeasuredEnvelope(
         attack_ms=med(attacks), hold_ms=med(holds), fall_ms=med(falls), end_db=med(ends), hold_share=round(float(np.median(shares)), 2)
+    )
+
+
+TONE_OPEN_SECONDS = 0.025  # the attack's spectrum is read over this
+TONE_FFT = 2048
+TONE_HOP = 441  # 10 ms
+ROLLOFF = 0.85
+CLOSE_OCTAVES = 0.25  # the filter has closed once the rolloff is within this of the hold's
+WOBBLE_LOW, WOBBLE_HIGH = 5.0, 20.0  # Hz: a tremolo lives here; slower is the gate, faster is the note
+WOBBLE_FRAME = 220  # 5 ms, so the envelope follows a tremolo and not a low note's own cycles
+WOBBLE_HOP = 44  # 1 ms
+WOBBLE_DB = 3.0  # a periodic swing under this is not a tremolo
+
+
+def bass_tone(y: np.ndarray, sr: int, notes: list[Note], grid: Grid) -> BassTone | None:
+    """The median filter opening, hold and closing time of the stem's notes, and their level wobble, if any.
+
+    Per note: the 85% spectral rolloff over its first TONE_OPEN_SECONDS (open) and over its hold (hold), the
+    time for the rolloff to settle within CLOSE_OCTAVES of the hold (close); and on the full-band 5 ms RMS
+    envelope of the hold, the strongest periodic component between WOBBLE_LOW and WOBBLE_HIGH Hz, kept as a
+    wobble when its peak-to-trough depth is at least WOBBLE_DB. The clip's wobble is the median over the
+    notes that carry one, when at least half of them do. None with no notes.
+    """
+    if not notes:
+        return None
+    y32 = np.asarray(y, dtype=np.float32)
+    opens, holds, closes, rates, depths = [], [], [], [], []
+    for note in notes:
+        start = grid.time_of(note.bar, note.step)
+        end = grid.time_of(note.bar, note.step + note.length)
+        x = y32[int(start * sr) : int(end * sr)]
+        if len(x) < TONE_FFT:
+            continue
+        roll = librosa.feature.spectral_rolloff(y=x, sr=sr, n_fft=TONE_FFT, hop_length=TONE_HOP, roll_percent=ROLLOFF)[0]
+        if len(roll) < 4:
+            continue
+        head = max(1, int(TONE_OPEN_SECONDS * sr / TONE_HOP))
+        hold_from, hold_to = int(len(roll) * 0.25), int(len(roll) * 0.65)
+        hold = float(np.median(roll[hold_from:hold_to])) if hold_to > hold_from else float(np.median(roll))
+        if hold <= 0:
+            continue
+        opens.append(float(np.median(roll[:head])))
+        holds.append(hold)
+        settled = np.flatnonzero(roll <= hold * 2**CLOSE_OCTAVES)
+        closes.append((int(settled[0]) if len(settled) else len(roll)) * TONE_HOP / sr * 1000)
+        # the wobble, on the hold
+        env = librosa.feature.rms(y=x, frame_length=WOBBLE_FRAME, hop_length=WOBBLE_HOP)[0]
+        span = env[int(len(env) * 0.25) : int(len(env) * 0.65)]
+        if len(span) < 50 or span.max() <= 0:
+            continue
+        db = 20 * np.log10(span / span.mean() + 1e-9)
+        db -= db.mean()
+        spectrum = np.abs(np.fft.rfft(db * np.hanning(len(db)), n=8192))
+        freqs = np.fft.rfftfreq(8192, WOBBLE_HOP / sr)
+        band = (freqs >= WOBBLE_LOW) & (freqs <= WOBBLE_HIGH)
+        k = int(np.argmax(spectrum[band]))
+        # a Hann-windowed sinusoid of amplitude A peaks at A * N / 4 in the magnitude spectrum: back to dB swing
+        amplitude = spectrum[band][k] * 4 / len(db)
+        swing = 2 * amplitude
+        if swing >= WOBBLE_DB:
+            rates.append(float(freqs[band][k]))
+            depths.append(float(swing))
+    if not holds:
+        return None
+    wobbling = len(rates) * 2 >= len(holds)
+    return BassTone(
+        open_hz=round(float(np.median(opens)), 1),
+        hold_hz=round(float(np.median(holds)), 1),
+        close_ms=round(float(np.median(closes)), 1),
+        wobble_hz=round(float(np.median(rates)), 1) if wobbling else None,
+        wobble_db=round(float(np.median(depths)), 1) if wobbling else None,
     )
 
 

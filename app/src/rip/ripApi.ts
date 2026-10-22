@@ -43,6 +43,10 @@ export interface Analysis {
   bass_loop: BassLoop | null;
   /** How the stem's notes shape over time (medians): attack, hold, fall, level at the end, hold as a share of the note. */
   bass_envelope: { attack_ms: number; hold_ms: number; fall_ms: number; end_db: number; hold_share: number } | null;
+  /** The filter's opening and hold (85% rolloff, Hz), its closing time, and the notes' level wobble if they carry one. */
+  bass_tone: { open_hz: number; hold_hz: number; close_ms: number; wobble_hz: number | null; wobble_db: number | null } | null;
+  /** The clip's offset from 440 tuning in cents, removed before the bass was rounded to semitones. */
+  tuning_cents: number;
   drum_summary: DrumSummary | null;
 }
 
@@ -53,6 +57,8 @@ export interface SoundChoice {
   bass_lpf: number | null;
   /** The gate written on the bass lines, in Strudel's units; null for a held bass. */
   bass_envelope: { attack: number; clip: number | null; release: number } | null;
+  bass_filter_env: { octaves: number; close: number } | null;
+  bass_tremolo: { rate: number; depth: number } | null;
   chord_sound: string;
   chord_lpf: number;
   room: number;
