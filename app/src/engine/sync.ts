@@ -11,8 +11,8 @@ export function secondsToNextBoundary(nowCycle: number, cps: number): number {
 }
 
 /** Cyclist's clock defaults (zyklus), used when a scheduler does not expose its clock. */
-const DEFAULT_CLOCK_DURATION = 0.05;
-const DEFAULT_MIN_LATENCY = 0.01;
+export const DEFAULT_CLOCK_DURATION = 0.05;
+export const DEFAULT_MIN_LATENCY = 0.01;
 
 type TimerHandle = ReturnType<typeof setTimeout>;
 type SetTimer = (f: () => void, ms: number) => TimerHandle;
