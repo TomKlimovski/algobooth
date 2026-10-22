@@ -177,6 +177,16 @@ test('a digit targets its line and shows the target; an F key recalls, or with s
   expect($$('.key.fn.filled').map((k) => k.dataset.key)).toEqual(['F5']);
 });
 
+test('a key accepts dragenter for a method or key drag, so WebKit makes it the drop target, and not for other drags', () => {
+  mount();
+  const enter = dragEvent('dragenter', methodDrag({}));
+  slot('KeyY').dispatchEvent(enter);
+  expect(enter.defaultPrevented).toBe(true);
+  const text = dragEvent('dragenter', { 'text/plain': 'x' });
+  slot('KeyY').dispatchEvent(text);
+  expect(text.defaultPrevented).toBe(false);
+});
+
 test('a method dragged over a key marks it and drops onto it; a function is turned away', () => {
   const { controller, state } = mount();
   const over = dragEvent('dragover', methodDrag({}));

@@ -119,10 +119,18 @@ export function KeyStrip(props: {
     setMenu({ slot, x: e.clientX, y: e.clientY, items });
   };
 
+  const carries = (e: DragEvent, mime: string) => e.dataTransfer?.types.includes(mime) ?? false;
+  /**
+   * WebKit hands the drop to the last element that accepted `dragenter`, and the editor's contenteditable
+   * accepts it implicitly as a drag from the panel crosses it; a key that only accepted `dragover` (enough for
+   * Chromium) never became the target, and the method landed in the code. So a key accepts `dragenter` too.
+   */
+  const dragEnter = (e: DragEvent) => {
+    if (carries(e, METHOD_MIME) || carries(e, KEY_MIME)) e.preventDefault();
+  };
   const dragOver = (slot: Slot, e: DragEvent) => {
-    const types = e.dataTransfer?.types ?? [];
-    const method = types.includes(METHOD_MIME);
-    if (!method && !types.includes(KEY_MIME)) return;
+    const method = carries(e, METHOD_MIME);
+    if (!method && !carries(e, KEY_MIME)) return;
     e.preventDefault();
     e.dataTransfer!.dropEffect = method ? 'copy' : 'move';
     setDropSlot(slot);
@@ -187,6 +195,7 @@ export function KeyStrip(props: {
           e.dataTransfer!.setData(KEY_MIME, p.slot);
           e.dataTransfer!.effectAllowed = 'move';
         }}
+        onDragEnter={dragEnter}
         onDragOver={(e) => dragOver(p.slot, e)}
         onDragLeave={() => dropSlot() === p.slot && setDropSlot(null)}
         onDrop={(e) => dropOn(p.slot, e)}
