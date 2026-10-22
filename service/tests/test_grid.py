@@ -92,9 +92,10 @@ def test_disagreeing_kicks_do_not_move_the_grid():
 
 def test_four_equal_kicks_put_the_claps_on_two_and_four():
     beats = np.arange(16) * BEAT
-    assert downbeat_phase(drum_loop(HOUSE, 124, 4), SR, beats) == 0  # claps on steps 4 and 12: the earlier of 0 and 2
+    # only for beats the kicks moved (backbeat=True); an unmoved grid keeps the tracker's loudest-phase rule
+    assert downbeat_phase(drum_loop(HOUSE, 124, 4), SR, beats, backbeat=True) == 0  # claps on 4 and 12: the earlier of 0 and 2
     claps_on_one_and_three = dict(HOUSE, sd={(b, s) for b in range(4) for s in (0, 8)})
-    assert downbeat_phase(drum_loop(claps_on_one_and_three, 124, 4), SR, beats) == 1
+    assert downbeat_phase(drum_loop(claps_on_one_and_three, 124, 4), SR, beats, backbeat=True) == 1
 
 
 def test_estimate_grid_puts_the_kicks_on_the_beats():

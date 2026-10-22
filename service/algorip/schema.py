@@ -109,6 +109,8 @@ class SoundChoice(BaseModel):
     bass_envelope: StrudelEnvelope | None = None
     bass_filter_env: FilterEnvelope | None = None
     bass_tremolo: Tremolo | None = None
+    drum_samples: dict[str, int] = {}  # voice -> the bank sample's index, when not 0 (chosen by shape)
+    drum_gains: dict[str, float] = {}  # voice -> the line's gain, when 2 dB or more from Strudel's 0.8
 
 
 class RipRequest(BaseModel):

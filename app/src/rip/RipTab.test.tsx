@@ -84,9 +84,9 @@ function result(bassLoop: BassLoop | null = null, drumSummary: DrumSummary | nul
     title: 'Song',
     analysis: {
       bpm: 124, key: 'A minor', meter: '4/4', bars: 8, steps_per_bar: 16, first_downbeat: 0.25,
-      drums: {}, four_on_the_floor: true, bass: [], bass_harmonics: 0, bass_envelope: null, bass_tone: null, tuning_cents: 0, chords: [], melody: null, bass_loop: bassLoop, drum_summary: drumSummary,
+      drums: {}, four_on_the_floor: true, bass: [], bass_harmonics: 0, bass_envelope: null, bass_tone: null, tuning_cents: 0, chords: [], melody: null, bass_loop: bassLoop, drum_summary: drumSummary, drum_tone: null,
     },
-    sounds: { drum_bank: 'RolandTR909', snare_name: 'sd', bass_sound: 'sine', bass_lpf: null, bass_envelope: null, bass_filter_env: null, bass_tremolo: null, chord_sound: 'sawtooth', chord_lpf: 1200, room: 0.4 },
+    sounds: { drum_bank: 'RolandTR909', snare_name: 'sd', bass_sound: 'sine', bass_lpf: null, bass_envelope: null, bass_filter_env: null, bass_tremolo: null, drum_samples: {}, drum_gains: {}, chord_sound: 'sawtooth', chord_lpf: 1200, room: 0.4 },
     code: 'setcpm(124/4)\n$: s("bd*4")', tidied_code: null, tidy_error: 'no key', stems: ['drums', 'bass', 'other', 'vocals', 'mix'],
   };
 }

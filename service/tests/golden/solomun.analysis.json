@@ -508,7 +508,8 @@
         8,
         15
       ]
-    ]
+    ],
+    "gh": []
   },
   "four_on_the_floor": true,
   "bass": [
@@ -1217,16 +1218,28 @@
     "match_with_layer": 0.94
   },
   "drum_summary": null,
+  "drum_tone": {
+    "levels": {
+      "bd": -17.1,
+      "sd": -25.9,
+      "oh": -34.1
+    },
+    "falls": {
+      "bd": 30.0,
+      "sd": 77.5,
+      "oh": 40.0
+    }
+  },
   "bass_envelope": {
-    "attack_ms": 3.4,
-    "hold_ms": 113.2,
+    "attack_ms": 15.0,
+    "hold_ms": 136.4,
     "fall_ms": 6.3,
     "end_db": -1.4,
-    "hold_share": 0.83
+    "hold_share": 0.89
   },
   "bass_tone": {
-    "open_hz": 602.9,
-    "hold_hz": 366.1,
+    "open_hz": 646.0,
+    "hold_hz": 355.3,
     "close_ms": 40.0,
     "wobble_hz": null,
     "wobble_db": null

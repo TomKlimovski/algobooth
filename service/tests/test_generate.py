@@ -41,7 +41,7 @@ def test_generated_code_has_no_walls_of_numbers():
     a = Analysis.model_validate_json((GOLDEN / "house.analysis.json").read_text())
     code = generate(a, choose_sounds(a), "t", 0, 16)
     assert max(len(line) for line in code.splitlines()) < 100
-    assert [line.split(":")[0] for line in code.splitlines() if ": " in line and not line.startswith("//")] == ["drums", "hats", "bass", "chords"]
+    assert [line.split(":")[0] for line in code.splitlines() if ": " in line and not line.startswith("//")] == ["drums", "claps", "hats", "bass", "chords"]
 
 
 def test_one_bar_is_singular_and_an_empty_melody_writes_no_voice():
@@ -74,8 +74,10 @@ def test_drum_lines_write_the_loop_and_a_muted_fills_line():
                         "hh": [(b, s) for b in range(8) for s in range(0, 16, 2)] + [(1, 5)], "oh": []}, bars=8)
     s = choose_sounds(a)  # snare_name is "cp" or "sd": the test uses s.snare_name
     # bar 4 has three snare strays (a fill); the lone strays in bars 2 and 8 are under FILL_MIN_HITS
+    snare_line = "claps" if s.snare_name == "cp" else "snare"
     assert drum_lines(a, s) == [
-        f'drums: s("bd*4, [~ {s.snare_name}]*2").bank("{s.drum_bank}")',
+        f'drums: s("bd*4").bank("{s.drum_bank}")',
+        f'{snare_line}: s("[~ {s.snare_name}]*2").bank("{s.drum_bank}")',
         f'hats: s("hh*8").bank("{s.drum_bank}")',
         "// bars 4–4 add these hits (a fill): remove the underscore to hear them",
         f'_fills: s("<~ ~ ~ [~ ~ ~ [~ {s.snare_name} {s.snare_name} {s.snare_name}]] ~ ~ ~ ~>").bank("{s.drum_bank}")',
@@ -118,3 +120,29 @@ def test_the_filter_envelope_and_tremolo_are_written_after_the_filter():
     lines = bass_lines(a, s)
     assert lines[0].endswith('.s("sawtooth").lpf(210).lpenv(3).lpdecay(0.118).lpsustain(0).tremolo(9.4).tremolodepth(0.5)')
     assert lines[-1].endswith('.lpsustain(0).tremolo(9.4).tremolodepth(0.5).gain(0.6)')
+
+
+def test_drum_lines_carry_the_shaped_samples_and_the_stems_gains():
+    # 2026-10-22-drum-deep-dive-design.md: the kit index inline per voice, one gain per line, none on the fills
+    from algorip.schema import DrumTone
+
+    drums = {"bd": [(b, s) for b in range(4) for s in (0, 4, 8, 12)], "sd": [(b, s) for b in range(4) for s in (4, 12)],
+             "oh": [(b, s) for b in range(4) for s in (2, 6, 10, 14)], "gh": [(b, s) for b in range(4) for s in (5, 13)], "hh": []}
+    a = analysis(drums=drums, bars=4).model_copy(update={
+        "four_on_the_floor": True, "bpm": 129.0,
+        "drum_tone": DrumTone(levels={"bd": -8.0, "sd": -25.0, "oh": -21.5, "gh": -39.0}, falls={"bd": 150, "sd": 65, "oh": 62, "gh": 40})})
+    s = choose_sounds(a)
+    assert (s.drum_bank, s.snare_name) == ("tr909", "cp")
+    lines = drum_lines(a, s)
+    assert lines[0] == 'drums: s("bd:3*4").bank("tr909")'
+    assert lines[1].startswith('claps: s("[~ cp:4]*2").bank("tr909").gain(0.3')
+    assert lines[2].startswith('hats: s("[~ oh:2]*4").bank("tr909").gain(0.5')
+    assert lines[3].startswith('ghosts: s("hh:1(2,16,5)").bank("tr909").gain(0.0')  # 18 dB under the hats
+    assert not any(".gain(" in line for line in lines if line.startswith("_fills"))
+
+
+def test_the_snare_line_is_named_snare_on_the_808():
+    a = analysis(drums={"bd": [(0, 0), (0, 10), (1, 0), (1, 6)], "sd": [(b, s) for b in range(2) for s in (4, 12)], "hh": [], "oh": []}, bars=2)
+    a = a.model_copy(update={"four_on_the_floor": False})
+    lines = drum_lines(a, choose_sounds(a))
+    assert any(line.startswith('snare: s("[~ sd]*2").bank("tr808")') for line in lines)

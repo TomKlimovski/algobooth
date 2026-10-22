@@ -28,8 +28,10 @@ _ACCENT_WINDOW = 0.06  # seconds after each beat in which low-band energy is mea
 # half a step of the kicks is left where the tracker put it, so a clip it got right is unchanged).
 KICK_AGREEMENT = 0.75
 KICK_DEAD_ZONE = 0.5  # steps
-# The downbeat: the low-band accent rule when one phase leads the others by ACCENT_LEAD dB; with four
-# equal kicks, the backbeat decides: the phase with the most 1-6 kHz energy after its beats is 2 or 4.
+# The downbeat of a moved grid: the low-band accent rule when one phase leads the runner-up by ACCENT_LEAD
+# dB; with four equal kicks, the backbeat decides: the phase with the most 1-6 kHz energy after its beats
+# is 2 or 4. An unmoved grid keeps the tracker's rule (the loudest phase), which the 36:40 golden rests on:
+# its loudest kick leads by 0.6 dB, and the backbeat test would move its bar line two beats.
 ACCENT_LEAD = 1.0  # dB
 _BACKBEAT_BAND = (1000.0, 6000.0)
 _BACKBEAT_WINDOW = 0.1  # seconds
@@ -111,12 +113,13 @@ def _phase_scores(y: np.ndarray, sr: int, beats: np.ndarray, window_seconds: flo
     return scores
 
 
-def downbeat_phase(drums: np.ndarray, sr: int, beats: np.ndarray) -> int:
-    """Which of the first four beats starts a bar.
+def downbeat_phase(drums: np.ndarray, sr: int, beats: np.ndarray, backbeat: bool = False) -> int:
+    """Which of the first four beats starts a bar: the phase with the most low-band energy on its beats.
 
-    The phase with the most low-band energy on its beats, when it leads the runner-up by ACCENT_LEAD dB.
-    Otherwise (four equal kicks) the backbeat: the phase with the most 1-6 kHz energy after its beats
-    is beat 2 or 4, and of the two downbeats that allows, the earlier.
+    With `backbeat` (beats the kicks moved, whose tracker downbeat means nothing), that rule holds only
+    when the phase leads the runner-up by ACCENT_LEAD dB; otherwise (four equal kicks) the backbeat
+    decides: the phase with the most 1-6 kHz energy after its beats is beat 2 or 4, and of the two
+    downbeats that allows, the earlier.
     """
     if len(beats) < BEATS_PER_BAR:
         return 0
@@ -124,7 +127,7 @@ def downbeat_phase(drums: np.ndarray, sr: int, beats: np.ndarray) -> int:
     low = signal.sosfilt(sos, np.asarray(drums, dtype=float))
     scores = _phase_scores(low, sr, beats, _ACCENT_WINDOW)
     ranked = sorted(scores, reverse=True)
-    if ranked[1] <= 0 or ranked[0] >= ranked[1] * 10.0 ** (ACCENT_LEAD / 20.0):
+    if not backbeat or ranked[1] <= 0 or ranked[0] >= ranked[1] * 10.0 ** (ACCENT_LEAD / 20.0):
         return int(np.argmax(scores))
     backbeat = int(np.argmax(_phase_scores(band(drums, sr, *_BACKBEAT_BAND), sr, beats, _BACKBEAT_WINDOW)))
     return min((backbeat - 1) % BEATS_PER_BAR, (backbeat - 3) % BEATS_PER_BAR)
@@ -161,9 +164,9 @@ def estimate_grid(mix: np.ndarray, drums: np.ndarray | None, sr: int, duration: 
         raise ValueError("Could not find a beat")
     bpm = round(bpm, 1)
 
-    def grid_from(beats: np.ndarray) -> Grid | None:
-        phase = downbeat_phase(mix if drums is None else drums, sr, beats)
-        first_downbeat = float(beats[phase])
+    def grid_from(beats: np.ndarray, moved: bool = False) -> Grid | None:
+        phase = downbeat_phase(mix if drums is None else drums, sr, beats, backbeat=moved)
+        first_downbeat = max(0.0, float(beats[phase]))  # a beat just before the clip's start (see below) starts it
         # The beat tracker reads each onset about one analysis frame (~12 ms) late, so a clip cut
         # exactly on a bar line would lose its last bar; a bar short by under half a step still counts.
         bars = math.floor((duration - first_downbeat) / (240.0 / bpm) + 0.5 / STEPS_PER_BAR)
@@ -173,8 +176,12 @@ def estimate_grid(mix: np.ndarray, drums: np.ndarray | None, sr: int, duration: 
     if drums is not None:
         aligned = align_beats_to_kicks(beats, drums, sr, bpm)
         if aligned is not beats:
-            aligned = aligned[aligned >= 0.0]  # a beat moved before the clip's start cannot be a downbeat
-            grid = grid_from(aligned)  # None when the move lost the only bar: the tracker's beats stand
+            # Moved forward, the beats can leave a kick at the clip's very start without a beat (the 48:50
+            # clip opens on one): a beat is added before them while it lies within half a step of the start.
+            beat, half_step = 60.0 / bpm, 60.0 / bpm / BEATS_PER_BAR / 2
+            while aligned[0] - beat >= -half_step:
+                aligned = np.concatenate([[aligned[0] - beat], aligned])
+            grid = grid_from(aligned, moved=True)  # None when the move lost the only bar: the tracker's beats stand
     if grid is None:
         grid = grid_from(beats)
     if grid is None:

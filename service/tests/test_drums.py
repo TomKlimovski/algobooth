@@ -129,3 +129,18 @@ def test_drum_tone_levels_follow_the_mix():
 
 def test_drum_tone_is_none_without_hits():
     assert drum_tone(drum_loop({"bd": {(0, 0)}}, 120, 1), SR, {"bd": set(), "sd": set()}, grid_for(120, 1)) is None
+
+
+def test_quiet_sixteenth_hats_are_ghosts():
+    # the 48:50 Solomun clip's 16th-note ticks, 18 dB under its offbeat hats: a gh voice, not full-level oh
+    loud = {"bd": {(b, s) for b in range(2) for s in (0, 4, 8, 12)}, "oh": {(b, s) for b in range(2) for s in (2, 6, 10, 14)}}
+    ghosts = {"hh": {(b, s) for b in range(2) for s in (5, 13)}}
+    y = drum_loop(loud, 124, 2) + 0.1 * drum_loop(ghosts, 124, 2)
+    hits = classify_drums(y, SR, grid_for(124, 2))
+    assert hits["oh"] == loud["oh"]
+    assert hits["gh"] == ghosts["hh"] and hits["hh"] == set()
+
+
+def test_a_lone_hat_is_never_a_ghost():
+    hits = classify_drums(drum_loop({"bd": {(0, 0), (0, 8)}, "hh": {(0, 4)}}, 120, 1), SR, grid_for(120, 1))
+    assert hits["hh"] == {(0, 4)} and hits["gh"] == set()

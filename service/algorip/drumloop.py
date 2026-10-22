@@ -17,7 +17,8 @@ from dataclasses import dataclass
 from algorip.loop import find_loop
 from algorip.schema import Analysis
 
-VOICE_LINES: dict[str, tuple[str, ...]] = {"drums": ("bd", "sd"), "hats": ("hh", "oh")}
+# One line per voice, so each can carry its own gain (generate names the "snare" line "claps" on the 909).
+VOICE_LINES: dict[str, tuple[str, ...]] = {"drums": ("bd",), "snare": ("sd",), "hats": ("hh", "oh"), "ghosts": ("gh",)}
 
 # A bar's strays over the voices that have a loop are written as a fill only from this many hits; below it
 # they are dropped from the fills line (they still count as unplayed in `match`). Set on Solomun, where the
@@ -76,6 +77,8 @@ def drum_loops(a: Analysis) -> DrumLoops:
             heard.add((voice, bar, step))
         v = voices[voice] = voice_loop(bars)
         played |= {(voice, b, s) for b in range(a.bars) for s in v.templates[b % v.period]}
+    if "gh" in voices:  # a ghost's strays are not worth a fill
+        voices["gh"].fills = [set() for _ in voices["gh"].fills]
     looped = [v for v in voices.values() if any(v.templates)]
     for b in range(a.bars):
         if sum(len(v.fills[b]) for v in looped) < FILL_MIN_HITS:

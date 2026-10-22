@@ -109,3 +109,15 @@ def test_a_voice_looping_every_fourth_bar_has_no_fills():
     d = drum_loops(analysis(drums={"bd": bd, "sd": [], "hh": [], "oh": oh}, bars=9))
     assert d.voices["oh"].period == 4 and d.voices["oh"].templates[0] == OFF
     assert not any(d.voices["oh"].fills) and d.fill_bars is None and d.match == 1.0
+
+
+def test_ghost_strays_are_not_fills():
+    from algorip.schema import Analysis
+    from tests.test_generate import HOUSE
+
+    a = HOUSE.model_copy(update={"bars": 4, "drums": {
+        "bd": [(b, s) for b in range(4) for s in (0, 4, 8, 12)],
+        "gh": [(b, 13) for b in range(4)] + [(2, 3), (2, 7), (2, 11)]}})
+    loops = drum_loops(a)
+    assert loops.voices["gh"].templates == [{13}]
+    assert loops.fill_bars is None and all(not f for f in loops.voices["gh"].fills)

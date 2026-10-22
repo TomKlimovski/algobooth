@@ -48,6 +48,8 @@ export interface Analysis {
   /** The clip's offset from 440 tuning in cents, removed before the bass was rounded to semitones. */
   tuning_cents: number;
   drum_summary: DrumSummary | null;
+  /** Each drum voice's level (dB) and first-12-dB fall (ms) on the stem; null without hits. */
+  drum_tone: { levels: Record<string, number>; falls: Record<string, number> } | null;
 }
 
 export interface SoundChoice {
@@ -59,6 +61,10 @@ export interface SoundChoice {
   bass_envelope: { attack: number; clip: number | null; release: number } | null;
   bass_filter_env: { octaves: number; close: number } | null;
   bass_tremolo: { rate: number; depth: number } | null;
+  /** Voice to the bank sample's index, when the stem's shape chose one other than 0. */
+  drum_samples: Record<string, number>;
+  /** Voice to the line's gain, when 2 dB or more from Strudel's 0.8. */
+  drum_gains: Record<string, number>;
   chord_sound: string;
   chord_lpf: number;
   room: number;

@@ -275,12 +275,12 @@ def bass_envelope(y: np.ndarray, sr: int, notes: list[Note], grid: Grid) -> Meas
         start = grid.time_of(note.bar, note.step)
         end = grid.time_of(note.bar, note.step + note.length)
         from_, lo, hi = np.searchsorted(times, [max(0.0, start - quarter), start, end])
-        span = env[from_:hi]
-        if len(span) < 2 + (lo - from_) or span.max() <= 0:
+        span = _with_lead(env[from_:hi], int(lo - from_))
+        if len(span) < 2 or span.max() <= 0:
             continue
         db = 20 * np.log10(span / span.max() + 1e-9)
-        onset = _onset_from(db, int(lo - from_), -ONSET_DB)
-        top = onset + int(np.flatnonzero(db[onset:] >= HOLD_DB)[0])
+        onset = int(np.flatnonzero(db >= ONSET_DB)[0])
+        top = int(np.flatnonzero(db >= HOLD_DB)[0])
         hold_end = int(np.flatnonzero(db >= HOLD_DB)[-1])
         after = np.flatnonzero(db[hold_end:] <= ONSET_DB)
         fall_end = hold_end + (int(after[0]) if len(after) else len(db) - 1 - hold_end)
@@ -315,24 +315,29 @@ WOBBLE_DB = 3.0  # a periodic swing under this is not a tremolo
 WOBBLE_MIN_CYCLES = 1  # a span shorter than this many cycles of WOBBLE_LOW (200 ms) cannot resolve a rate
 
 
-def _onset_from(db: np.ndarray, lead: int, within_db: float) -> int:
-    """The first frame within within_db of the loudest, searched from frame 0 when the `lead` frames before the
-    grid line are all more than ONSET_WITHIN_DB under it (sound arriving early, as the bass that leads the kick
-    does), and from the line otherwise (a legato or retriggered note's predecessor is loud there)."""
-    start = 0 if lead > 0 and np.all(db[:lead] < -ONSET_WITHIN_DB) else lead
-    return start + int(np.flatnonzero(db[start:] >= -within_db)[0])
+def _lead_is_quiet(env: np.ndarray, lead: int) -> bool:
+    """Whether the `lead` frames before a note's grid line are all more than ONSET_WITHIN_DB under the loudest frame
+    after it: sound arriving early (the bass that leads the kick), as against a legato or retriggered note's
+    predecessor, which is loud there and must not be taken for the onset."""
+    return lead > 0 and len(env) > lead and bool(np.all(env[:lead] < env[lead:].max() * 10 ** (-ONSET_WITHIN_DB / 20)))
+
+
+def _with_lead(env: np.ndarray, lead: int) -> np.ndarray:
+    """A note's envelope from its line, with the lead frames before it kept only when they are quiet."""
+    return env if _lead_is_quiet(env, lead) else env[lead:]
 
 
 def _sounding(x: np.ndarray, sr: int, lead: int = 0) -> tuple[np.ndarray, int, int] | None:
     """The 10 ms RMS envelope of a note's span, and the frames it sounds in: from the first frame within
     ONSET_WITHIN_DB of its loudest to the last within 20 dB of it. None when there is nothing to hear.
-    `lead` frames of x precede the note's grid line (see _onset_from)."""
+    `lead` frames of x precede the note's grid line; they are searched only when quiet (see _lead_is_quiet)."""
     env = librosa.feature.rms(y=x, frame_length=TONE_FFT, hop_length=TONE_HOP, center=False)[0]
     if len(env) < 4 + lead or env.max() <= 0:
         return None
-    db = 20 * np.log10(env / env.max() + 1e-9)
-    onset = _onset_from(db, lead, ONSET_WITHIN_DB)
-    last = int(np.flatnonzero(db >= -20.0)[-1])
+    start = 0 if _lead_is_quiet(env, lead) else lead
+    db = 20 * np.log10(env / env[start:].max() + 1e-9)
+    onset = start + int(np.flatnonzero(db[start:] >= -ONSET_WITHIN_DB)[0])
+    last = start + int(np.flatnonzero(db[start:] >= -20.0)[-1])
     return env, onset, max(last, onset + 1)
 
 

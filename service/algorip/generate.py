@@ -15,23 +15,31 @@ def fmt_time(seconds: float) -> str:
     return f"{hours}:{minutes:02d}:{secs:02d}" if hours else f"{minutes}:{secs:02d}"
 
 
+def _voice_name(voice: str, s: SoundChoice) -> str:
+    """The sample a voice plays, with the bank index inline (Strudel's `bd:3`) when the shape chose one."""
+    base = s.snare_name if voice == "sd" else "hh" if voice == "gh" else voice
+    n = s.drum_samples.get(voice)
+    return f"{base}:{n}" if n else base
+
+
 def drum_lines(a: Analysis, s: SoundChoice) -> list[str]:
-    """Each drum voice's loop on its line; every hit a loop does not play on a muted fills line after them."""
+    """One line per drum voice (its loop, the bank, its gain); every hit a loop does not play on a muted fills line after them."""
     loops = drum_loops(a)
-    names = {"sd": s.snare_name}
     lines = []
     for label, voices in VOICE_LINES.items():
-        parts = [
-            cycle([bar_mini(names.get(voice, voice), t) for t in loop.templates])
-            for voice in voices
-            if (loop := loops.voices.get(voice)) is not None and any(loop.templates)
-        ]
-        if parts:
-            lines.append(f'{label}: s("{", ".join(parts)}").bank("{s.drum_bank}")')
+        present = [v for v in voices if (loop := loops.voices.get(v)) is not None and any(loop.templates)]
+        if not present:
+            continue
+        parts = [cycle([bar_mini(_voice_name(v, s), t) for t in loops.voices[v].templates]) for v in present]
+        if label == "snare" and s.snare_name == "cp":
+            label = "claps"
+        main = max(present, key=lambda v: len(a.drums.get(v, [])))  # a line with two voices takes the busier one's gain
+        gain = s.drum_gains.get(main)
+        lines.append(f'{label}: s("{", ".join(parts)}").bank("{s.drum_bank}")' + (f".gain({gain:g})" if gain is not None else ""))
     if loops.fill_bars is not None:
         lo, hi = loops.fill_bars
         fills = [
-            cycle([bar_mini(names.get(voice, voice), f) for f in loop.fills])
+            cycle([bar_mini(_voice_name(voice, s), f) for f in loop.fills])
             for voices in VOICE_LINES.values()
             for voice in voices
             if (loop := loops.voices.get(voice)) is not None and any(loop.fills)

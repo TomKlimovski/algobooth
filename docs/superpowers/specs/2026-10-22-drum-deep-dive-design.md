@@ -29,10 +29,11 @@ right hits. The 36:40 clip's kicks sit 0.13 step from its beats, so its grid is 
    right is unchanged). Then the downbeat among the four aligned beats: the low-band accent rule as now
    when one phase leads the others by `ACCENT_LEAD = 1` dB; when none does (four equal kicks), the
    backbeat decides: the phase with the most 1 to 6 kHz energy in the 100 ms after its beats, summed
-   over the clip, is beat 2 or 4, and of the two downbeats that allow, the earlier. The downbeat rule
-   runs on every clip, moved or not: where one phase leads by a decibel it is the old argmax (36:40's
-   phases spread 2 dB, the synthetic click track accents its downbeats), so only a clip with four
-   equal kicks sees the backbeat test. The bar count is recomputed from the moved downbeat. `band`/`band_onsets` move to `algorip/onsets.py` (re-exported
+   over the clip, is beat 2 or 4, and of the two downbeats that allow, the earlier. This runs only for
+   a grid the kicks moved, whose tracker downbeat means nothing; an unmoved grid keeps the tracker's
+   rule as it stands (the loudest phase). Found at the build: 36:40's loudest kick leads its runner-up
+   by 0.6 dB, so a lead rule on every clip would have moved its bar line two beats. The bar count is
+   recomputed from the moved downbeat. `band`/`band_onsets` move to `algorip/onsets.py` (re-exported
    from `drums`) so `grid` can import them without a cycle.
    On 48:50: the beats move 197 ms earlier, the kicks land on steps 0, 4, 8, 12, `four_on_the_floor`
    is true, the kit is the 909, the clap falls on 2 and 4, and the bass line reads
@@ -102,15 +103,26 @@ and the 197 ms are the measurements' predictions, and the build regenerates the 
 byte-identical (its grid cannot move: 0.13 step is inside the dead zone, and its accents spread 2 dB);
 its hats line may gain an index and a gain like any other.
 
-- `solomun2` (48:50): the grid's downbeat moves 197 ms earlier; `drums: s("bd:3*4").bank("tr909")`,
-  `claps: s("[~ cp:4]*2").bank("tr909").gain(0.32)` (values as the build measures them),
-  `hats: s("[~ oh:2]*4").bank("tr909").gain(0.5)`, a `ghosts:` line on the 16ths after beats 2 and 4,
-  the bass `[~ ~ ~ d#2] [~ ~ d#1@2] [~ ~ e3@2] [~ ~ d#2@2]` with the filter envelope recovered by
-  change 2 and whatever gate the truer lengths leave; the drum match stays 0.93.
-- `solomun` (36:40): grid, hats and bass lines byte-identical; `drums:` splits into `drums:` and
-  `claps:` with the measured indices and gains.
-- `build` (synthetic): the kit's shortest samples (its 10 ms ramps); gains as measured on the
-  synthetic kit; lines split the same way.
+- `solomun2` (48:50), as built: the beats move 225 ms later (the shorter way), a beat is added back to
+  the kick the clip opens on, and the bar starts there so the claps fall on 2 and 4: 5 bars, downbeat 0.
+  `drums: s("bd:3*4").bank("tr909")`, `claps: s("[~ cp:4]*2").bank("tr909")` (the clap measured
+  2.3 dB under where `cp:4` sits, inside the 2 dB write margin, so no gain; the kick's own click shares
+  its band and lifts the reading), `hats: s("[~ oh:2]*4").bank("tr909").gain(0.61)`,
+  `ghosts: s("hh:1(2,16,1)").bank("tr909").gain(0.12)`, a one-tick fill in bar 5 (a lone closed hat
+  11.7 dB under the open hats, just inside the ghost margin); drum match 0.93. The bass rotates to
+  `~@3 d#2@2 ~ d#1@3 ~ e3@3 ~ d#2@2` (a 16th pickup into beat 2, then the offbeat 8ths; each note
+  crosses into the next beat, which the mini writer cannot group, so it is written flat) with
+  `.lpf(230).lpenv(1.7).lpdecay(0.065).lpsustain(0).attack(0.021).clip(0.63).release(0.035)`, match
+  0.96. The written lengths are the old ones (pyin's 186 ms frames smear each note's end into the
+  next step), so the gate stays. Found at the build: with four bars instead of five the clip-wide
+  `lpf` read 470 and the opening vanished, because the stem's filter follows the note (d#1 holds at
+  86 Hz, the pickup d#2 at 230, beat 4's d#2 at 750, e3 at 540) and the median moves with the note set.
+- `solomun` (36:40), as built: grid, hats pattern and bass lines unchanged;
+  `drums: s("bd*4")` (its kick's first 12 dB fall in 30 ms: `bd:0`), `claps: s("[cp:4 ~ cp:4 ~] ...").gain(1)`
+  (the stem's claps 2.7 dB above where the samples put them, capped), `hats: ... oh:1 ... .gain(0.42)`;
+  the bass `lpf` reads 360 for 370, the onset look-back moving the hold window by a frame on some notes.
+- `build` (synthetic), as built: `bd`, `cp`, `hh` keep index 0 (the kit's shortest), the open hat
+  `oh:2`; no gains (the synthetic voices sit within 2 dB of the samples); lines split as above.
 
 ## Decided
 

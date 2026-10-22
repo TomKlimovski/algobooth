@@ -15,7 +15,7 @@ from algorip.bass import bass_envelope, bass_tone, choose_bass_loop, harmonic_ra
 from algorip.chords import estimate_chords
 from algorip.download import Fetcher, Runner, clip_key, fetch_clip, run_command, yt_dlp_fetch
 from algorip.drumloop import drum_loops
-from algorip.drums import VOICES, classify_drums, is_four_on_the_floor
+from algorip.drums import VOICES, classify_drums, drum_tone, is_four_on_the_floor
 from algorip.generate import generate
 from algorip.grid import estimate_grid
 from algorip.key import key_from_stems
@@ -153,6 +153,7 @@ def _analyse(stems: dict[str, Path], predict: Predictor, report: Callable[[float
         bass_envelope=bass_envelope(bass, SR, bass_notes, grid),
         bass_tone=bass_tone(bass, SR, bass_notes, grid),
         tuning_cents=bg.tuning_cents,
+        drum_tone=drum_tone(drums, SR, hits, grid),
     )
     analysis = analysis.model_copy(update={"drum_summary": _drum_summary(analysis)})
     report(1.0)

@@ -23,7 +23,7 @@ from algorip.kits import _rms_envelope as _band_envelope
 from algorip.schema import DrumTone
 from algorip.onsets import _DELTA, _LEAD_IN_SECONDS, _detect, _lead_in, band, band_onsets  # noqa: F401  (re-exported)
 
-VOICES = ("bd", "sd", "hh", "oh")
+VOICES = ("bd", "sd", "hh", "oh", "gh")  # gh: ghost hats, quiet ticks on their own line
 DrumHits = dict[str, set[tuple[int, int]]]
 
 # The snare band picks up hat and kick leakage on the log-scaled onset envelope: in the house
@@ -125,6 +125,11 @@ _KICK_BODY_SECONDS = 0.045
 _SNARE_OVER_LOW_DB = 15.0
 _LOW_BEFORE_SECONDS = 0.01
 _LOW_AFTER_SECONDS = 0.06
+
+# Ghosts. A hat that is not on a kick or a snare, and lies more than this under the median level (over the
+# floor) of all such hats, is a ghost: the 48:50 Solomun clip's offbeat open hats sit 24 to 26 dB over the
+# floor, its 16th-note ticks 6 to 10. Judged before D3, with closed and open hats pooled.
+GHOST_DB = 12.0
 
 _FOUR_ON_THE_FLOOR_STEPS = (0, 4, 8, 12)
 _FOUR_ON_THE_FLOOR_SHARE = 0.75
@@ -272,8 +277,12 @@ def classify_drums(drums: np.ndarray, sr: int, grid: Grid) -> DrumHits:
 
     others = [over for _, over, _, shared in hats if not shared]
     own_level = float(np.median(others)) - _OWN_LEVEL_DB if others else None
+    ghost_level = float(np.median(others)) - GHOST_DB if len(others) >= 2 else None
     for t, over, rate, shared in hats:
         if shared and own_level is not None and over < own_level:
+            continue
+        if ghost_level is not None and over < ghost_level:
+            add("gh", t)
             continue
         add("oh" if rate <= _OPEN_DB_PER_MS else "hh", t)  # D3
     return hits
