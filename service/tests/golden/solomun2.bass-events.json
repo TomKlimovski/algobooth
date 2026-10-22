@@ -1,19 +1,5 @@
 [
   {
-    "line": "_bass2",
-    "cycle": 0,
-    "step": 6,
-    "length": 1,
-    "note": "c#1"
-  },
-  {
-    "line": "_bass2",
-    "cycle": 0,
-    "step": 14,
-    "length": 1,
-    "note": "f1"
-  },
-  {
     "line": "bass",
     "cycle": 0,
     "step": 1,

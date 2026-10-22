@@ -204,10 +204,37 @@ def test_the_clip_tuning_is_removed_before_rounding_and_a_clear_chromatic_note_s
     assert -45 <= bg.tuning_cents <= -25
     assert [n.midi for n in notes if n.bar == 0] == [39, 27, 52, 39]  # the E3 stays E3: D# minor has no E, but the stem does
     # the same line in tune reads tuning 0; a note a quarter tone off (50 cents) is ambiguous and snaps to the key
-    ambiguous = [(0, 0, 4, 39), (0, 4, 4, 40.5), (0, 8, 4, 39), (0, 12, 4, 39)]
+    ambiguous = [(0, 0, 4, 39), (0, 4, 4, 40.4), (0, 8, 4, 39), (0, 12, 4, 39)]
     bg, notes = transcribe_bass(bass_line(ambiguous, 120, 1), SR, Grid(bpm=120, first_downbeat=0.0, bars=1), dsharp_minor)
-    assert abs(bg.tuning_cents) <= 15
-    assert [n.midi for n in notes][1] in (39, 41)  # F (41) and D# (39) are in key; E (40) is not, and it was not clearly E
+    assert abs(bg.tuning_cents) <= 5  # read to the cent, not to pyin's 20-cent bins
+    assert [n.midi for n in notes][1] == 39  # 40 cents sharp of E, which is not in key: ambiguous, snapped down to D#
+
+
+def test_a_record_pitched_up_half_a_semitone_reads_as_sharp_not_as_the_next_note():
+    g = Grid(bpm=120, first_downbeat=0.0, bars=2)
+    dsharp_minor = Key(tonic=3, mode="minor")
+    shape = [(b, s, 2, m) for b in range(2) for s, m in ((0, 39), (4, 27), (8, 52), (12, 39))]
+    for cents in (40, 45, 50):
+        sharp = [(b, s, n, m + cents / 100) for b, s, n, m in shape]
+        bg, notes = transcribe_bass(bass_line(sharp, 120, 2), SR, g, dsharp_minor)
+        # +40 could be read as -60 against the next semitone up; the reading that keeps more steps in key wins
+        assert cents - 8 <= bg.tuning_cents <= cents + 8, cents
+        assert [n.midi for n in notes if n.bar == 0] == [39, 27, 52, 39], cents
+    flat = [(b, s, n, m - 0.45) for b, s, n, m in shape]
+    bg, notes = transcribe_bass(bass_line(flat, 120, 2), SR, g, dsharp_minor)
+    assert -53 <= bg.tuning_cents <= -37 and [n.midi for n in notes if n.bar == 0] == [39, 27, 52, 39]
+
+
+def test_retuning_merges_a_boundary_the_raw_rounding_split_and_keeps_a_real_retrigger():
+    g = Grid(bpm=120, first_downbeat=0.0, bars=1)
+    dsharp_minor = Key(tonic=3, mode="minor")
+    # one held note 8 steps long, 40 cents sharp: step by step the raw rounding wobbles between 39 and 40,
+    # which looked like pitch changes; retuned it is one D#2
+    bg, notes = transcribe_bass(bass_line([(0, 0, 8, 39.4)], 120, 1), SR, g, dsharp_minor)
+    assert [(n.step, n.length, n.midi) for n in notes] == [(0, 8, 39)]
+    # two D#2s back to back, retriggered: still two notes
+    bg, notes = transcribe_bass(bass_line([(0, 0, 4, 39.4), (0, 4, 4, 39.4)], 120, 1), SR, g, dsharp_minor)
+    assert [(n.step, n.length) for n in notes] == [(0, 4), (4, 4)]
 
 
 def test_bass_tone_measures_the_filter_and_the_wobble():
@@ -223,10 +250,24 @@ def test_bass_tone_measures_the_filter_and_the_wobble():
     shaped_audio = filtered_bass(line, 120, 2, open_hz=2000, hold_hz=200, close_seconds=0.12, wobble_hz=9, wobble_depth=0.5)
     tone = bass_tone(shaped_audio, SR, transcribe_bass(shaped_audio, SR, g, GMIN)[1], g)
     assert tone is not None
-    # the opening is read over 25 ms, by which an exponential 120 ms close has already come halfway down
     assert 150 <= tone.hold_hz <= 320 and tone.open_hz >= 3 * tone.hold_hz and 60 <= tone.close_ms <= 220
     assert tone.wobble_hz is not None and 8 <= tone.wobble_hz <= 10 and 4 <= tone.wobble_db <= 8
     assert bass_tone(shaped_audio, SR, [], g) is None
+    # the stem's trap: the sound starts 30 ms after the grid line, with a quiet click in the gap; the opening
+    # must be read where the note sounds, not from the gap (where the click's broadband noise reads as 3 octaves)
+    lagged = filtered_bass(line, 120, 2, open_hz=600, hold_hz=300, close_seconds=0.12, onset_lag_seconds=0.03, click=True)
+    tone = bass_tone(lagged, SR, transcribe_bass(lagged, SR, g, GMIN)[1], g)
+    assert tone is not None and tone.open_hz <= 2.2 * tone.hold_hz and tone.wobble_hz is None
+    # a plucked note that only decays is not a tremolo; a short note cannot resolve one at all
+    from tests.synth import gated_bass
+
+    plucked = gated_bass(line, 120, 2, hold_share=0.2, fall_seconds=0.3)
+    tone = bass_tone(plucked, SR, transcribe_bass(plucked, SR, g, GMIN)[1], g)
+    assert tone is not None and tone.wobble_hz is None
+    short = [(b, s, 2, 39) for b in range(2) for s in (0, 4, 8, 12)]
+    short_audio = filtered_bass(short, 129, 2, open_hz=2000, hold_hz=200, close_seconds=0.12, wobble_hz=9, wobble_depth=0.5)
+    tone = bass_tone(short_audio, SR, transcribe_bass(short_audio, SR, g, GMIN)[1], g)
+    assert tone is not None and tone.wobble_hz is None
 
 
 def test_choose_sounds_writes_the_measured_filter_and_tremolo():

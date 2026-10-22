@@ -1054,11 +1054,11 @@
     "hold_share": 0.98
   },
   "bass_tone": {
-    "open_hz": 4489.7,
+    "open_hz": 430.7,
     "hold_hz": 430.7,
-    "close_ms": 20.0,
+    "close_ms": 0.0,
     "wobble_hz": null,
     "wobble_db": null
   },
-  "tuning_cents": 10.6
+  "tuning_cents": 0.1
 }
