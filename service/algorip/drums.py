@@ -18,24 +18,16 @@ import numpy as np
 from scipy import signal
 
 from algorip.grid import Grid
+from algorip.onsets import _DELTA, _LEAD_IN_SECONDS, _detect, _lead_in, band, band_onsets  # noqa: F401  (re-exported)
 
 VOICES = ("bd", "sd", "hh", "oh")
 DrumHits = dict[str, set[tuple[int, int]]]
 
-_HOP = 512  # librosa's default onset-strength hop
-_DELTA = 0.2  # peak threshold as a fraction of the envelope's range (_detect min-max normalises it)
 # The snare band picks up hat and kick leakage on the log-scaled onset envelope: in the house
 # loop at up to 0.43 of its max, against 0.61 for the weakest real snare; under full kicks a
 # gain-0.15 snare lets the kick on step 8 through at 0.4 but not at 0.6. Hats under an open-hat
 # tail peak at 0.34 in theirs, so no single delta serves both bands; the snare band uses a higher one.
 _SNARE_DELTA = 0.6
-_WAIT_SECONDS = 0.05  # minimum gap between onsets in one band
-# librosa's onset envelope is zero for its first few frames, so a hit at t=0 would be lost.
-# Detection runs on y behind this much silence, shifted back after. The silence goes in before
-# the band filter: the zero-phase filter rings ahead of each hit, and a hit at sample 0 with its
-# pre-ringing cut off reads as a much louder onset than the same hit mid-file.
-_LEAD_IN_SECONDS = 0.1
-_EDGE_SECONDS = 0.03  # frames past the lead-in's end left out of the envelope's maximum
 
 # A band whose peak RMS (5 ms hops) is under its voice's gate, relative to the whole stem's
 # peak RMS, carries only leakage from other voices and gets no onsets: the onset threshold is
@@ -135,19 +127,6 @@ _FOUR_ON_THE_FLOOR_STEPS = (0, 4, 8, 12)
 _FOUR_ON_THE_FLOOR_SHARE = 0.75
 
 
-def band(y: np.ndarray, sr: int, low: float | None, high: float | None) -> np.ndarray:
-    """y through a zero-phase 4th-order Butterworth: band-pass, low-pass (low=None) or high-pass (high=None)."""
-    if low is None and high is None:
-        return np.asarray(y, dtype=float)
-    if low is None:
-        sos = signal.butter(4, high, btype="lowpass", fs=sr, output="sos")
-    elif high is None:
-        sos = signal.butter(4, low, btype="highpass", fs=sr, output="sos")
-    else:
-        sos = signal.butter(4, [low, high], btype="bandpass", fs=sr, output="sos")
-    return signal.sosfiltfilt(sos, np.asarray(y, dtype=float))
-
-
 def _rms_envelope(y: np.ndarray, sr: int) -> np.ndarray:
     """RMS of y over consecutive 5 ms hops."""
     hop = max(1, round(_ENV_HOP_SECONDS * sr))
@@ -158,51 +137,6 @@ def _rms_envelope(y: np.ndarray, sr: int) -> np.ndarray:
 def _peak_rms(y: np.ndarray, sr: int) -> float:
     env = _rms_envelope(y, sr)
     return float(env.max()) if len(env) else 0.0
-
-
-def _detect(filtered: np.ndarray, sr: int, delta: float) -> np.ndarray:
-    """Onset times in seconds, in the filtered (lead-in padded) signal's own timeline.
-
-    The envelope is min-max normalised as librosa would, except that its maximum skips the frames
-    where the lead-in silence meets the clip: a stem that starts on a continuous bed (a separated
-    hat band always does) jumps out of digital silence there, and that one jump would otherwise
-    set the scale and bury every real onset under delta.
-    """
-    env = librosa.onset.onset_strength(y=filtered.astype(np.float32), sr=sr, hop_length=_HOP)
-    wait_frames = max(1, round(_WAIT_SECONDS * sr / _HOP))
-    edge = round((_LEAD_IN_SECONDS + _EDGE_SECONDS) * sr / _HOP)
-    low = float(env.min()) if len(env) else 0.0
-    peak = float(env[edge:].max()) if len(env) > edge else float(env.max(initial=0.0))
-    env = (env - low) / (peak - low) if peak > low else env - low
-    return librosa.onset.onset_detect(
-        onset_envelope=env,
-        sr=sr,
-        hop_length=_HOP,
-        units="time",
-        backtrack=False,
-        normalize=False,
-        delta=delta,
-        wait=wait_frames,
-    )
-
-
-def _lead_in(y: np.ndarray, sr: int) -> tuple[np.ndarray, int]:
-    lead = round(_LEAD_IN_SECONDS * sr)
-    return np.concatenate([np.zeros(lead), np.asarray(y, dtype=float)]), lead
-
-
-def band_onsets(
-    y: np.ndarray, sr: int, low: float | None, high: float | None, delta: float = _DELTA
-) -> np.ndarray:
-    """Onset times in seconds of y's energy in one band.
-
-    librosa takes `wait` in frames, so 50 ms is converted at the onset envelope's hop. The envelope
-    is min-max normalised before peak picking (see _detect), and the lead-in silence pins its
-    minimum at zero, so `delta` (0.2 by default) is a fraction of the envelope's maximum. A peak
-    must clear the local mean of the envelope by delta.
-    """
-    padded, lead = _lead_in(y, sr)
-    return _detect(band(padded, sr, low, high), sr, delta) - lead / sr
 
 
 def _attack_time(y: np.ndarray, sr: int, t: float) -> float:
