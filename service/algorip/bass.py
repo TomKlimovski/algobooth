@@ -11,7 +11,7 @@ from algorip.key import Key
 from algorip.loop import find_loop
 from algorip.mini import OCTAVE, one_per_step, loop_mini, template_note
 from algorip.notes import Note, fold_octaves, snap_to_key
-from algorip.schema import BassEnvelope, BassLoop
+from algorip.schema import BassLoop, MeasuredEnvelope
 from algorip.score import expand, score
 
 BASS_LOW = 24  # C1
@@ -178,26 +178,31 @@ def choose_bass_loop(bg: BassGrid, grid: Grid, notes: list[Note]) -> BassLoop | 
     )
 
 
-ENVELOPE_HOP = 64  # 2.9 ms at the service rate; a pluck's 12 dB fall takes about 100 ms
-ENVELOPE_FRAME = 1024  # 46 ms: two periods of a low bass note, so its ripple does not read as decay
-ATTACK_FRAME = 128  # 5.8 ms: the long frame's own rise would read as a 46 ms attack on an instant onset
-DECAY_DB = 12.0
+ENVELOPE_HOP = 128  # 2.9 ms at the service rate (44.1 kHz)
+ENVELOPE_FRAME = 2048  # 46 ms: two periods of a low bass note, so its ripple does not read as a fall
+ONSET_DB = -20.0  # a note is sounding from here, relative to its peak
+HOLD_DB = -3.0  # ...and holding while within this of it
+# An RMS window sliding over an instant edge takes this share of its length from -20 dB to -3 dB (1% of the
+# window to half of it), so a measured rise or fall is shortened by it.
+_SMEAR = 0.49 * ENVELOPE_FRAME
 
 
-def bass_envelope(y: np.ndarray, sr: int, notes: list[Note], grid: Grid) -> BassEnvelope | None:
-    """The median attack, decay and end level of the stem's notes, each measured on the note's own span.
+def bass_envelope(y: np.ndarray, sr: int, notes: list[Note], grid: Grid) -> MeasuredEnvelope | None:
+    """The median attack, hold, fall and end level of the stem's notes, each measured on the note's own span.
 
-    Attack is the time from the note's onset (20 dB under its peak) to its peak RMS; decay the time from the
-    peak to DECAY_DB below it, capped at the note's end; end_db the level at the note's end relative to the
-    peak. None with no notes.
+    On the RMS envelope: the onset is the first moment within ONSET_DB of the note's peak, the hold runs from
+    there to the last moment within HOLD_DB of it, the attack is the rise between the two (less the window's
+    own smear), the fall the time from the hold's end to ONSET_DB (likewise), capped at the note's end; end_db
+    is the level a frame before the end. None with no notes. The 48:50 Solomun stem holds each note within
+    2 dB for half to three quarters of its length and then cuts it in about 40 ms: a gate, not a pluck.
     """
     if not notes:
         return None
-    y32 = np.asarray(y, dtype=np.float32)
-    env = librosa.feature.rms(y=y32, frame_length=ENVELOPE_FRAME, hop_length=ENVELOPE_HOP)[0]
-    fast = librosa.feature.rms(y=y32, frame_length=ATTACK_FRAME, hop_length=ENVELOPE_HOP)[0]
+    env = librosa.feature.rms(y=np.asarray(y, dtype=np.float32), frame_length=ENVELOPE_FRAME, hop_length=ENVELOPE_HOP)[0]
     times = librosa.frames_to_time(np.arange(len(env)), sr=sr, hop_length=ENVELOPE_HOP)
-    attacks, decays, ends = [], [], []
+    smear = _SMEAR / sr
+    hop = ENVELOPE_HOP / sr
+    attacks, holds, falls, ends, shares = [], [], [], [], []
     for note in notes:
         start = grid.time_of(note.bar, note.step)
         end = grid.time_of(note.bar, note.step + note.length)
@@ -206,23 +211,21 @@ def bass_envelope(y: np.ndarray, sr: int, notes: list[Note], grid: Grid) -> Bass
         if len(span) < 2 or span.max() <= 0:
             continue
         db = 20 * np.log10(span / span.max() + 1e-9)
-        # the peak is where the envelope first comes within a decibel of its maximum: a flat note peaks at once
-        peak = int(np.flatnonzero(db >= -1.0)[0])
-        # the attack runs from the note's onset (20 dB under its peak) to its peak on the short-frame envelope,
-        # not from the grid line, which on a real stem sits tens of milliseconds before the sound
-        quick = fast[lo:hi]
-        qdb = 20 * np.log10(quick / quick.max() + 1e-9)
-        attacks.append((int(np.flatnonzero(qdb >= -1.0)[0]) - int(np.flatnonzero(qdb >= -20.0)[0])) * ENVELOPE_HOP / sr * 1000)
-        below = np.flatnonzero(db[peak:] <= -DECAY_DB)
-        decays.append(((below[0] if len(below) else len(db) - 1 - peak) * ENVELOPE_HOP / sr) * 1000)
-        # the level just before the end, clear of the frame that straddles the note's own release
-        ends.append(float(db[max(peak, len(db) - 1 - ENVELOPE_FRAME // ENVELOPE_HOP)]))
+        onset = int(np.flatnonzero(db >= ONSET_DB)[0])
+        top = int(np.flatnonzero(db >= HOLD_DB)[0])
+        hold_end = int(np.flatnonzero(db >= HOLD_DB)[-1])
+        after = np.flatnonzero(db[hold_end:] <= ONSET_DB)
+        fall_end = hold_end + (int(after[0]) if len(after) else len(db) - 1 - hold_end)
+        attacks.append(max(0.0, (top - onset) * hop - smear) * 1000)
+        holds.append((hold_end - onset) * hop * 1000)
+        falls.append(max(0.0, (fall_end - hold_end) * hop - smear) * 1000)
+        ends.append(float(db[max(top, len(db) - 1 - ENVELOPE_FRAME // ENVELOPE_HOP)]))
+        shares.append(holds[-1] / 1000 / (end - start))
     if not attacks:
         return None
-    return BassEnvelope(
-        attack_ms=round(float(np.median(attacks)), 1),
-        decay_ms=round(float(np.median(decays)), 1),
-        end_db=round(float(np.median(ends)), 1),
+    med = lambda xs: round(float(np.median(xs)), 1)  # noqa: E731
+    return MeasuredEnvelope(
+        attack_ms=med(attacks), hold_ms=med(holds), fall_ms=med(falls), end_db=med(ends), hold_share=round(float(np.median(shares)), 2)
     )
 
 

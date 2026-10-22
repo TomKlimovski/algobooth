@@ -21,20 +21,22 @@ class BassLoop(BaseModel):
     match_with_layer: float | None  # the loop plus the layer, over every bar
 
 
-class BassEnvelope(BaseModel):
+class MeasuredEnvelope(BaseModel):
     """How the bass stem's notes shape over time, each a median over the transcribed notes."""
 
-    attack_ms: float  # from a note's start to its peak
-    decay_ms: float  # from the peak to 12 dB below it, capped at the note's end
-    end_db: float  # the level at the note's end, relative to its peak
+    attack_ms: float  # from a note's onset (20 dB under its peak) to within 3 dB of it
+    hold_ms: float  # from the onset to the last moment within 3 dB of the peak
+    fall_ms: float  # from the end of the hold to 20 dB down, capped at the note's end
+    end_db: float  # the level just before the note's end, relative to its peak
+    hold_share: float  # hold_ms over the note's written length
 
 
-class Envelope(BaseModel):
-    """The amplitude envelope written on the bass lines, in Strudel's units."""
+class StrudelEnvelope(BaseModel):
+    """The gate written on the bass lines, in Strudel's units: a fast attack, full level for the hold, a short release."""
 
     attack: float  # seconds
-    decay: float  # seconds
-    sustain: float  # a linear gain
+    clip: float | None  # the hold as a share of the written note; None when the note holds to its end
+    release: float  # seconds
 
 
 class DrumSummary(BaseModel):
@@ -60,7 +62,7 @@ class Analysis(BaseModel):
     melody: list[Note] | None
     bass_loop: BassLoop | None = None
     drum_summary: DrumSummary | None = None
-    bass_envelope: BassEnvelope | None = None
+    bass_envelope: MeasuredEnvelope | None = None
 
 
 class SoundChoice(BaseModel):
@@ -71,7 +73,7 @@ class SoundChoice(BaseModel):
     chord_sound: str = "sawtooth"
     chord_lpf: int = 1200
     room: float = 0.4
-    bass_envelope: Envelope | None = None
+    bass_envelope: StrudelEnvelope | None = None
 
 
 class RipRequest(BaseModel):

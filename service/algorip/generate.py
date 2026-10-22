@@ -45,21 +45,22 @@ def bass_lines(a: Analysis, s: SoundChoice) -> list[str]:
     """The bass voice: the loop's phases when one was found, else the consensus line; a muted layer after it."""
     if not a.bass:
         return []
-    lpf = f".lpf({s.bass_lpf})" if s.bass_lpf is not None else ""
-    # the measured pluck, when the stem's notes die before their end; a held bass gets none
+    suffix = f".lpf({s.bass_lpf})" if s.bass_lpf is not None else ""
+    # the measured gate, when the stem's notes die before their end; a held bass gets none
     e = s.bass_envelope
-    lpf += f".attack({e.attack:g}).decay({e.decay:g}).sustain({e.sustain:g})" if e is not None else ""
+    if e is not None:
+        suffix += f".attack({e.attack:g})" + (f".clip({e.clip:g})" if e.clip is not None else "") + f".release({e.release:g})"
     loop = a.bass_loop
     if loop is None:
-        return [f'bass: note("{notes_mini(fold_octaves(a.bass), a.bars)}").s("{s.bass_sound}"){lpf}']
-    lines = [f'bass: note("{loop_mini(loop.templates)}").s("{s.bass_sound}"){lpf}']
+        return [f'bass: note("{notes_mini(fold_octaves(a.bass), a.bars)}").s("{s.bass_sound}"){suffix}']
+    lines = [f'bass: note("{loop_mini(loop.templates)}").s("{s.bass_sound}"){suffix}']
     if loop.layer is not None and loop.layer_bars is not None:
         lo, hi = loop.layer_bars
         lines.append(
             f"// bars {lo}–{hi} add this under the bass (a variation): remove the underscore to hear it "
             f"(match {loop.match:.2f} without, {loop.match_with_layer:.2f} with)"
         )
-        lines.append(f'_bass2: note("{loop_mini(loop.layer)}").s("{s.bass_sound}"){lpf}.gain(0.6)')
+        lines.append(f'_bass2: note("{loop_mini(loop.layer)}").s("{s.bass_sound}"){suffix}.gain(0.6)')
     return lines
 
 

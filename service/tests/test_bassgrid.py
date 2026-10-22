@@ -98,10 +98,17 @@ def test_hps_midi_reads_the_fundamental_even_under_a_louder_second_harmonic():
     assert hps_midi(_tone(51, 0.35, (1.0, 0.3)), PYIN_SR) == 51  # D#3, a semitone resolved against E3
     assert hps_midi(np.zeros(100, dtype=np.float32), PYIN_SR) is None  # too short to resolve a bass note
     assert hps_midi(_tone(70, 0.35, (1.0, 0.3)), PYIN_SR) is None  # out of the bass range: nothing in the band is a partial
-    # a missing fundamental: the spectrum reads the octave above, and the sub-octave is supported by its third harmonic
+    # a missing fundamental: the spectrum reads the octave above, and the sub-octave is supported by its odd partials
     missing = _tone(31, 0.35, (0.0, 1.0, 0.6, 0.4, 0.3, 0.2))
     assert hps_midi(missing, PYIN_SR) == 43 and sub_octave_supported(missing, PYIN_SR, 31)
-    assert not sub_octave_supported(_tone(39, 0.35, (1.0, 0.5, 0.3)), PYIN_SR, 27)
+    # a weak fundamental with odd partials (0.2, 0.25, 0.1 against 1, 0.5, 0.3): still a real G1
+    assert sub_octave_supported(_tone(31, 0.35, (0.2, 1.0, 0.25, 0.5, 0.1, 0.3)), PYIN_SR, 31)
+    # a D#2 whose sub-octave has nothing but bleed (as under the 48:50 clip's beat 4): not a D#1
+    assert not sub_octave_supported(_tone(39, 0.35, (1.0, 0.5, 0.3)) + _tone(27, 0.35, (0.11, 0.0, 0.2)), PYIN_SR, 27)
+    # a pure sine, which has no harmonics to line up, is still read in tune at both window lengths
+    for midi in (25, 31, 33):
+        assert hps_midi(_tone(midi, 0.232, (1.0,)), PYIN_SR) == midi
+        assert hps_midi(_tone(midi, 0.35, (1.0,)), PYIN_SR) == midi
 
 
 def test_a_loud_step_pyin_cannot_voice_gets_its_pitch_from_the_spectrum(monkeypatch):

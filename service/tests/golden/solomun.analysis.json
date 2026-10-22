@@ -870,7 +870,7 @@
       "bar": 8,
       "step": 1,
       "length": 3,
-      "midi": 43
+      "midi": 31
     },
     {
       "bar": 8,
@@ -1181,7 +1181,7 @@
           "bar": 0,
           "step": 1,
           "length": 1,
-          "midi": 43
+          "midi": 31
         },
         {
           "bar": 0,
@@ -1218,8 +1218,10 @@
   },
   "drum_summary": null,
   "bass_envelope": {
-    "attack_ms": 42.1,
-    "decay_ms": 95.8,
-    "end_db": -4.0
+    "attack_ms": 3.4,
+    "hold_ms": 113.2,
+    "fall_ms": 6.3,
+    "end_db": -1.4,
+    "hold_share": 0.83
   }
 }

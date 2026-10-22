@@ -41,8 +41,8 @@ export interface Analysis {
   chords: string[];
   melody: Note[] | null;
   bass_loop: BassLoop | null;
-  /** How the stem's notes shape over time (medians): attack to peak, decay to 12 dB down, level at the end. */
-  bass_envelope: { attack_ms: number; decay_ms: number; end_db: number } | null;
+  /** How the stem's notes shape over time (medians): attack, hold, fall, level at the end, hold as a share of the note. */
+  bass_envelope: { attack_ms: number; hold_ms: number; fall_ms: number; end_db: number; hold_share: number } | null;
   drum_summary: DrumSummary | null;
 }
 
@@ -51,8 +51,8 @@ export interface SoundChoice {
   snare_name: 'sd' | 'cp';
   bass_sound: 'sawtooth' | 'triangle' | 'sine';
   bass_lpf: number | null;
-  /** The pluck written on the bass lines, in Strudel's units; null for a held bass. */
-  bass_envelope: { attack: number; decay: number; sustain: number } | null;
+  /** The gate written on the bass lines, in Strudel's units; null for a held bass. */
+  bass_envelope: { attack: number; clip: number | null; release: number } | null;
   chord_sound: string;
   chord_lpf: number;
   room: number;

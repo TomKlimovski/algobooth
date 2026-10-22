@@ -58,9 +58,11 @@ def test_solomun2_loop_has_its_fourth_beat_and_a_pluck():
     # beat 4's D#2, which pyin read an octave down at no confidence, comes from the spectrum
     assert loop_mini(loop.templates) == "[~ d#2@2 ~] [d#1@3 ~] [d#3@3 ~] [d#2@2 ~ ~]"
     assert loop.match >= 0.9
-    # every note is a pluck: 12 dB down within about 130 ms, near silence by its end
-    assert a.bass_envelope is not None and 100 <= a.bass_envelope.decay_ms <= 170 and a.bass_envelope.end_db < -15
-    assert 'attack(' in (GOLDEN / "solomun2.strudel").read_text()
+    # every note is a gate: held at full level for roughly half to three quarters of its written length, then
+    # cut within about 40 ms, well down by its end
+    e = a.bass_envelope
+    assert e is not None and 0.4 <= e.hold_share <= 0.8 and e.fall_ms <= 80 and e.end_db < -10 and e.attack_ms < 25
+    assert '.clip(' in (GOLDEN / "solomun2.strudel").read_text()
 
 
 def test_solomun_build_is_a_layer_of_g1_over_bars_5_to_9():
@@ -71,7 +73,7 @@ def test_solomun_build_is_a_layer_of_g1_over_bars_5_to_9():
     assert loop.layer is not None and loop.layer_bars == (5, 9)
     notes = [n for phase in loop.layer for n in phase]
     # the build is written bar by bar (it fills in gradually): the root G1 mostly, G2 where the spectrum's
-    # second opinion lifts the tracker's unsure sub-octave (step 15, as in the loop's own g2, and two downbeats)
+    # second opinion lifts the tracker's unsure sub-octave (step 15, as in the loop's own g2, and step 1 of two bars)
     assert notes and all(n.midi % 12 == 7 for n in notes)  # all G
     assert sum(n.midi == 31 for n in notes) >= 0.75 * len(notes)
     assert sum(n.length for n in notes) >= 4  # at least a beat of the bar

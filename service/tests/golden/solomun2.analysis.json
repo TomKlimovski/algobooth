@@ -478,8 +478,10 @@
   },
   "drum_summary": null,
   "bass_envelope": {
-    "attack_ms": 57.3,
-    "decay_ms": 134.2,
-    "end_db": -19.5
+    "attack_ms": 20.8,
+    "hold_ms": 187.2,
+    "fall_ms": 35.3,
+    "end_db": -12.6,
+    "hold_share": 0.63
   }
 }

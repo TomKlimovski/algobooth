@@ -54,10 +54,13 @@ HPS_LOUD = 0.4
 # The spectrum's candidate must be a real partial: at least this share of the window's strongest bin.
 # A tone outside FMIN..FMAX leaves only noise in the band, and noise never reaches it.
 HPS_PARTIAL = 0.2
-# Whether a pitch pyin heard an octave under the spectrum's is a real missing-fundamental reading: a peak
-# at its third harmonic, which the octave above does not have, at least this share of the strongest bin.
-# 0.1 was met by bleed under the 48:50 clip's beat 4 (0.2 to 0.27); a real third harmonic is about 0.5.
+# Whether a pitch pyin heard an octave under the spectrum's is a real missing-fundamental reading: its odd
+# partials (the sub-octave itself, its third and fifth harmonics), which the octave above does not have,
+# against its even ones (the octave above and that note's harmonics), at least this ratio. Bleed under the
+# 48:50 clip's beat 4 reads 0.23; a sawtooth with a weak fundamental reads 0.31; a full one 0.66.
 HPS_SUPPORT = 0.3
+HPS_REFINE_PARTIAL = 0.06  # a harmonic this share of the strongest bin helps re-read the fundamental
+_HPS_FLOOR = 1e-3  # of the strongest bin: a factor under it is sidelobe leakage, not a harmonic
 _HPS_FFT = 1 << 15  # 0.34 Hz bins at PYIN_SR
 # A same-pitch step is a retrigger when the short RMS around its start dips below this share of the
 # quieter of the two steps' levels. Synthetic retriggers (10 ms release + 10 ms attack) dip to 0.35
@@ -124,12 +127,17 @@ def hps_midi(y: np.ndarray, sr: int) -> int | None:
     if len(y) < HPS_MIN_SECONDS * sr:
         return None
     spectrum, freqs = _spectrum(y, sr)
+    # Each factor is floored, so a pure sine (no harmonics to line up) is not dragged flat by sidelobe leakage.
+    floored = np.maximum(spectrum, _HPS_FLOOR * spectrum.max())
     product = np.ones_like(spectrum)
     for k in range(1, HPS_HARMONICS + 1):
-        product[: len(spectrum) // k] *= spectrum[::k][: len(spectrum) // k]
+        product[: len(spectrum) // k] *= floored[::k][: len(spectrum) // k]
     band = (freqs >= FMIN) & (freqs <= FMAX)
-    peak = freqs[band][np.argmax(product[band])]
-    if _peak_near(spectrum, freqs, peak) < HPS_PARTIAL * spectrum.max():
+    candidate = freqs[band][np.argmax(product[band])]
+    # the peak itself is read from the raw spectrum within a semitone of the candidate
+    near = band & (freqs >= candidate / 2 ** (1 / 12)) & (freqs <= candidate * 2 ** (1 / 12))
+    peak = freqs[near][np.argmax(spectrum[near])]
+    if spectrum[near].max() < HPS_PARTIAL * spectrum.max():
         return None
     peak = _refined(spectrum, freqs, peak)
     # A note under FMIN puts its harmonics in the band and would read an octave up: a real partial at half
@@ -148,17 +156,21 @@ def _refined(spectrum: np.ndarray, freqs: np.ndarray, hz: float, width: float = 
     estimates = []
     for k in range(1, HPS_HARMONICS + 1):
         band = (freqs >= k * hz * (1 - width)) & (freqs <= k * hz * (1 + width))
-        if band.any() and spectrum[band].max() >= HPS_SUPPORT * HPS_PARTIAL * spectrum.max():
+        if band.any() and spectrum[band].max() >= HPS_REFINE_PARTIAL * spectrum.max():
             estimates.append(freqs[band][np.argmax(spectrum[band])] / k)
     return float(np.median(estimates)) if estimates else hz
 
 
 def sub_octave_supported(y: np.ndarray, sr: int, midi: int) -> bool:
     """Whether `midi`, heard an octave under the spectrum's candidate, is a missing-fundamental reading rather
-    than YIN's double-period error: its third harmonic (not a harmonic of the octave above) is a real partial."""
+    than YIN's double-period error: its odd partials (itself, its third and fifth harmonics), which the octave
+    above does not have, weigh HPS_SUPPORT of its even ones (the octave above and that note's own harmonics).
+    Measured against the note's own partials, so loud bleed elsewhere in the window does not decide it."""
     spectrum, freqs = _spectrum(y, sr)
-    third = 3 * 440.0 * 2.0 ** ((midi - 69) / 12)
-    return _peak_near(spectrum, freqs, third) >= HPS_SUPPORT * spectrum.max()
+    hz = 440.0 * 2.0 ** ((midi - 69) / 12)
+    odd = sum(_peak_near(spectrum, freqs, k * hz) for k in (1, 3, 5))
+    even = sum(_peak_near(spectrum, freqs, k * hz) for k in (2, 4, 6))
+    return even > 0 and odd / even >= HPS_SUPPORT
 
 
 def _strongest_midi(hz: np.ndarray, prob: np.ndarray) -> int:
@@ -176,7 +188,7 @@ def _second_opinion(y: np.ndarray, edges: np.ndarray, i: int, pyin_midi: int | N
     """A loud step pyin is not sure of: the spectrum's reading, unless pyin's pitch is an octave under it and
     the spectrum supports that octave (a missing fundamental), or pyin's reading stands on its own."""
     step = edges[i + 1] - edges[i]
-    reach = max(step, (HPS_WINDOW_SECONDS - step) / 2)
+    reach = max(step / 2, (HPS_WINDOW_SECONDS - step) / 2)
     lo, hi = max(0, int((edges[i] - reach) * PYIN_SR)), int((edges[i + 1] + reach) * PYIN_SR)
     window = y[lo:hi]
     spectral = hps_midi(window, PYIN_SR)

@@ -42,11 +42,16 @@ so the step is a rest in most bars and a one-16th stray in the others, which the
 - The 36:40 golden's loop line is unchanged. Six steps of its grid move an octave up to G2 (step 15
   of bars 6 to 9 and step 1 of bars 8 and 9, all in the build, all loud, where pyin was unsure):
   consistent with the loop's own `g2` on step 15, and the `_bass2` line follows.
-- On 48:50: beat 4 reads D#2 on steps 12 and 13 in every bar (step 14 is 18 dB down, under the
-  loudness gate) and the loop becomes `[~ d#2@2 ~] [d#1@3 ~] [d#3@3 ~] [d#2@2 ~ ~]`; the bass match
+- On 48:50: beat 4 reads D#2 on step 12 in every bar and step 13 keeps the tracker's D#1 (the same
+  pitch class, which is what the loop writes; step 14 is 18 dB down, under the loudness gate) and the loop becomes `[~ d#2@2 ~] [d#1@3 ~] [d#3@3 ~] [d#2@2 ~ ~]`; the bass match
   rises from 0.79 to 0.92.
 
 ## Change 2: a measured amplitude envelope on the bass lines (`bass.py`, `sounds.py`, `generate.py`)
+
+Found at review: measured with 46 ms frames at the service's 44.1 kHz (the first build's frames were
+half that and read the ripple of a low note as decay), the stem's notes are not plucks but gates: held
+within 2 dB for half to three quarters of their written length, then cut by 20 dB in about 40 ms. So
+the envelope written is a gate, not decay and sustain.
 
 - `bass_envelope(y, sr, notes, grid) -> BassEnvelope | None` in `bass.py`, beside `harmonic_ratio`:
   for each transcribed note, the RMS envelope (46 ms frames, so a low note's ripple does not read as
@@ -56,13 +61,17 @@ so the step is a rest in most bars and a one-16th stray in the others, which the
   12 dB below it, capped at the note's end; `end_db` the level a frame before the note's end,
   relative to its peak. The envelope is the median of each over the notes; None with no notes.
   `Analysis` carries it as `bass_envelope`.
-- `choose_sounds` writes an envelope when the median note has fallen `PLUCK_DB = 6` dB or more by
-  its end: `SoundChoice.bass_envelope = {attack, decay, sustain}` with attack in seconds (at least
-  0.005), decay in seconds, sustain the end level as a linear gain (`10 ** (end_db / 20)`, at most
-  0.5). A held bass (the 36:40 clip's `g1@2`, if its notes do not fall by their end) gets None.
-- `generate` appends `.attack(a).decay(d).sustain(s)` to the `bass:` line and the `_bass2:` line
-  when the envelope is set, values to three decimals. The Rip tab needs nothing; `ripApi.ts` mirrors
-  the two new fields.
+- The measurement (`MeasuredEnvelope`): on the 46 ms RMS envelope of each note's span, the onset is
+  the first moment within 20 dB of the peak, the hold runs from there to the last moment within 3 dB
+  of it, the attack is the rise between the two and the fall the time from the hold's end to 20 dB
+  down, each less the window's own smear (0.49 of the frame); `end_db` the level a frame before the
+  end; `hold_share` the hold over the written length. Medians over the notes.
+- `choose_sounds` writes a gate (`StrudelEnvelope`) when the median note has fallen `GATE_DB = 6`
+  dB or more by its end: `attack` in seconds (at least 0.005), `clip` the hold share (None when at
+  least 0.9: the transcription already writes a cut note as its hold), `release` the fall in seconds
+  (at least 0.01). A held bass (the 36:40 clip, 1.4 dB down at the end) gets None.
+- `generate` appends `.attack(a).clip(c).release(r)` (clip only when set) to the `bass:` line and the
+  `_bass2:` line, values to three decimals. The Rip tab needs nothing; `ripApi.ts` mirrors the fields.
 
 ## Non-goals
 
@@ -73,8 +82,9 @@ so the step is a rest in most bars and a one-16th stray in the others, which the
 
 ## Goldens
 
-- `solomun2`: the grid gains beat 4; the loop gains `[d#2@3 ~]`; the lines gain the envelope. The
-  variation (`_bass2`) is expected to stay the C# and F of bars 4 and 5.
+- `solomun2`: the grid gains beat 4; the loop gains `[d#2@2 ~ ~]`; the lines gain
+  `.attack(0.021).clip(0.63).release(0.035)`. The variation (`_bass2`) stays the C# and F of bars 4
+  and 5.
 - `solomun`: unchanged grid and loop; whether its lines gain an envelope is what the measurement says
   (its handover note calls the g1 pairs held with no dip), regenerated with that reason.
 - `build`: the synthetic notes have 10 ms ramps and no decay, so no envelope.
@@ -83,5 +93,6 @@ so the step is a rest in most bars and a one-16th stray in the others, which the
 
 - The fallback is a harmonic product spectrum, three harmonics, on a two-step window; pyin stays
   primary and the threshold is a median voiced probability of 0.3.
-- Pluck threshold 6 dB at the note's end; sustain capped at 0.5; attack floor 5 ms.
+- Gate threshold 6 dB at the note's end; attack floor 5 ms, release floor 10 ms; no clip when the
+  hold is at least 0.9 of the note.
 - The envelope is one per clip, written on both bass lines.

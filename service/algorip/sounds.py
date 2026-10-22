@@ -1,25 +1,26 @@
 """Rule-based sound choice from the analysis: drum bank, snare name and bass oscillator."""
 
-from algorip.schema import Analysis, Envelope, SoundChoice
+from algorip.schema import Analysis, SoundChoice, StrudelEnvelope
 
 # bass_harmonics is harmonic_ratio's magnitude-based measure; a sawtooth measures about 0.435-0.52.
 SAWTOOTH_HARMONICS = 0.4
 TRIANGLE_HARMONICS = 0.2
-# A note that has fallen this much by its end is a pluck: the sawtooth gets an envelope. A held bass
-# (its notes still near their peak at the end) gets none.
-PLUCK_DB = 6.0
+# A note that has fallen this much by its end is gated: the sawtooth gets a fast attack, a shortened gate
+# (clip) and a short release. A held bass (its notes still near their peak at the end) gets none.
+GATE_DB = 6.0
 ATTACK_FLOOR = 0.005  # seconds: Strudel's default click is shorter than any measured attack
-SUSTAIN_CAP = 0.5  # a pluck's sustain stays under this, whatever the median end level says
+RELEASE_FLOOR = 0.01  # seconds: a cut shorter than this clicks
+CLIP_FULL = 0.9  # a hold at least this share of the written note is the whole note: no clip
 
 
-def _envelope(a: Analysis) -> Envelope | None:
+def _envelope(a: Analysis) -> StrudelEnvelope | None:
     e = a.bass_envelope
-    if e is None or e.end_db > -PLUCK_DB:
+    if e is None or e.end_db > -GATE_DB:
         return None
-    return Envelope(
+    return StrudelEnvelope(
         attack=round(max(ATTACK_FLOOR, e.attack_ms / 1000), 3),
-        decay=round(e.decay_ms / 1000, 3),
-        sustain=round(min(SUSTAIN_CAP, 10 ** (e.end_db / 20)), 3),
+        clip=None if e.hold_share >= CLIP_FULL else round(e.hold_share, 2),
+        release=round(max(RELEASE_FLOOR, e.fall_ms / 1000), 3),
     )
 
 

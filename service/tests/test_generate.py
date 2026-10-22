@@ -95,14 +95,16 @@ def test_a_voice_every_fourth_bar_is_written_as_a_four_bar_cycle():
     assert lines[-1] == f'hats: s("<[~ oh]*4 ~ ~ ~>").bank("{choose_sounds(a).drum_bank}")'
 
 
-def test_the_envelope_is_written_on_both_bass_lines_and_on_the_fallback_line():
-    from algorip.schema import Envelope
+def test_the_gate_is_written_on_both_bass_lines_and_on_the_fallback_line():
+    from algorip.schema import StrudelEnvelope
 
     a = Analysis.model_validate_json((GOLDEN / "solomun.analysis.json").read_text())
-    s = choose_sounds(a).model_copy(update={"bass_envelope": Envelope(attack=0.005, decay=0.06, sustain=0.1)})
+    s = choose_sounds(a).model_copy(update={"bass_envelope": StrudelEnvelope(attack=0.005, clip=0.5, release=0.04)})
     lines = bass_lines(a, s)
-    assert lines[0].endswith('.lpf(800).attack(0.005).decay(0.06).sustain(0.1)')
-    assert lines[-1].endswith('.lpf(800).attack(0.005).decay(0.06).sustain(0.1).gain(0.6)')
+    assert lines[0].endswith('.lpf(800).attack(0.005).clip(0.5).release(0.04)')
+    assert lines[-1].endswith('.lpf(800).attack(0.005).clip(0.5).release(0.04).gain(0.6)')
     fallback = bass_lines(a.model_copy(update={"bass_loop": None}), s)
-    assert fallback[0].endswith('.attack(0.005).decay(0.06).sustain(0.1)')
+    assert fallback[0].endswith('.attack(0.005).clip(0.5).release(0.04)')
+    no_clip = choose_sounds(a).model_copy(update={"bass_envelope": StrudelEnvelope(attack=0.012, clip=None, release=0.025)})
+    assert bass_lines(a, no_clip)[0].endswith('.lpf(800).attack(0.012).release(0.025)')
     assert not any('.attack(' in line for line in bass_lines(a, choose_sounds(a)))

@@ -207,6 +207,25 @@ def decaying_bass(notes: list[tuple[int, int, int, int]], bpm: float, bars: int,
     return out.astype(np.float32)
 
 
+def gated_bass(notes: list[tuple[int, int, int, int]], bpm: float, bars: int, hold_share: float, fall_seconds: float) -> np.ndarray:
+    """Like bass_line, but each note is a gate: a 10 ms attack, full level for hold_share of its length, then a
+    linear fall to silence over fall_seconds (cut at the note's end)."""
+    out = np.zeros(_samples(bars * _bar_seconds(bpm)))
+    for bar, step, length, midi in notes:
+        start = _step_start(bar, step, bpm)
+        n = _step_start(bar, step + length, bpm) - start
+        env = np.zeros(n)
+        hold = min(n, round(hold_share * n))
+        env[:hold] = 1.0
+        fall = min(n - hold, _samples(fall_seconds))
+        if fall:
+            env[hold : hold + fall] = np.arange(fall, 0, -1) / fall
+        attack = min(_samples(0.01), n)
+        env[:attack] *= np.arange(1, attack + 1) / attack
+        _place(out, start, _harmonic_tone(_midi_hz(midi), n, harmonics=6) * env)
+    return out.astype(np.float32)
+
+
 def swept_bass(notes: list[tuple[int, int, int, int]], bpm: float, bars: int, sweep_semitones: float, sweep_seconds: float) -> np.ndarray:
     """Like bass_line, but without the fundamental (harmonics 2..6) and each note starting sharp.
 

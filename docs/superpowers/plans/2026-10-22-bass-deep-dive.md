@@ -27,4 +27,4 @@
 - Implement `BassEnvelope(attack_ms, decay_ms, end_db)` on `Analysis` (optional, default None), `bass_envelope`, `SoundChoice.bass_envelope: Envelope | None` with `Envelope(attack, decay, sustain)`, `choose_sounds`, `generate`'s suffix, the `_analyse` wiring, `ripApi.ts`. Commit.
 
 ### Task 3: goldens and docs
-- Regenerate `solomun`, `solomun2`, `build` with `bass_fixture.py`; the other `.strudel` goldens through `generate`. Read the diffs: `solomun2` gains beat 4 and the envelope; `solomun`'s loop line unchanged. Add a `test_fixtures` assertion that `solomun2`'s loop line is `[~ d#2@2 ~] [d#1@3 ~] [d#3@3 ~] [d#2@3 ~]`. Both suites. README bass paragraph, `service/README.md`, handover. Commit.
+- Regenerate `solomun`, `solomun2`, `build` with `bass_fixture.py`; the other `.strudel` goldens through `generate`. Read the diffs: `solomun2` gains beat 4 and the envelope; `solomun`'s loop line unchanged. Add a `test_fixtures` assertion that `solomun2`'s loop line is `[~ d#2@2 ~] [d#1@3 ~] [d#3@3 ~] [d#2@2 ~ ~]` (as built; the envelope became a gate at review, see the spec). Both suites. README bass paragraph, `service/README.md`, handover. Commit.
