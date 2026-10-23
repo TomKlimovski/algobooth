@@ -145,6 +145,21 @@ test('a refusal shows in the error line and marks the key refused until the code
   expect(ctl.shown('A').KeyQ?.refused).toBe(false);
 });
 
+test('a click on a chain selects it: the line at the clicked offset becomes the target, a comment or setup line leaves it', () => {
+  const code = 'setcpm(120/4)\n$: s("bd")\n// build\n$: note("c2")\n  .s("sawtooth")';
+  const { ctl, deckState } = setup({ code });
+  ctl.togglePerform();
+  expect(deckState.A.state.targetLine).toBe(1);
+  ctl.selectAt('A', code.indexOf('sawtooth'));
+  expect(deckState.A.state.targetLine).toBe(2);
+  ctl.selectAt('A', code.indexOf('build'));
+  expect(deckState.A.state.targetLine).toBe(2);
+  ctl.selectAt('A', 2);
+  expect(deckState.A.state.targetLine).toBe(2);
+  ctl.selectAt('A', code.indexOf('bd'));
+  expect(deckState.A.state.targetLine).toBe(1);
+});
+
 test('a digit past the last line leaves the target; a recall with fewer lines clamps it (review focus 2)', () => {
   const code = '$: s("bd")\n$: s("hh")\n$: s("cp")';
   const { ctl, deckState, a } = setup({ code });

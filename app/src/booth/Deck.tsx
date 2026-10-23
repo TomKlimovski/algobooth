@@ -351,6 +351,16 @@ export function Deck(props: {
         lock.of(locked(false)),
         lineGutterExtension(lines, target),
         patternLineDecoration(lines, target),
+        // Perform mode: the editor takes no caret, so a click picks the chain the keys play instead.
+        EditorView.domEventHandlers({
+          mousedown: (e, v) => {
+            if (!props.perform()) return false;
+            const pos = v.posAtCoords({ x: e.clientX, y: e.clientY }, false);
+            props.controller.selectAt(id, pos);
+            e.preventDefault();
+            return true;
+          },
+        }),
         // A drop or a key press is an interaction with this deck, like clicking in it: the deck becomes the
         // library's target, and an earlier refusal no longer applies.
         EditorView.updateListener.of((u) => {

@@ -254,6 +254,12 @@ export class KeyController {
     });
   }
 
+  /** A click in the editor: the pattern line at document offset `pos` becomes the target; a comment, a setup line or a blank leaves it. */
+  selectAt(id: DeckId, pos: number): void {
+    const line = lineAt(this.lines(id), pos);
+    if (line) this.setTarget(id, line);
+  }
+
   /** A digit: the n-th pattern line becomes the target; past the last line nothing changes. */
   selectLine(id: DeckId, n: number): void {
     const lines = this.lines(id);
