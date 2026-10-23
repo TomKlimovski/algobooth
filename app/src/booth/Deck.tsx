@@ -15,6 +15,7 @@ import { formatEdits } from './format';
 import { cpmFromCps, ORBIT, type DeckId, type DeckState } from './deckState';
 import { sameLayout, type Quantise } from './keys/bindings';
 import type { KeyController } from './keys/KeyController';
+import { cueOf } from './keys/cue';
 import { KeyStrip } from './keys/KeyStrip';
 import { lineGutterExtension, patternLineDecoration, refreshLines } from './keys/lineGutter';
 import { REFUSED_ARG, REFUSED_LINE, type Edit } from './keys/press';
@@ -48,6 +49,8 @@ export interface DeckApi {
   insertSnippet(drag: MethodDrag): boolean;
   /** Applies key edits (offsets into the current text) as one transaction, so one Cmd+Z undoes a batch. */
   applyEdits(edits: Edit[], userEvent?: string): void;
+  /** Appends the pattern as a muted, prefixed cue block; see keys/cue.ts. */
+  cue(path: string, pattern: Pattern): void;
   /** Perform mode: read-only with no caret, and blurred so letters reach the key handler, not the text. */
   setLocked(on: boolean): void;
   /** Puts the cursor at the start of 1-based document line `n` (clamped) and focuses the editor. */
@@ -98,6 +101,8 @@ export function Deck(props: {
   onReady?: (api: DeckApi) => void;
   /** A library entry (relative path) was dropped on this deck. */
   onDropPattern?: (path: string) => void;
+  /** A library entry (relative path) was dropped on this deck's header: cue it. */
+  onCuePattern?: (path: string) => void;
   /** This deck is where a library double-click loads; shown as a marker in the header. */
   target?: boolean;
   /** The user clicked or typed in this deck: it becomes the library's target. */
@@ -156,6 +161,25 @@ export function Deck(props: {
     e.preventDefault();
     e.stopPropagation();
     if (accepts(e)) props.onDropPattern?.(path);
+  };
+
+  // A library entry dropped on the header cues instead of loading; WebKit needs dragenter and dragover cancelled too.
+  const isEntry = (e: DragEvent) => e.dataTransfer?.types.includes(PATTERN_MIME) ?? false;
+  const onHeaderDrag = (e: DragEvent) => {
+    if (!props.onCuePattern || !isEntry(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer!.dropEffect = 'copy';
+    setDragOver(true);
+  };
+  // Capture phase, so the section's own drop (a load) never sees it.
+  const onHeaderDrop = (e: DragEvent) => {
+    const path = e.dataTransfer?.getData(PATTERN_MIME);
+    if (!path || !props.onCuePattern) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+    props.onCuePattern(path);
   };
 
   const fitCanvas = () => {
@@ -250,6 +274,7 @@ export function Deck(props: {
     mirror.setCode(DEFAULT_CODE[id]);
     deck.setName('untitled');
     deck.setFile(null, null);
+    deck.setCueSource(null);
   };
 
   /** Replaces the editor with the file on disk, without evaluating it. */
@@ -282,6 +307,7 @@ export function Deck(props: {
   // Memoised: the gutter asks once per visible line, and each ask would otherwise re-parse the code.
   const lines = createMemo(() => props.controller.lines(id));
   const target = () => deck.state.targetLine;
+  const cue = createMemo(() => cueOf(deck.state.liveCode));
 
   onMount(() => {
     fitCanvas();
@@ -354,7 +380,7 @@ export function Deck(props: {
         // A drop or a key press is an interaction with this deck, like clicking in it: the deck becomes the
         // library's target, and an earlier refusal no longer applies.
         EditorView.updateListener.of((u) => {
-          if (!u.transactions.some((t) => t.isUserEvent('input.drop') || t.isUserEvent('input.key'))) return;
+          if (!u.transactions.some((t) => t.isUserEvent('input.drop') || t.isUserEvent('input.key') || t.isUserEvent('input.cue'))) return;
           if (isRefusal(deck.state.error)) deck.setError(null);
           props.onUse?.();
         }),
@@ -412,6 +438,7 @@ export function Deck(props: {
       save,
       insertSnippet,
       applyEdits,
+      cue: (path, pattern) => props.controller.cue(id, path, pattern),
       setLocked,
       focusLine,
       cursor: () => view().state.selection.main.head,
@@ -441,7 +468,12 @@ export function Deck(props: {
       onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDragOver(false)}
       on:drop={{ handleEvent: onDrop, capture: true }}
     >
-      <header class="deck-header">
+      <header
+        class="deck-header"
+        onDragEnter={onHeaderDrag}
+        onDragOver={onHeaderDrag}
+        on:drop={{ handleEvent: onHeaderDrop, capture: true }}
+      >
         <span class="deck-letter">{id}</span>
         <span class="deck-name">
           {deck.state.name}
@@ -451,6 +483,15 @@ export function Deck(props: {
         </span>
         <Show when={props.target}>
           <span class="deck-target" title="A double-click in the library loads here" aria-label="library target">◂ library</span>
+        </Show>
+        <Show when={cue()}>
+          {(c) => (
+            <span class="deck-cue" role="status">
+              next: {c().name}{deck.state.cueSource ? '' : ' (from file)'}
+              <button class="deck-btn ghost" onClick={() => props.controller.go(id)} title="Finish the mix: the old lines go, the cued pattern stays (Enter in perform mode)">Go</button>
+              <button class="deck-btn ghost" onClick={() => props.controller.clearCue(id)} title="Drop the cue (Shift+Enter in perform mode)">Clear</button>
+            </span>
+          )}
         </Show>
         <Show when={deck.state.queued > 0}>
           <span class="deck-countdown" role="status">next {props.quantise()} in {deck.state.beatsLeft}</span>

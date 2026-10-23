@@ -19,6 +19,8 @@
 .deck-name { flex: 1; }
 .deck-cpm { color: #8b90a0; }
 .deck-target { color: #ffb86c; font-size: 10px; letter-spacing: 0.04em; }
+.deck-cue { display: inline-flex; gap: 6px; align-items: baseline; color: #ffb86c; font-size: 10px; }
+.deck-cue .deck-btn { padding: 0 6px; font-size: 10px; }
 .deck-countdown { color: #ffb86c; font-size: 10px; }
 .deck-perform {
   padding: 0 6px;

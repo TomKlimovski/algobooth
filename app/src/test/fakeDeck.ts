@@ -65,6 +65,7 @@ export function fakeDeck(opts: FakeDeckOptions = {}) {
     save: vi.fn(async () => true),
     insertSnippet: vi.fn(() => true),
     applyEdits: vi.fn((edits: Edit[], _userEvent?: string) => write(applyEdits(editor.code, edits))),
+    cue: vi.fn(),
     setLocked: vi.fn(),
     focusLine: vi.fn(),
     cursor: vi.fn(() => 0),
