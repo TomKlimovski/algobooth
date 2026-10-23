@@ -3,6 +3,12 @@ import { patternLines, type PatternLine } from './lines';
 /** A cue block's first line: what the deck's code carries to say a second pattern is cued in. */
 export const MARKER = '// cued: ';
 
+/**
+ * Shown when a cue is refused: Strudel plays a deck's last bare expression only while no labelled line is switched
+ * on, so the first cued pad would silence it.
+ */
+export const REFUSED_CUE = "label the deck's lines ($: or name:) to cue into it";
+
 /** Where a slug stops growing: the first word boundary at or after this many characters. */
 const SLUG_LENGTH = 12;
 
@@ -59,6 +65,14 @@ export function cueBlock(pattern: { name: string; cpm: number; code: string }): 
   return [`${MARKER}${pattern.name} · ${pattern.cpm} cpm · its lines are on the home row · Go finishes, Clear drops`, ...out].join('\n');
 }
 
+/**
+ * `code` with `block` appended after exactly one blank line, touching nothing already there. Code that ends in a
+ * newline gets one after the block too, so the two cases stay apart and `clearCode` gives back the very same text.
+ */
+export function appendCue(code: string, block: string): string {
+  return code.endsWith('\n') ? `${code}\n${block}\n` : `${code}\n\n${block}`;
+}
+
 /** A deck's cued pattern, read back from its code: the marker line and the pattern lines under it that carry the slug. */
 export interface Cue { name: string; cpm: number | null; slug: string; markerLine: number; markerFrom: number; markerTo: number; lines: PatternLine[] }
 
@@ -92,6 +106,24 @@ export function cuedLabel(cue: Cue, line: PatternLine): string {
   return label.startsWith(`${cue.slug}_`) ? label.slice(cue.slug.length + 1) : label;
 }
 
+/**
+ * Whether a cue can mix into `code`: every own pattern line (those not cued) is labelled or `$:`. A bare expression
+ * plays only while nothing is labelled, so the first cued pad switched on would drop it out.
+ */
+export function canCue(code: string): boolean {
+  const physical = code.split('\n');
+  const cued = new Set(cueOf(code)?.lines.map((l) => l.firstLine));
+  return patternLines(code).every((l) => cued.has(l.firstLine) || l.label !== null || physical[l.firstLine].trim().startsWith('$:'));
+}
+
+/**
+ * The deck's cue source when it is still the pattern the marker names, else null: a Cmd+Z of a cue, a snapshot
+ * recall or a reload from disk can leave the source pointing at a pattern that is no longer the cued one.
+ */
+export function cueSourceFor<S extends { pattern: { name: string } }>(cue: Cue, source: S | null): S | null {
+  return source && source.pattern.name === cue.name ? source : null;
+}
+
 /** True once any cued line is switched on. */
 export function cueSounding(cue: Cue): boolean {
   return cue.lines.some((l) => !l.muted);
@@ -103,19 +135,24 @@ function dropLine(drop: Set<number>, physical: string[], line: PatternLine, floo
   for (let i = line.firstLine - 1; i > floor && physical[i].trim().startsWith('//'); i--) drop.add(i);
 }
 
-/** The lines left after dropping and replacing, with trailing blank lines cut and runs of blank lines folded to one. */
+/** The lines left after dropping and replacing, with leading and trailing blank lines cut and runs of blank lines folded to one. */
 function assemble(physical: string[], drop: Set<number>, replace: Map<number, string>): string {
   const kept = physical.flatMap((text, i) => (drop.has(i) ? [] : [replace.get(i) ?? text]));
   while (kept.length > 0 && kept[kept.length - 1].trim() === '') kept.pop();
+  while (kept.length > 0 && kept[0].trim() === '') kept.shift();
   return kept.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
-/** The deck's code with the cue taken out: the marker, the cued lines and the comments that came with them. */
+/**
+ * The deck's code with the cue taken out: the marker, the blank line directly above it, the cued lines and the
+ * comments that came with them. Nothing else is touched, so a cue then a Clear gives back the text as it was.
+ */
 export function clearCode(code: string, cue: Cue): string {
   const physical = code.split('\n');
   const drop = new Set([cue.markerLine]);
+  if (cue.markerLine > 0 && physical[cue.markerLine - 1].trim() === '') drop.add(cue.markerLine - 1);
   for (const line of cue.lines) dropLine(drop, physical, line, cue.markerLine);
-  return assemble(physical, drop, new Map());
+  return physical.filter((_, i) => !drop.has(i)).join('\n');
 }
 
 /**

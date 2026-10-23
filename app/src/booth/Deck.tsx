@@ -15,7 +15,7 @@ import { formatEdits } from './format';
 import { cpmFromCps, ORBIT, type DeckId, type DeckState } from './deckState';
 import { sameLayout, type Quantise } from './keys/bindings';
 import type { KeyController } from './keys/KeyController';
-import { cueOf } from './keys/cue';
+import { cueOf, cueSourceFor, REFUSED_CUE } from './keys/cue';
 import { KeyStrip } from './keys/KeyStrip';
 import { lineGutterExtension, patternLineDecoration, refreshLines } from './keys/lineGutter';
 import { REFUSED_ARG, REFUSED_LINE, type Edit } from './keys/press';
@@ -88,11 +88,11 @@ const resumeAudio = () => getAudioContext().resume();
 const REFUSED = 'drop onto a pattern line';
 const REFUSED_FUNCTION = 'drop a function where a value goes: inside ( ), after a comma, or on a blank line';
 // The key strip's refusals too: the next drop or key edit makes them moot, like a drop's.
-const REFUSALS = new Set([REFUSED, REFUSED_FUNCTION, REFUSED_LINE, REFUSED_ARG]);
+const REFUSALS = new Set([REFUSED, REFUSED_FUNCTION, REFUSED_LINE, REFUSED_ARG, REFUSED_CUE]);
 const isRefusal = (error: string | null) => !!error && (REFUSALS.has(error) || error.startsWith('no snapshot on '));
 
 /** The transactions that count as using a deck. */
-const USE_EVENTS = ['input.drop', 'input.key', 'input.cue'];
+const USE_EVENTS = ['input.drop', 'input.key', 'input.cue', 'input.go', 'input.clear-cue'];
 
 /** How long a failed save's message stays under the deck header. */
 const SAVE_ERROR_MS = 5000;
@@ -501,7 +501,7 @@ export function Deck(props: {
         <Show when={cue()}>
           {(c) => (
             <span class="deck-cue" role="status">
-              next: {c().name}{deck.state.cueSource ? '' : ' (from file)'}
+              next: {c().name}{cueSourceFor(c(), deck.state.cueSource) ? '' : ' (from file)'}
               <button class="deck-btn ghost" onClick={() => props.controller.go(id)} title="Finish the mix: the old lines go, the cued pattern stays (Enter in perform mode)">Go</button>
               <button class="deck-btn ghost" onClick={() => props.controller.clearCue(id)} title="Drop the cue (Shift+Enter in perform mode)">Clear</button>
             </span>

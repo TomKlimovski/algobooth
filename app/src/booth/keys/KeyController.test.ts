@@ -5,6 +5,7 @@ import { createBoothState } from '../boothState';
 import { createDeckState, type DeckId } from '../deckState';
 import type { Pattern } from '../../library/api';
 import type { Binding, Layout, MethodPart, Quantise } from './bindings';
+import { REFUSED_CUE } from './cue';
 import { KeyController } from './KeyController';
 
 const LPENV: Binding = { kind: 'method', name: 'lpenv', snippet: '.lpenv(2)', argRange: [7, 8] };
@@ -17,6 +18,7 @@ function setup(opts: { code?: string; started?: boolean; now?: number; cps?: num
   const make = (id: DeckId): FakeDeck => {
     const code = opts.code ?? CODE;
     deckState[id].setLiveCode(code);
+    deckState[id].setCode(code); // as last evaluated
     return fakeDeck({
       id,
       code,
@@ -598,6 +600,120 @@ describe('cue, go and clear', () => {
     ctl.cue('A', 'p.json', ACID);
     a.setFile('other.json', 'x', ACID);
     expect(deckState.A.state.cueSource).toBeNull();
+  });
+  test('a cue onto a deck that plays a bare expression is refused: no edit, no evaluation, the reason shows', () => {
+    for (const code of ['setcpm(120/4)\ns("bd*4")', 'stack(\n  s("bd*4"),\n  s("hh*8")\n)']) {
+      const { ctl, a, deckState } = setup({ code, started: true });
+      ctl.cue('A', 'p.json', ACID);
+      expect(a.getCode()).toBe(code);
+      expect(a.applyEdits).not.toHaveBeenCalled();
+      expect(a.evaluate).not.toHaveBeenCalled();
+      expect(deckState.A.state.error).toBe(REFUSED_CUE);
+      expect(deckState.A.state.cueSource).toBeNull();
+    }
+  });
+  test('a cue then a Clear gives back a rip file\'s text exactly (trailing newline, blank run)', () => {
+    const RIP = '// Solomun 36:40 · 129 cpm\nsetcpm(129/4)\n\n\nbass: note("g1")\n  .s("sawtooth")\n// bars 5–9 add this\nbass2: note("g1")\n';
+    const { ctl, a } = setup({ code: RIP, started: true });
+    ctl.cue('A', 'p.json', ACID);
+    expect(a.getCode()).toBe(`${RIP}\n${MARK}\n_acid_line: note("c2")\n`);
+    ctl.clearCue('A');
+    expect(a.getCode()).toBe(RIP);
+  });
+  test('a cue onto a playing deck with an edit not yet Updated does not evaluate it', () => {
+    const { ctl, a } = setup({ started: true });
+    a.setCode(`${CODE}\nbass: note("g1")`); // typed, not evaluated
+    ctl.cue('A', 'p.json', ACID);
+    expect(a.getCode()).toContain(MARK);
+    expect(a.evaluate).not.toHaveBeenCalled();
+  });
+  test('cueing the same silent pattern again applies no edit and evaluates nothing', () => {
+    const { ctl, a, deckState } = setup({ started: true });
+    ctl.cue('A', 'p.json', ACID);
+    deckState.A.setCode(a.getCode()); // the cue's evaluation landed
+    ctl.cue('A', 'p.json', ACID);
+    expect(a.applyEdits).toHaveBeenCalledTimes(1);
+    expect(a.evaluate).toHaveBeenCalledTimes(1);
+  });
+  test('go when the cue source names another pattern keeps the name and file, and drops the source', () => {
+    const { ctl, a, deckState } = setup({ code: `${CODE}\n\n${MARK}\n_acid_line: note("c2")` });
+    deckState.A.setCueSource({ path: 'other.json', pattern: { ...ACID, name: 'Other' } });
+    ctl.go('A');
+    expect(a.getCode()).toBe('setcpm(120/4)\n\n_acid_line: note("c2")');
+    expect(a.setFile).not.toHaveBeenCalled();
+    expect(a.setName).not.toHaveBeenCalled();
+    expect(deckState.A.state.cueSource).toBeNull();
+  });
+  test('go queued then Stop: the go is dropped, the cue and its source stay', () => {
+    const { ctl, a, deckState } = setup({ started: true, now: 0.25, cps: 0.5 });
+    ctl.cue('A', 'p.json', ACID);
+    ctl.go('A');
+    expect(deckState.A.state.queued).toBe(1);
+    a.scheduler.stop();
+    vi.advanceTimersByTime(3000);
+    expect(a.getCode()).toContain(MARK);
+    expect(deckState.A.state.queued).toBe(0);
+    expect(deckState.A.state.cueSource).toEqual({ path: 'p.json', pattern: ACID });
+  });
+  describe('a hold across Go', () => {
+    const OWN = 'drums: s("bd")\nbass: note("g1")';
+    const BASS = { ...ACID, code: 'bass: note("c2")' } as Pattern;
+    const mixing = () => {
+      const t = setup({ code: OWN, started: true, now: 0.25, cps: 0.5 });
+      t.ctl.cue('A', 'p.json', BASS);
+      t.ctl.togglePerform();
+      return t;
+    };
+    test('an own key held through Go and released after the bar does not touch the cued line that took its name', () => {
+      const { ctl, a } = mixing();
+      ctl.press('A', 'KeyX'); // own bass: muted on the bar
+      ctl.go('A');
+      vi.advanceTimersByTime(1500);
+      expect(a.getCode()).toBe('_bass: note("c2")');
+      const edits = a.applyEdits.mock.calls.length;
+      ctl.release('A', 'KeyX');
+      a.scheduler.now.mockReturnValue(1);
+      vi.advanceTimersByTime(4000);
+      expect(a.getCode()).toBe('_bass: note("c2")');
+      expect(a.applyEdits).toHaveBeenCalledTimes(edits);
+    });
+    test('an own key held and released before the bar Go lands on leaves no revert behind', () => {
+      const { ctl, a } = mixing();
+      ctl.press('A', 'KeyX');
+      vi.advanceTimersByTime(300);
+      ctl.release('A', 'KeyX');
+      ctl.go('A');
+      vi.advanceTimersByTime(1200);
+      expect(a.getCode()).toBe('_bass: note("c2")');
+      const edits = a.applyEdits.mock.calls.length;
+      a.scheduler.now.mockReturnValue(1);
+      vi.advanceTimersByTime(4000);
+      expect(a.getCode()).toBe('_bass: note("c2")');
+      expect(a.applyEdits).toHaveBeenCalledTimes(edits);
+      expect(ctl.shown('A').KeyZ?.pending).toBe(false);
+    });
+    test('a cued key held through Go stays as Go left it once released', () => {
+      const { ctl, a } = mixing();
+      ctl.press('A', 'KeyA'); // the cued bass: on, on the bar
+      ctl.go('A');
+      vi.advanceTimersByTime(1500);
+      expect(a.getCode()).toBe('bass: note("c2")');
+      const edits = a.applyEdits.mock.calls.length;
+      ctl.release('A', 'KeyA');
+      a.scheduler.now.mockReturnValue(1);
+      vi.advanceTimersByTime(4000);
+      expect(a.getCode()).toBe('bass: note("c2")');
+      expect(a.applyEdits).toHaveBeenCalledTimes(edits);
+    });
+  });
+  test('NumpadEnter is Go too', () => {
+    const { ctl, a } = setup();
+    const uninstall = ctl.install(window);
+    ctl.cue('A', 'p.json', ACID);
+    ctl.togglePerform();
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { code: 'NumpadEnter', key: 'Enter', bubbles: true, cancelable: true }));
+    expect(a.getCode()).toBe('setcpm(120/4)\n\n_acid_line: note("c2")');
+    uninstall();
   });
   test('Enter is Go and Shift+Enter is Clear, in perform mode only', () => {
     const { ctl, a, booth } = setup();

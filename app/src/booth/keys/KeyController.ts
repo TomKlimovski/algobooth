@@ -21,7 +21,7 @@ import {
   type Slot,
   type SnapshotKey,
 } from './bindings';
-import { clearCode, cueBlock, cuedLabel, cueOf, cueSounding, goCode } from './cue';
+import { appendCue, canCue, clearCode, cueBlock, cuedLabel, cueOf, cueSounding, cueSourceFor, goCode, REFUSED_CUE } from './cue';
 import { PressTracker } from './hold';
 import { lineAt, lineLabels, patternLines, refindTarget, type PatternLine } from './lines';
 import { applyEdits, flipMute, isOn, nudge, REFUSED_LINE, toggle, type Edit, type Outcome } from './press';
@@ -70,7 +70,8 @@ interface Inverse { slot: string; job: Job; handle: ReturnType<typeof setTimeout
 
 /**
  * A flush's working copy: each job reads and replaces `code`, so later jobs see earlier ones. `userEvent` tags the
- * transaction; `then` runs after the evaluation (Go points the deck at its file only once the code has landed).
+ * transaction; `then` runs once the transaction is written and `evaluate` has been called (it is async: the
+ * evaluation itself may land later), so Go points the deck at its file after the flush has drained the queue.
  */
 interface Work { code: string; refused: Set<string>; reasons: string[]; after: Inverse[]; userEvent: string; then: (() => void)[] }
 
@@ -289,18 +290,24 @@ export class KeyController {
 
   /**
    * A library pattern cued into the deck: its lines appended muted and prefixed under the marker, on the home row.
-   * At once (and evaluated on a playing deck, so its keys can audition); a cue that is sounding is replaced on the bar.
+   * At once, and evaluated on a playing deck when the editor held what was last evaluated (so a cued syntax error
+   * shows now, and a hand edit not yet Updated does not go live); a cue that is sounding is replaced on the bar.
+   * Refused, with the reason, for a deck whose own lines include a bare expression: the first cued pad would mute it.
    */
   cue(id: DeckId, path: string, pattern: Pattern): void {
     const deck = this.api(id);
     if (!deck) return;
     const ds = this.deps.deckState[id];
+    const code = deck.getCode();
+    if (!canCue(code)) {
+      ds.setError(REFUSED_CUE);
+      return;
+    }
     const block = cueBlock(pattern);
     const withCue = (code: string) => {
       const old = cueOf(code);
-      return `${(old ? clearCode(code, old) : code).replace(/\n+$/, '')}\n\n${block}`;
+      return appendCue(old ? clearCode(code, old) : code, block);
     };
-    const code = deck.getCode();
     const old = cueOf(code);
     if (old && cueSounding(old)) {
       this.push(id, 'Cue', () => {
@@ -311,13 +318,20 @@ export class KeyController {
       });
       return;
     }
-    deck.applyEdits([diff(code, withCue(code))], 'input.cue');
-    this.codeChanged(id);
+    const next = withCue(code);
+    const evaluated = code === ds.state.code;
     ds.setCueSource({ path, pattern });
-    if (deck.scheduler.started) void deck.evaluate(false);
+    if (next === code) return;
+    deck.applyEdits([diff(code, next)], 'input.cue');
+    this.codeChanged(id);
+    if (deck.scheduler.started && evaluated) void deck.evaluate(false);
   }
 
-  /** Enter: the cued pattern takes over the deck on the bar, and the deck then saves to the cued file. */
+  /**
+   * Enter: the cued pattern takes over the deck on the bar, and the deck then saves to the cued file (when the cue
+   * source is still the pattern the marker names). Holds still waiting to revert are forgotten: their lines are gone
+   * or renamed, and a revert by label would land on a cued line that took the name.
+   */
   go(id: DeckId): void {
     const deck = this.api(id);
     if (!deck || !cueOf(deck.getCode())) return;
@@ -329,7 +343,8 @@ export class KeyController {
       w.code = goCode(w.code, c);
       w.userEvent = 'input.go';
       w.then.push(() => {
-        const src = ds.state.cueSource;
+        this.forgetReverts(id, w);
+        const src = cueSourceFor(c, ds.state.cueSource);
         ds.setCueSource(null);
         if (!src) return;
         deck.setName(src.pattern.name);
@@ -475,7 +490,7 @@ export class KeyController {
       return;
     }
     if (!this.deps.booth.state.perform) return;
-    if (e.code === 'Enter') {
+    if (e.code === 'Enter' || e.code === 'NumpadEnter') {
       if (e.ctrlKey || e.altKey) return;
       e.preventDefault();
       if (e.shiftKey) this.clearCue(id);
@@ -694,6 +709,26 @@ export class KeyController {
     this.pending[1]((p) => ({ ...p, [id]: new Set() }));
     // The deck is stopped by now, so each push flushes at once.
     reverts.forEach((inv) => this.queueInverse(id, inv));
+    this.countdown();
+  }
+
+  /**
+   * Go landed: the deck's hold reverts (queued, waiting out their boundary, or about to be from this flush) are
+   * dropped without running, and keys still down forget their press, so a later release reverts nothing.
+   */
+  private forgetReverts(id: DeckId, w: Work): void {
+    const clearTimer = this.clearTimer;
+    for (const inv of this.inverses[id]) {
+      if (inv.handle === null) this.queues[id].remove(inv.job);
+      else {
+        clearTimer(inv.handle);
+        this.deferred.delete(inv.handle);
+      }
+      this.mark(this.pending, id, inv.slot, false);
+    }
+    this.inverses[id].clear();
+    w.after.length = 0;
+    for (const key of [...this.presses.keys()]) if (key.startsWith(`${id}|`)) this.presses.delete(key);
     this.countdown();
   }
 

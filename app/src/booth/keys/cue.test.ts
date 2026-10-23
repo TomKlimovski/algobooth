@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clearCode, cueBlock, cueOf, cuedLabel, cueSounding, goCode, slugOf } from './cue';
+import { appendCue, canCue, cueSourceFor, clearCode, cueBlock, cueOf, cuedLabel, cueSounding, goCode, slugOf } from './cue';
 
 describe('slugOf', () => {
   it('lower-cases and joins words with underscores', () => expect(slugOf('Acid line')).toBe('acid_line'));
@@ -78,6 +78,12 @@ describe('cueOf', () => {
     const code = `${cueBlock(ACID)}\n${cueBlock({ name: 'Two', cpm: 120, code: '$: s("bd")' })}`;
     expect(cueOf(code)!.name).toBe('Acid line');
   });
+  it('reads back a name that slugs to cued (review focus 2)', () => {
+    const cue = cueOf(`drums: s("bd")\n\n${cueBlock({ name: '🎛 · …', cpm: 120, code: 'bass: note("g1")\n$: s("hh")' })}`)!;
+    expect(cue.name).toBe('🎛 · …');
+    expect(cue.slug).toBe('cued');
+    expect(cue.lines.map((l) => l.label)).toEqual(['cued_bass', 'cued_1']);
+  });
   it('reads a hand-edited marker as a name with no cpm', () => {
     const cue = cueOf('// cued: Acid line')!;
     expect(cue.name).toBe('Acid line');
@@ -113,6 +119,14 @@ describe('goCode', () => {
     const code = `drums: s("x")\n${block}`;
     expect(goCode(code, cueOf(code)!)).toBe('$: s("bd")\n_two_2: s("hh")');
   });
+  it('folds the blank runs the removed own lines leave to one blank line', () => {
+    const code = `setcpm(129/4)\n\ndrums: s("x")\n\nhats: s("hh")\n\n${cueBlock(ACID)}`;
+    expect(goCode(code, cueOf(code)!)).toBe('setcpm(129/4)\n\n_acid_line: note("c2(5,8)").s("sawtooth").lpf(300)');
+  });
+  it('leaves no blank line at the top when every own line went', () => {
+    const code = `drums: s("x")\n\n${cueBlock(ACID)}`;
+    expect(goCode(code, cueOf(code)!)).toBe('_acid_line: note("c2(5,8)").s("sawtooth").lpf(300)');
+  });
   it('keeps an own comment that has a blank line before the pattern line it would be attached to', () => {
     const code = `// a note\n\ndrums: s("x")\n${cueBlock(ACID)}`;
     expect(goCode(code, cueOf(code)!)).toBe('// a note\n\n_acid_line: note("c2(5,8)").s("sawtooth").lpf(300)');
@@ -128,6 +142,48 @@ describe('clearCode', () => {
   it('removes a marker that stands alone', () => {
     const own = 'drums: s("bd*4")';
     expect(clearCode(`${own}\n\n${MARKER_ACID}`, cueOf(`${own}\n\n${MARKER_ACID}`)!)).toBe(own);
+  });
+});
+
+describe('appendCue and clearCode leave the deck exactly as it was', () => {
+  // The shape of a rip file: a trailing newline, and a run of blank lines after setcpm.
+  const RIP = '// Solomun 36:40 · 129 cpm\nsetcpm(129/4)\n\n\nbass: note("g1")\n  .s("sawtooth")\n// bars 5–9 add this\nbass2: note("g1")\n';
+  const roundTrip = (code: string, pattern = SOLOMUN) => {
+    const cued = appendCue(code, cueBlock(pattern));
+    return clearCode(cued, cueOf(cued)!);
+  };
+  it('puts exactly one blank line before the marker', () => {
+    expect(appendCue('drums: s("bd")', 'M')).toBe('drums: s("bd")\n\nM');
+    expect(appendCue('drums: s("bd")\n', 'M')).toBe('drums: s("bd")\n\nM\n');
+  });
+  it('round-trips code that ends in a newline', () => expect(roundTrip('drums: s("bd")\n', ACID)).toBe('drums: s("bd")\n'));
+  it('round-trips code with a run of blank lines and a trailing newline (a rip file)', () => expect(roundTrip(RIP)).toBe(RIP));
+  it('round-trips code with no trailing newline', () => expect(roundTrip('drums: s("bd")\n\n\nhats: s("hh")')).toBe('drums: s("bd")\n\n\nhats: s("hh")'));
+  it('round-trips code that ends in blank lines, and empty code', () => {
+    expect(roundTrip('drums: s("bd")\n\n\n', ACID)).toBe('drums: s("bd")\n\n\n');
+    expect(roundTrip('', ACID)).toBe('');
+  });
+});
+
+describe('canCue', () => {
+  it('takes a deck whose lines are labelled or $:', () => {
+    expect(canCue('setcpm(120/4)\n$: s("bd*4")\n_fills: s("cp")\nbass: note("g1")')).toBe(true);
+  });
+  it('refuses a deck that plays a bare expression', () => expect(canCue('setcpm(120/4)\ns("bd*4")')).toBe(false));
+  it('refuses a deck that plays a bare stack over several lines', () => expect(canCue('stack(\n  s("bd*4"),\n  s("hh*8")\n)')).toBe(false));
+  it('looks only at the own lines, not the cued ones', () => {
+    expect(canCue(`drums: s("bd")\n\n${cueBlock(ACID)}`)).toBe(true);
+    expect(canCue(`s("bd")\n\n${cueBlock(ACID)}`)).toBe(false);
+  });
+});
+
+describe('cueSourceFor', () => {
+  const cue = cueOf(cueBlock(ACID))!;
+  const src = (name: string) => ({ path: 'p.json', pattern: { name } });
+  it('is the source when it names the cued pattern', () => expect(cueSourceFor(cue, src('Acid line'))).toEqual(src('Acid line')));
+  it('is null when the source is stale (another pattern) or missing', () => {
+    expect(cueSourceFor(cue, src('Other'))).toBeNull();
+    expect(cueSourceFor(cue, null)).toBeNull();
   });
 });
 
