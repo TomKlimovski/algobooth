@@ -11,6 +11,7 @@ import { evaluateExclusive } from '../engine/evalLock';
 import { DECK_CLOCK } from '../engine/sync';
 import { initEngine } from '../engine/strudel';
 import { isDirty, newPatternDecision, onDiskChange, patternFromDeck, sameCode } from './deckFile';
+import { formatEdits } from './format';
 import { cpmFromCps, ORBIT, type DeckId, type DeckState } from './deckState';
 import { sameLayout, type Quantise } from './keys/bindings';
 import type { KeyController } from './keys/KeyController';
@@ -189,6 +190,9 @@ export function Deck(props: {
     stopGeneration++;
     mirror.stop();
   };
+  /** Every chain's methods on their own lines, as one undoable edit; the code means the same, so nothing re-evaluates. */
+  const format = () => api?.applyEdits(formatEdits(mirror.code), 'input.format');
+  let api: DeckApi | undefined;
 
   /** A failed save, shown under the header for a few seconds (the sidebar may be folded away). */
   const [saveError, setSaveError] = createSignal<string | null>(null);
@@ -384,7 +388,7 @@ export function Deck(props: {
       view().focus();
     };
 
-    props.onReady?.({
+    api = {
       id,
       evaluate,
       stop,
@@ -416,7 +420,8 @@ export function Deck(props: {
       afterEval,
       onToggle,
       onLoad,
-    });
+    };
+    props.onReady?.(api);
 
     onCleanup(() => {
       resize.disconnect();
@@ -487,6 +492,7 @@ export function Deck(props: {
         <button class="deck-btn" classList={{ on: deck.state.playing }} onClick={play}>Play</button>
         <button class="deck-btn ghost" onClick={stop}>Stop</button>
         <button class="deck-btn ghost" onClick={update}>Update</button>
+        <button class="deck-btn ghost" onClick={format} title="Every chained method on its own line">Format</button>
         <span class="deck-transport-gap" />
         <button class="deck-btn ghost" disabled={!props.library} onClick={() => void newPattern()}>New</button>
         <button class="deck-btn ghost" disabled={!props.library} onClick={() => void save()}>Save</button>
