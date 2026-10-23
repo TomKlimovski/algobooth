@@ -91,6 +91,9 @@ const REFUSED_FUNCTION = 'drop a function where a value goes: inside ( ), after 
 const REFUSALS = new Set([REFUSED, REFUSED_FUNCTION, REFUSED_LINE, REFUSED_ARG]);
 const isRefusal = (error: string | null) => !!error && (REFUSALS.has(error) || error.startsWith('no snapshot on '));
 
+/** The transactions that count as using a deck. */
+const USE_EVENTS = ['input.drop', 'input.key', 'input.cue'];
+
 /** How long a failed save's message stays under the deck header. */
 const SAVE_ERROR_MS = 5000;
 /** The editor's font size, in px: small enough for two decks and a key strip to share the window. */
@@ -129,6 +132,9 @@ export function Deck(props: {
   const onToggle = new Set<(started: boolean) => void>();
   const onLoad = new Set<() => void>();
   const [dragOver, setDragOver] = createSignal(false);
+  /** A library entry is over the header, where a drop cues instead of loading. */
+  const [cueOver, setCueOver] = createSignal(false);
+  const inHeader = (e: Event) => !!(e.target as Element | null)?.closest?.('.deck-header');
   /** The live editor text (`deck.state.code` only follows evaluations). */
   const [editorCode, setEditorCode] = createSignal('');
   // A changed key layer is an unsaved change too: Save writes it into the file.
@@ -150,11 +156,15 @@ export function Deck(props: {
     if (!accepts(e)) return;
     e.preventDefault();
     e.dataTransfer!.dropEffect = 'copy';
+    setCueOver(false);
     setDragOver(true);
   };
   // Listened for in the capture phase, so the deck sees the drop before the editor inside it does.
   const onDrop = (e: DragEvent) => {
     setDragOver(false);
+    setCueOver(false);
+    // The header's own capture handler (a cue) takes it.
+    if (props.onCuePattern && inHeader(e) && isEntry(e)) return;
     const path = e.dataTransfer?.getData(PATTERN_MIME);
     if (!path) return;
     // A library entry never reaches CodeMirror, even a refused one (a heading).
@@ -170,7 +180,8 @@ export function Deck(props: {
     e.preventDefault();
     e.stopPropagation();
     e.dataTransfer!.dropEffect = 'copy';
-    setDragOver(true);
+    setDragOver(false);
+    setCueOver(true);
   };
   // Capture phase, so the section's own drop (a load) never sees it.
   const onHeaderDrop = (e: DragEvent) => {
@@ -179,6 +190,7 @@ export function Deck(props: {
     e.preventDefault();
     e.stopPropagation();
     setDragOver(false);
+    setCueOver(false);
     props.onCuePattern(path);
   };
 
@@ -380,7 +392,7 @@ export function Deck(props: {
         // A drop or a key press is an interaction with this deck, like clicking in it: the deck becomes the
         // library's target, and an earlier refusal no longer applies.
         EditorView.updateListener.of((u) => {
-          if (!u.transactions.some((t) => t.isUserEvent('input.drop') || t.isUserEvent('input.key') || t.isUserEvent('input.cue'))) return;
+          if (!u.transactions.some((t) => USE_EVENTS.some((ev) => t.isUserEvent(ev)))) return;
           if (isRefusal(deck.state.error)) deck.setError(null);
           props.onUse?.();
         }),
@@ -470,6 +482,8 @@ export function Deck(props: {
     >
       <header
         class="deck-header"
+        classList={{ 'cue-target': cueOver() }}
+        onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setCueOver(false)}
         onDragEnter={onHeaderDrag}
         onDragOver={onHeaderDrag}
         on:drop={{ handleEvent: onHeaderDrop, capture: true }}

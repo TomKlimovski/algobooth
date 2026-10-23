@@ -134,3 +134,4 @@
 }
 .save-actions { display: flex; gap: 6px; justify-content: flex-end; }
 .save-actions .deck-btn:disabled { opacity: 0.4; cursor: default; }
+.deck-header.cue-target { outline: 1px dashed #ffb86c; outline-offset: -1px; }
