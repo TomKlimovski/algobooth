@@ -105,3 +105,25 @@ body {
 }
 .crossfader input { flex: 1; accent-color: #e94f37; }
 .crossfader-label { color: #8b90a0; font-size: 9px; }
+
+/* The right-hand column: Methods or Lessons, chosen by its tabs; lessons need room to read. */
+.booth-methods.wide { flex-basis: 360px; }
+.booth-side-tabs { display: flex; border-bottom: 1px solid #2a2d36; }
+.booth-side-tabs button {
+  flex: 1;
+  padding: 6px 0;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: #8b90a0;
+  font: inherit;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.booth-side-tabs button.on { color: #cfd3dc; border-bottom-color: #3a5a8a; }
+.booth-side-pane { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.booth-side-pane[hidden] { display: none; }
+/* The side tabs name the panel already. */
+.booth-side-pane .methods-header { display: none; }

@@ -11,6 +11,10 @@ import { cpmFromCps, createDeckState, type DeckId } from './deckState';
 import { Fader } from './Fader';
 import { MasterStrip } from './MasterStrip';
 import { MethodPanel } from './MethodPanel';
+import { LessonPanel } from '../lessons/LessonPanel';
+import type { Lesson } from '../lessons/lessons';
+import { LOAD_OVER_EDITS_PROMPT } from '../library/store';
+import { newPatternDecision } from './deckFile';
 import { transportAction, transportKey } from './transportKeys';
 import { DECK_CONTROLS, MASTER_CONTROLS } from '../engine/controlMap';
 import { settings, updateSettings } from '../settings/settings';
@@ -19,6 +23,8 @@ import { KeyController } from './keys/KeyController';
 import './booth.css';
 
 const DECK_IDS: DeckId[] = ['A', 'B'];
+/** Names a deck that holds a lesson example, so the next ▶ may replace it without asking. */
+const LESSON_PREFIX = 'lesson: ';
 /** The small trim-style sliders; volume gets its own tall fader. */
 const KNOBS: KnobName[] = ['lpf', 'gain', 'reverb'];
 const MESSAGE_MS = 3000;
@@ -110,6 +116,32 @@ export function Booth(props: {
     void Promise.all(DECK_IDS.map((id) => booth.state.decks[id]?.evaluate(true))).catch((e) =>
       flash(`Play failed: ${e instanceof Error ? e.message : String(e)}`),
     );
+
+  // The right-hand column shows the Methods panel or the Lessons panel; both stay mounted.
+  const [side, setSide] = createSignal<'methods' | 'lessons'>('methods');
+
+  /**
+   * A lesson example's ▶: loads it onto the performing deck and plays it. A deck already holding a lesson example
+   * is replaced without asking (trying the next one is the point); other unsaved code asks as a library load does.
+   */
+  const tryLesson = async (code: string, lesson: Lesson) => {
+    const id = props.library.state.target;
+    const deck = booth.state.decks[id];
+    if (!deck) return;
+    const scratch = decks[id].state.name.startsWith(LESSON_PREFIX);
+    const dirty = !scratch && deck.isDirty();
+    const decision = newPatternDecision(dirty, dirty && window.confirm(LOAD_OVER_EDITS_PROMPT));
+    if (decision === 'abort') return;
+    if (decision === 'save-then-start' && !(await deck.save())) return;
+    deck.setFile(null, null);
+    deck.setCode(code);
+    deck.setName(LESSON_PREFIX + lesson.title.toLowerCase());
+    try {
+      await deck.evaluate(true);
+    } catch (e) {
+      flash(`Play failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
 
   const stopAll = () => DECK_IDS.forEach((id) => booth.state.decks[id]?.stop());
   const anyStarted = () => DECK_IDS.some((id) => booth.state.decks[id]?.scheduler.started);
@@ -248,8 +280,21 @@ export function Booth(props: {
           </div>
         </footer>
       </main>
-      <aside class="booth-methods">
-        <MethodPanel onInsert={(drag) => booth.state.decks[props.library.state.target]?.insertSnippet(drag)} />
+      <aside class="booth-methods" classList={{ wide: side() === 'lessons' }}>
+        <div class="booth-side-tabs" role="tablist">
+          <button role="tab" aria-selected={side() === 'methods'} classList={{ on: side() === 'methods' }} onClick={() => setSide('methods')}>
+            Methods
+          </button>
+          <button role="tab" aria-selected={side() === 'lessons'} classList={{ on: side() === 'lessons' }} onClick={() => setSide('lessons')}>
+            Lessons
+          </button>
+        </div>
+        <div class="booth-side-pane" hidden={side() !== 'methods'}>
+          <MethodPanel onInsert={(drag) => booth.state.decks[props.library.state.target]?.insertSnippet(drag)} />
+        </div>
+        <div class="booth-side-pane" hidden={side() !== 'lessons'}>
+          <LessonPanel target={() => props.library.state.target} onTry={(code, lesson) => void tryLesson(code, lesson)} />
+        </div>
       </aside>
     </div>
   );

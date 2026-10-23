@@ -5,6 +5,7 @@ import * as draw from '@strudel/draw';
 import * as webaudio from '@strudel/webaudio';
 // The editor package provides the `slider(...)` widget (transpiled to `sliderWithID`) and `markcss`.
 import * as codemirror from '@strudel/codemirror';
+import { withPlainNames } from './banks';
 
 let enginePromise: Promise<void> | undefined;
 
@@ -45,7 +46,7 @@ async function boot(): Promise<void> {
   closeAudioOnPageHide();
   await core.evalScope(...SCOPE_MODULES);
   webaudio.registerSynthSounds();
-  await webaudio.samples(await sampleManifest(), asset('/samples/tidal-drum-machines/'), {
+  await webaudio.samples(withPlainNames((await sampleManifest()) as Record<string, unknown>), asset('/samples/tidal-drum-machines/'), {
     prebake: true,
     tag: 'drum-machines',
   });
