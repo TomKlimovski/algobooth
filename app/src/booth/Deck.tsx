@@ -20,6 +20,7 @@ import { KeyStrip } from './keys/KeyStrip';
 import { lineGutterExtension, patternLineDecoration, refreshLines } from './keys/lineGutter';
 import { REFUSED_ARG, REFUSED_LINE, type Edit } from './keys/press';
 import { insertAtCursor, methodDropExtension, type MethodDrag } from './methodDrop';
+import { MOD_ENTER } from './transportKeys';
 import { SaveDialog, type SaveTarget } from './SaveDialog';
 import './deck.css';
 
@@ -28,6 +29,8 @@ export interface DeckApi {
   /** Evaluates the code; `autostart` starts the deck, otherwise it keeps playing or stopped as it was. */
   evaluate(autostart?: boolean): Promise<void>;
   stop(): void;
+  /** Stops the deck if it is playing, otherwise evaluates and starts it: the one transport button and Cmd/Ctrl+Enter. */
+  toggle(): void;
   setCode(code: string): void;
   getCode(): string;
   setName(name: string): void;
@@ -226,6 +229,7 @@ export function Deck(props: {
     stopGeneration++;
     mirror.stop();
   };
+  const toggle = () => (mirror.repl.scheduler.started ? stop() : void play());
   /** Every chain's methods on their own lines, as one undoable edit; the code means the same, so nothing re-evaluates. */
   const format = () => api?.applyEdits(formatEdits(mirror.code), 'input.format');
   let api: DeckApi | undefined;
@@ -389,6 +393,16 @@ export function Deck(props: {
         lock.of(locked(false)),
         lineGutterExtension(lines, target),
         patternLineDecoration(lines, target),
+        // Perform mode: the editor takes no caret, so a click picks the chain the keys play instead.
+        EditorView.domEventHandlers({
+          mousedown: (e, v) => {
+            if (!props.perform()) return false;
+            const pos = v.posAtCoords({ x: e.clientX, y: e.clientY }, false);
+            props.controller.selectAt(id, pos);
+            e.preventDefault();
+            return true;
+          },
+        }),
         // A drop or a key press is an interaction with this deck, like clicking in it: the deck becomes the
         // library's target, and an earlier refusal no longer applies.
         EditorView.updateListener.of((u) => {
@@ -430,6 +444,7 @@ export function Deck(props: {
       id,
       evaluate,
       stop,
+      toggle,
       setCode: (code) => mirror.setCode(code),
       getCode: () => mirror.code,
       setName: deck.setName,
@@ -544,8 +559,9 @@ export function Deck(props: {
       />
       <div class="deck-error" role="alert">{deck.state.error}</div>
       <div class="deck-transport">
-        <button class="deck-btn" classList={{ on: deck.state.playing }} onClick={play}>Play</button>
-        <button class="deck-btn ghost" onClick={stop}>Stop</button>
+        <button class="deck-btn" classList={{ on: deck.state.playing }} onClick={toggle} title={`Play or stop this deck (${MOD_ENTER} on the deck the keys play)`}>
+          {deck.state.playing ? 'Stop' : 'Play'}
+        </button>
         <button class="deck-btn ghost" onClick={update}>Update</button>
         <button class="deck-btn ghost" onClick={format} title="Every chained method on its own line">Format</button>
         <span class="deck-transport-gap" />

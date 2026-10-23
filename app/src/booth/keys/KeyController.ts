@@ -260,6 +260,12 @@ export class KeyController {
     });
   }
 
+  /** A click in the editor: the pattern line at document offset `pos` becomes the target; a comment, a setup line or a blank leaves it. */
+  selectAt(id: DeckId, pos: number): void {
+    const line = lineAt(this.lines(id), pos);
+    if (line) this.setTarget(id, line);
+  }
+
   /** A digit: the n-th pattern line becomes the target; past the last line nothing changes. */
   selectLine(id: DeckId, n: number): void {
     const lines = this.lines(id);
@@ -489,20 +495,22 @@ export class KeyController {
       this.snapshot(id, e.code as SnapshotKey, e.shiftKey);
       return;
     }
+    // Tab is reserved in both modes; in edit mode the editor keeps it.
+    if (e.code === 'Tab') {
+      if (!plain || (!this.deps.booth.state.perform && el && typeof el.closest === 'function' && el.closest('.cm-editor')))
+        return;
+      e.preventDefault();
+      const next = other(id);
+      this.deps.setPerforming(next);
+      this.ensureTarget(next);
+      return;
+    }
     if (!this.deps.booth.state.perform) return;
     if (e.code === 'Enter' || e.code === 'NumpadEnter') {
       if (e.ctrlKey || e.altKey) return;
       e.preventDefault();
       if (e.shiftKey) this.clearCue(id);
       else this.go(id);
-      return;
-    }
-    if (e.code === 'Tab') {
-      if (!plain) return;
-      e.preventDefault();
-      const next = other(id);
-      this.deps.setPerforming(next);
-      this.ensureTarget(next);
       return;
     }
     const digit = DIGIT.exec(e.code);
