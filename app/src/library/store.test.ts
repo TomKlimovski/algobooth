@@ -46,11 +46,12 @@ function fakeApi(tree: TreeNode) {
   return api satisfies LibraryApi;
 }
 
-function fakeDeck(id: DeckId, opts: { dirty?: boolean; saves?: boolean } = {}) {
+function fakeDeck(id: DeckId, opts: { dirty?: boolean; saves?: boolean; started?: boolean } = {}) {
   const state = createDeckState(id);
   const setCode = vi.fn();
   const setFile = vi.fn();
   const save = vi.fn(async () => opts.saves ?? true);
+  const cue = vi.fn();
   const api = {
     id,
     setCode,
@@ -60,9 +61,10 @@ function fakeDeck(id: DeckId, opts: { dirty?: boolean; saves?: boolean } = {}) {
     moveFile: state.setFilePath,
     isDirty: () => opts.dirty ?? false,
     save,
-    scheduler: { started: false },
+    cue,
+    scheduler: { started: opts.started ?? false },
   } as unknown as DeckApi;
-  return { state, api, setCode, setFile, save };
+  return { state, api, setCode, setFile, save, cue };
 }
 
 test('refresh loads the tree and keeps fold state for surviving paths', async () => {
@@ -106,6 +108,44 @@ test('unreadable leaves are shown but cannot be loaded', async () => {
   await expect(lib.load('broken.json', 'A')).rejects.toThrow('This file is not a valid pattern');
   expect(api.read_pattern).not.toHaveBeenCalled();
   expect(a.setCode).not.toHaveBeenCalled();
+});
+
+test('cue reads the pattern, hands it to the deck, and makes the deck the target', async () => {
+  const api = fakeApi(heading('', [leaf('x.json')]));
+  const b = fakeDeck('B');
+  const lib = createLibraryStore(api, () => ({ A: fakeDeck('A').api, B: b.api }));
+  await lib.refresh();
+  await expect(lib.cue('x.json', 'B')).resolves.toBe(true);
+  expect(b.cue).toHaveBeenCalledWith('x.json', pattern());
+  expect(b.setCode).not.toHaveBeenCalled();
+  expect(lib.state.target).toBe('B');
+});
+
+test('cue refuses a heading or an unreadable file like a load', async () => {
+  const api = fakeApi(heading('', [heading('h'), leaf('bad.json', 'unreadable')]));
+  const lib = createLibraryStore(api, () => ({ A: fakeDeck('A').api, B: null }));
+  await lib.refresh();
+  await expect(lib.cue('h', 'A')).rejects.toThrow('Only patterns');
+  await expect(lib.cue('bad.json', 'A')).rejects.toThrow('not a valid pattern');
+});
+
+test('a double-click cues onto a playing target and loads onto a stopped one; shift does the other', async () => {
+  const api = fakeApi(heading('', [leaf('x.json')]));
+  const a = fakeDeck('A', { started: true });
+  const b = fakeDeck('B');
+  const lib = createLibraryStore(api, () => ({ A: a.api, B: b.api }));
+  await lib.refresh();
+  await lib.doubleClick('x.json', false);
+  expect(a.cue).toHaveBeenCalledTimes(1);
+  expect(a.setCode).not.toHaveBeenCalled();
+  await lib.doubleClick('x.json', true);
+  expect(a.setCode).toHaveBeenCalledWith('y');
+  lib.setTarget('B');
+  await lib.doubleClick('x.json', false);
+  expect(b.setCode).toHaveBeenCalledWith('y');
+  expect(b.cue).not.toHaveBeenCalled();
+  await lib.doubleClick('x.json', true);
+  expect(b.cue).toHaveBeenCalledTimes(1);
 });
 
 test('rename and move keep the entry selected and its folds, then refresh', async () => {

@@ -152,6 +152,19 @@ export function createLibraryStore(
       return true;
     });
 
+  /** Cues a pattern into a deck so it mixes in on the bar (header drop, Cue on A/B); no dirty prompt, the deck's own code stays. */
+  const cue = (path: string, deckId: DeckId) =>
+    attempt(async () => {
+      const node = findNode(state.root, path);
+      if (node?.kind === 'unreadable') throw new Error('This file is not a valid pattern');
+      if (node?.kind === 'heading') throw new Error('Only patterns can be loaded onto a deck');
+      const deck = decks()[deckId];
+      if (!deck) throw new Error(`Deck ${deckId} is not ready yet`);
+      const pattern = await api.read_pattern(path);
+      deck.cue(path, pattern);
+      set('target', deckId);
+      return true;
+    });
 
   return {
     state,
@@ -166,6 +179,12 @@ export function createLibraryStore(
     load,
     /** Double-click: loads into the target deck; resolves to whether it loaded. */
     loadToTarget: (path: string) => load(path, state.target),
+    cue,
+    /** Double-click: cues when the target deck is playing, loads when stopped; `shift` does the other. */
+    doubleClick: (path: string, shift: boolean) => {
+      const playing = !!decks()[state.target]?.scheduler.started;
+      return playing !== shift ? cue(path, state.target) : load(path, state.target);
+    },
     setTarget: (id: DeckId) => set('target', id),
     preview,
     rename: (path: string, name: string) =>
