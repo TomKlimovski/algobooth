@@ -91,3 +91,56 @@ export function cuedLabel(cue: Cue, line: PatternLine): string {
   const label = line.label ?? '';
   return label.startsWith(`${cue.slug}_`) ? label.slice(cue.slug.length + 1) : label;
 }
+
+/** True once any cued line is switched on. */
+export function cueSounding(cue: Cue): boolean {
+  return cue.lines.some((l) => !l.muted);
+}
+
+/** Marks `line`'s physical lines for dropping, and the `//` comment lines directly above it (no blank between). */
+function dropLine(drop: Set<number>, physical: string[], line: PatternLine, floor: number): void {
+  for (let i = line.firstLine; i <= line.lastLine; i++) drop.add(i);
+  for (let i = line.firstLine - 1; i > floor && physical[i].trim().startsWith('//'); i--) drop.add(i);
+}
+
+/** The lines left after dropping and replacing, with trailing blank lines cut and runs of blank lines folded to one. */
+function assemble(physical: string[], drop: Set<number>, replace: Map<number, string>): string {
+  const kept = physical.flatMap((text, i) => (drop.has(i) ? [] : [replace.get(i) ?? text]));
+  while (kept.length > 0 && kept[kept.length - 1].trim() === '') kept.pop();
+  return kept.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
+/** The deck's code with the cue taken out: the marker, the cued lines and the comments that came with them. */
+export function clearCode(code: string, cue: Cue): string {
+  const physical = code.split('\n');
+  const drop = new Set([cue.markerLine]);
+  for (const line of cue.lines) dropLine(drop, physical, line, cue.markerLine);
+  return assemble(physical, drop, new Map());
+}
+
+/**
+ * The deck's code once the cued pattern takes over: the deck's own pattern lines (and their comments) and the marker
+ * are gone, and the cued lines lose their slug prefix. A line keeps whether it was muted; a numbered or bare-slug line
+ * that is switched on becomes `$:`, and a still-muted one is left as it is.
+ */
+export function goCode(code: string, cue: Cue): string {
+  const physical = code.split('\n');
+  const drop = new Set([cue.markerLine]);
+  const replace = new Map<number, string>();
+  const cued = new Set(cue.lines.map((l) => l.firstLine));
+  for (const line of patternLines(code)) {
+    if (!cued.has(line.firstLine)) {
+      dropLine(drop, physical, line, -1);
+      continue;
+    }
+    const label = line.label ?? '';
+    const rest = label.startsWith(`${cue.slug}_`) ? label.slice(cue.slug.length + 1) : '';
+    const text = physical[line.firstLine];
+    if (rest !== '' && !/^\d+$/.test(rest)) {
+      replace.set(line.firstLine, text.replace(/^(\s*)_?[\w$]+:/, `$1${line.muted ? '_' : ''}${rest}:`));
+    } else if (!line.muted) {
+      replace.set(line.firstLine, text.replace(/^(\s*)_?[\w$]+:/, '$1$:'));
+    }
+  }
+  return assemble(physical, drop, replace);
+}

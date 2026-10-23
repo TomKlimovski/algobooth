@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cueBlock, cueOf, cuedLabel, slugOf } from './cue';
+import { clearCode, cueBlock, cueOf, cuedLabel, cueSounding, goCode, slugOf } from './cue';
 
 describe('slugOf', () => {
   it('lower-cases and joins words with underscores', () => expect(slugOf('Acid line')).toBe('acid_line'));
@@ -91,5 +91,51 @@ describe('cuedLabel', () => {
     const code = `${cueBlock(SOLOMUN)}\n_solomun_live: s("x")`;
     const cue = cueOf(code)!;
     expect(cue.lines.map((l) => cuedLabel(cue, l))).toEqual(['drums', 'fills', 'bass', 'solomun_live']);
+  });
+});
+
+describe('goCode', () => {
+  const OWN = '// Solomun 36:40\nsetcpm(129/4)\n\ndrums: s("bd*4")\n// bars 1–9 add these hits\n_fills: s("<bd ~>")\nbass: note("g1")\n  .s("sawtooth")';
+  it('removes the own lines with their attached comments, keeps setcpm, strips prefixes keeping mute state', () => {
+    const code = `${OWN}\n\n${cueBlock(SOLOMUN)}`.replace('_solomun_live_drums:', 'solomun_live_drums:');
+    const out = goCode(code, cueOf(code)!);
+    // The own comment above setcpm stays (setcpm is a setup line, not a pattern line); the cued block's own comment stays with its line.
+    expect(out).toBe('// Solomun 36:40\nsetcpm(129/4)\n\n// Solomun 36:40 · 129 cpm\ndrums: s("bd*4").bank("tr909")\n// bars 1–9 add these hits\n_fills: s("<bd ~>")\n_bass: note("g1")\n  .s("sawtooth")');
+  });
+  it('turns a switched-on bare-slug line into $: and keeps a muted one as it is', () => {
+    const on = `setcpm(129/4)\nbass: note("g1")\n\n${cueBlock(ACID)}`.replace('_acid_line:', 'acid_line:');
+    expect(goCode(on, cueOf(on)!)).toBe('setcpm(129/4)\n\n$: note("c2(5,8)").s("sawtooth").lpf(300)');
+    const off = `setcpm(129/4)\nbass: note("g1")\n\n${cueBlock(ACID)}`;
+    expect(goCode(off, cueOf(off)!)).toBe('setcpm(129/4)\n\n_acid_line: note("c2(5,8)").s("sawtooth").lpf(300)');
+  });
+  it('turns a switched-on numbered line into $: and keeps a muted one', () => {
+    const block = cueBlock({ name: 'Two', cpm: 120, code: '$: s("bd")\n$: s("hh")' }).replace('_two_1:', 'two_1:');
+    const code = `drums: s("x")\n${block}`;
+    expect(goCode(code, cueOf(code)!)).toBe('$: s("bd")\n_two_2: s("hh")');
+  });
+  it('keeps an own comment that has a blank line before the pattern line it would be attached to', () => {
+    const code = `// a note\n\ndrums: s("x")\n${cueBlock(ACID)}`;
+    expect(goCode(code, cueOf(code)!)).toBe('// a note\n\n_acid_line: note("c2(5,8)").s("sawtooth").lpf(300)');
+  });
+});
+
+describe('clearCode', () => {
+  it('removes the marker, the cued lines and the comments that came with them, leaving the own code as it was', () => {
+    const own = 'setcpm(129/4)\n\ndrums: s("bd*4")\nbass: note("g1")';
+    const code = `${own}\n\n${cueBlock(SOLOMUN)}`;
+    expect(clearCode(code, cueOf(code)!)).toBe(own);
+  });
+  it('removes a marker that stands alone', () => {
+    const own = 'drums: s("bd*4")';
+    expect(clearCode(`${own}\n\n${MARKER_ACID}`, cueOf(`${own}\n\n${MARKER_ACID}`)!)).toBe(own);
+  });
+});
+
+describe('cueSounding', () => {
+  it('is true once any cued line is unmuted', () => {
+    const off = cueBlock(ACID);
+    expect(cueSounding(cueOf(off)!)).toBe(false);
+    const on = off.replace('_acid_line:', 'acid_line:');
+    expect(cueSounding(cueOf(on)!)).toBe(true);
   });
 });
