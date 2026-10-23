@@ -64,6 +64,23 @@ describe('effectiveLayout', () => {
     expect(Object.keys(shown)).toHaveLength(7);
     expect(shown.KeyM?.binding).toEqual({ kind: 'line', label: 'l6' });
   });
+
+  it('derives cued lines on the free home-row slots, owner cued, with their short cap', () => {
+    const shown = effectiveLayout({ bindings: { KeyS: method(lpenv) } }, EMPTY_LAYOUT, ['drums'], [{ label: 'acid_line_bass', short: 'bass' }, { label: 'acid_line', short: 'acid_line' }]);
+    expect(shown.KeyZ).toEqual({ binding: { kind: 'line', label: 'drums' }, owner: 'derived' });
+    expect(shown.KeyA).toEqual({ binding: { kind: 'line', label: 'acid_line_bass' }, owner: 'cued', short: 'bass' });
+    expect(shown.KeyS?.owner).toBe('global');
+    expect(shown.KeyD).toEqual({ binding: { kind: 'line', label: 'acid_line' }, owner: 'cued', short: 'acid_line' });
+  });
+
+  it('does not derive a cued line onto a home-row slot the pattern hides, and drops cued lines past the free slots', () => {
+    const pattern: Layout = { bindings: { KeyA: null } };
+    const cued = Array.from({ length: 9 }, (_, i) => ({ label: `c_${i}`, short: String(i) }));
+    const shown = effectiveLayout(EMPTY_LAYOUT, pattern, [], cued);
+    expect(shown.KeyA).toBeUndefined();
+    expect(shown.KeyS?.binding).toEqual({ kind: 'line', label: 'c_0' });
+    expect(shown.KeyL?.binding).toEqual({ kind: 'line', label: 'c_7' });
+  });
 });
 
 describe('dropTarget', () => {

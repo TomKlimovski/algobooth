@@ -28,6 +28,7 @@ const SHOWN: Partial<Record<Slot, ShownKey>> = {
   KeyR: key(FAST, 'pattern', { refused: true }),
   KeyZ: key({ kind: 'line', label: 'fills' }, 'derived', { on: false }),
   KeyX: key({ kind: 'line', label: 'bass' }, 'derived', { on: true }),
+  KeyA: key({ kind: 'line', label: 'acid_line_bass' }, 'cued', { short: 'bass', on: false }),
 };
 
 let dispose = () => {};
@@ -39,7 +40,7 @@ const slot = (s: string) => $(`.key[data-slot="${s}"]`);
 const fire = (el: Element, type: string, init: MouseEventInit = {}) =>
   el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, ...init }));
 
-function mount(opts: { perform?: boolean; performing?: boolean } = {}) {
+function mount(opts: { perform?: boolean; performing?: boolean; code?: string } = {}) {
   const [shown, setShown] = createSignal(SHOWN);
   const [perform, setPerform] = createSignal(opts.perform ?? false);
   const [performing, setPerforming] = createSignal(opts.performing ?? true);
@@ -59,6 +60,7 @@ function mount(opts: { perform?: boolean; performing?: boolean } = {}) {
     cancel: vi.fn(),
   };
   const state = createDeckState('A');
+  state.setLiveCode(opts.code ?? '');
   const setQuantise = vi.fn((q: Quantise) => setQ(q));
   root = document.createElement('div');
   document.body.append(root);
@@ -296,4 +298,22 @@ test('the hint line sets the quantise, toggles perform, and folds the strip exce
   setPerform(false);
   expect(strip.classList.contains('dimmed')).toBe(false);
   expect(strip.classList.contains('folded')).toBe(true);
+});
+
+test('a cued key shows its short label, the cued class, and no drag or menu; the hint names the cue', () => {
+  mount({ code: 'drums: s("bd")\n// cued: Acid line · 126 cpm · its lines are on the home row · Go finishes, Clear drops\n_acid_line_bass: note("c2")' });
+  const a = slot('KeyA');
+  expect(a.classList.contains('cued')).toBe(true);
+  expect(a.classList.contains('line')).toBe(true);
+  expect(a.classList.contains('muted')).toBe(true);
+  expect(a.querySelector('.key-label')!.textContent).toBe('_bass');
+  expect(a.getAttribute('draggable')).toBe('false');
+  fire(a, 'contextmenu');
+  expect(root.querySelector('.context-menu')).toBeNull();
+  expect($('.key-hint-text').textContent).toContain('home row: Acid line');
+});
+
+test('without a cue the hint does not name one', () => {
+  mount();
+  expect($('.key-hint-text').textContent).not.toContain('home row');
 });

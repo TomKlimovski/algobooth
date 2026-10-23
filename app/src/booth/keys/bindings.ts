@@ -36,6 +36,9 @@ export const LETTER_ROWS: Slot[][] = [
 /** The bottom row, where a pattern's named lines show up as keys of their own. */
 export const LINE_ROW: Slot[] = LETTER_ROWS[2];
 
+/** The home row, where a cued pattern's lines show up the same way. */
+export const CUE_ROW: Slot[] = LETTER_ROWS[1];
+
 /** 'KeyQ' to 'Q', for the cap. */
 export const SLOT_LETTER: Record<Slot, string> = Object.fromEntries(
   LETTER_ROWS.flat().map((slot) => [slot, slot.slice(3)]),
@@ -44,15 +47,28 @@ export const SLOT_LETTER: Record<Slot, string> = Object.fromEntries(
 export type Owner = 'pattern' | 'global';
 export interface Shown {
   binding: Binding;
-  owner: Owner | 'derived';
+  owner: Owner | 'derived' | 'cued';
+  /** A cued line's cap: its label without the slug. */
+  short?: string;
+}
+
+export interface CuedLine {
+  label: string;
+  short: string;
 }
 
 /**
  * What the deck shows: the global layout overlaid by the pattern's (a pattern `null` hides a slot),
  * then the pattern's named lines on whichever LINE_ROW slots are still free, in order. Lines past the
- * last free slot are dropped. `lines` are labels without their underscore.
+ * last free slot are dropped. `lines` are labels without their underscore. `cued` lines go the same way
+ * onto the free CUE_ROW slots, after the own lines.
  */
-export function effectiveLayout(global: Layout, pattern: Layout, lines: string[]): Partial<Record<Slot, Shown>> {
+export function effectiveLayout(
+  global: Layout,
+  pattern: Layout,
+  lines: string[],
+  cued: CuedLine[] = [],
+): Partial<Record<Slot, Shown>> {
   const shown: Partial<Record<Slot, Shown>> = {};
   for (const [slot, binding] of Object.entries(global.bindings)) {
     if (binding) shown[slot] = { binding, owner: 'global' };
@@ -65,6 +81,10 @@ export function effectiveLayout(global: Layout, pattern: Layout, lines: string[]
   const free = LINE_ROW.filter((slot) => !(slot in shown) && pattern.bindings[slot] !== null);
   lines.slice(0, free.length).forEach((label, i) => {
     shown[free[i]] = { binding: { kind: 'line', label }, owner: 'derived' };
+  });
+  const freeCue = CUE_ROW.filter((slot) => !(slot in shown) && pattern.bindings[slot] !== null);
+  cued.slice(0, freeCue.length).forEach(({ label, short }, i) => {
+    shown[freeCue[i]] = { binding: { kind: 'line', label }, owner: 'cued', short };
   });
   return shown;
 }

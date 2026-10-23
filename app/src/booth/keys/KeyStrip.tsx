@@ -6,6 +6,7 @@ import type { DeckId, DeckState } from '../deckState';
 import { METHOD_MIME, type MethodDrag } from '../methodDrop';
 import { MethodTip } from '../MethodPanel';
 import { LETTER_ROWS, labelOf, nameOf, SLOT_LETTER, type Quantise, type Slot, type SnapshotKey } from './bindings';
+import { cueOf } from './cue';
 import type { KeyController, ShownKey } from './KeyController';
 import './keyStrip.css';
 
@@ -34,7 +35,10 @@ const MENU: Record<'pattern' | 'global', [string, Action][]> = {
 
 /** A line key shows the code's own label, so a muted line reads `_fills` as it does in the editor. */
 function labelFor(k: ShownKey): string {
-  if (k.binding.kind === 'line') return k.on ? k.binding.label : `_${k.binding.label}`;
+  if (k.binding.kind === 'line') {
+    const label = k.short ?? k.binding.label;
+    return k.on ? label : `_${label}`;
+  }
   return labelOf(k.binding);
 }
 
@@ -54,6 +58,7 @@ export function KeyStrip(props: {
   setQuantise: (q: Quantise) => void;
 }) {
   const shown = createMemo(() => props.controller.shown(props.deck));
+  const cueName = createMemo(() => cueOf(props.state.state.liveCode)?.name ?? null);
   // Remembered for the booth session only; perform mode always shows the keys.
   const [folded, setFolded] = createSignal(false);
   const [dropSlot, setDropSlot] = createSignal<Slot | null>(null);
@@ -172,12 +177,13 @@ export function KeyStrip(props: {
           refused: !!k()?.refused,
           line: line(),
           derived: k()?.owner === 'derived',
+          cued: k()?.owner === 'cued',
           muted: line() && !k()!.on,
           drop: dropSlot() === p.slot,
         }}
         data-slot={p.slot}
         role="button"
-        draggable={!!k() && k()!.owner !== 'derived'}
+        draggable={!!k() && k()!.owner !== 'derived' && k()!.owner !== 'cued'}
         onPointerDown={(e) => pointerDown(p.slot, e)}
         onPointerUp={() => pointerUp(p.slot)}
         onPointerLeave={() => pointerUp(p.slot)}
@@ -260,7 +266,7 @@ export function KeyStrip(props: {
         >
           {!folded() || props.perform() ? '▾' : '▸'}
         </button>
-        <span class="key-hint-text">{HINT}</span>
+        <span class="key-hint-text">{cueName() ? `${HINT} · home row: ${cueName()}` : HINT}</span>
         <span class="key-quantise" role="group" aria-label="key quantise">
           <For each={QUANTISE}>
             {(q) => (

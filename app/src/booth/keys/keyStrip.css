@@ -52,6 +52,9 @@
 .key.on .key-label { color: #fff; }
 .key.line { border-style: dashed; }
 .key.muted .key-label { color: #5c6170; text-decoration: line-through; }
+.key.cued { border-color: #6fb3ff; }
+.key.cued .key-label { color: #9fcbff; }
+.key.cued.muted .key-label { color: #4a6a8a; }
 .key.refused { border: 1px dashed #5c6170; background: #0e0f13; }
 .key.refused .key-label { color: #5c6170; }
 .key.pending { animation: key-pending 1s ease-in-out infinite; }
