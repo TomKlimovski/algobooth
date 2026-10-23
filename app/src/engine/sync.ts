@@ -14,6 +14,17 @@ export function secondsToNextBoundary(nowCycle: number, cps: number): number {
 export const DEFAULT_CLOCK_DURATION = 0.05;
 export const DEFAULT_MIN_LATENCY = 0.01;
 
+/**
+ * The decks' scheduler timing, passed to Strudel's repl (a pnpm patch of `@strudel/core` lets them through to
+ * Cyclist). Strudel's defaults tick every 100 ms, query 100 ms past the tick and trigger 100 ms after that, so
+ * a key press reached the speakers 200 to 330 ms after its evaluation: sounds already queried under the old
+ * pattern still play, and the new pattern's first sound carries the full offset. Here the clock ticks every
+ * 50 ms, looks 100 ms past the tick and triggers 50 ms on, which halves that lead. The tick duration stays at
+ * Cyclist's 50 ms (`clock.duration`, which `startDelay` and the key queue read). A main-thread stall longer
+ * than about 150 ms drops a sound ("cannot schedule sounds in the past") where 200 ms was tolerated before.
+ */
+export const DECK_CLOCK = { latency: 0.05, clockInterval: 0.05, clockOverlap: 0.1 } as const;
+
 type TimerHandle = ReturnType<typeof setTimeout>;
 type SetTimer = (f: () => void, ms: number) => TimerHandle;
 

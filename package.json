@@ -36,5 +36,10 @@
     "vitest": "5.0.5"
   },
   "private": true,
-  "type": "module"
+  "type": "module",
+  "pnpm": {
+    "patchedDependencies": {
+      "@strudel/core@1.2.6": "patches/@strudel__core@1.2.6.patch"
+    }
+  }
 }

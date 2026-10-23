@@ -1,0 +1,104 @@
+diff --git a/cyclist.mjs b/cyclist.mjs
+index 59e410c53fcfafe881a0bd17c083a344e0d18174..066639dfa1b0af11a6a9f693685d8fe8c277179f 100644
+--- a/cyclist.mjs
++++ b/cyclist.mjs
+@@ -10,6 +10,9 @@ import { errorLogger, logger } from './logger.mjs';
+ export class Cyclist {
+   constructor({
+     interval,
++    // how often the clock ticks and how far past the tick it queries (zyklus's interval and overlap)
++    clockInterval = 0.1,
++    clockOverlap = 0.1,
+     onTrigger,
+     onToggle,
+     onError,
+@@ -81,8 +84,8 @@ export class Cyclist {
+         }
+       },
+       interval, // duration of each cycle
+-      0.1,
+-      0.1,
++      clockInterval,
++      clockOverlap,
+       setInterval,
+       clearInterval,
+     );
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 345c62f69fe8f3089565d18ad96d33623dc458bb..1a54c88d6c8330e5e93ab3e6a5931e0935a99b01 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -2975,6 +2975,9 @@ function ff(t, e, n = 0.05, s = 0.1, r = 0.1, o = globalThis.setInterval, i = gl
+ class hf {
+   constructor({
+     interval: e,
++    // how often the clock ticks and how far past the tick it queries (zyklus's interval and overlap)
++    clockInterval: ci = 0.1,
++    clockOverlap: co = 0.1,
+     onTrigger: n,
+     onToggle: s,
+     onError: r,
+@@ -3010,8 +3013,8 @@ class hf {
+       },
+       e,
+       // duration of each cycle
+-      0.1,
+-      0.1,
++      ci,
++      co,
+       a,
+       u
+     );
+@@ -3224,7 +3227,12 @@ function Dy({
+   setInterval: y,
+   clearInterval: g,
+   id: v,
+-  mondo: _ = !1
++  mondo: _ = !1,
++  // scheduler timing: trigger offset, clock tick duration, tick interval and query overlap (seconds)
++  latency: lat,
++  interval: ivl,
++  clockInterval: cIvl,
++  clockOverlap: cOvl
+ }) {
+   const O = new Ge({ localScope: !0 }), A = {
+     schedulerError: void 0,
+@@ -3248,7 +3256,11 @@ function Dy({
+     },
+     setInterval: y,
+     clearInterval: g,
+-    beforeStart: s
++    beforeStart: s,
++    latency: lat,
++    interval: ivl,
++    clockInterval: cIvl,
++    clockOverlap: cOvl
+   }, x = h && typeof SharedWorker < "u" ? new bf(P) : new hf(P);
+   kf(P.onTrigger), _f(() => x.cps);
+   let D = {}, nt = 0, tt;
+diff --git a/repl.mjs b/repl.mjs
+index ec6a0d981065da24653693e0941a3d73cafd54b6..b5c627f8f42c6ac934826e25f5ef9eaa13a37f8a 100644
+--- a/repl.mjs
++++ b/repl.mjs
+@@ -30,6 +30,11 @@ export function repl({
+   clearInterval,
+   id,
+   mondo = false,
++  // scheduler timing: trigger offset, clock tick duration, tick interval and query overlap (seconds)
++  latency,
++  interval,
++  clockInterval,
++  clockOverlap,
+ }) {
+   const kabel = new SalatRepl({ localScope: true });
+   const state = {
+@@ -69,6 +74,10 @@ export function repl({
+     setInterval,
+     clearInterval,
+     beforeStart,
++    latency,
++    interval,
++    clockInterval,
++    clockOverlap,
+   };
+ 
+   // NeoCyclist uses a shared worker to communicate between instances, which is not supported on mobile chrome

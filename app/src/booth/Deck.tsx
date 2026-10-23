@@ -8,6 +8,7 @@ import type { Pattern } from '../library/api';
 import { parentOf, PATTERN_MIME, type LibraryStore } from '../library/store';
 import { settings } from '../settings/settings';
 import { evaluateExclusive } from '../engine/evalLock';
+import { DECK_CLOCK } from '../engine/sync';
 import { initEngine } from '../engine/strudel';
 import { isDirty, newPatternDecision, onDiskChange, patternFromDeck, sameCode } from './deckFile';
 import { cpmFromCps, ORBIT, type DeckId, type DeckState } from './deckState';
@@ -298,6 +299,8 @@ export function Deck(props: {
       transpiler,
       defaultOutput: webaudioOutput,
       getTime: () => getAudioContext().currentTime,
+      // Tighter scheduling than Strudel's defaults, so a key press is heard sooner (see DECK_CLOCK).
+      ...DECK_CLOCK,
       // punchcard is @strudel/draw's onPaint pianoroll: it paints into this
       // mirror's drawContext. Pattern.pianoroll() would draw to a global canvas.
       // scope takes its own ctx; its draw id starts with the mirror id so stop() cancels it.
