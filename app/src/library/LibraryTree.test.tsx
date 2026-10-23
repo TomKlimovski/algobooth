@@ -90,3 +90,26 @@ test('double-click loads into the target deck and hides the preview', async () =
   expect((A.setCode as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
   expect(root.querySelector('.lib-preview')).toBeNull();
 });
+
+test('double-click on a playing target cues; with shift it loads; the context menu offers Cue on A / B', async () => {
+  const api = fakeApi(heading('', [leaf('kick.json')]));
+  const deck = (id: 'A' | 'B', started = false) =>
+    ({ id, setCode: vi.fn(), setName: vi.fn(), setFile: vi.fn(), cue: vi.fn(), filePath: () => null, moveFile: vi.fn(), isDirty: () => false, save: vi.fn(), scheduler: { started } }) as unknown as DeckApi;
+  const A = deck('A');
+  const B = deck('B', true);
+  const store = await mount(api, { A, B });
+  store.setTarget('B');
+  row('kick').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+  await flush();
+  expect(B.cue).toHaveBeenCalledWith('kick.json', expect.objectContaining({ code: 'setcpm(120/4)\n$: s("bd*4")' }));
+  expect(B.setCode).not.toHaveBeenCalled();
+  row('kick').dispatchEvent(new MouseEvent('dblclick', { bubbles: true, shiftKey: true }));
+  await flush();
+  expect(B.setCode).toHaveBeenCalled();
+  row('kick').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 5, clientY: 5 }));
+  const items = [...document.querySelectorAll<HTMLElement>('.lib-menu-item')];
+  expect(items.map((b) => b.textContent)).toEqual(expect.arrayContaining(['Load to A', 'Load to B', 'Cue on A', 'Cue on B']));
+  items.find((b) => b.textContent === 'Cue on A')!.click();
+  await flush();
+  expect(A.cue).toHaveBeenCalledTimes(1);
+});

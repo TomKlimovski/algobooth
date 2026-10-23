@@ -124,6 +124,8 @@ export function LibraryTree(props: { store: LibraryStore }) {
       if (leaf) {
         const loadTo = (deck: DeckId) => () => quietly(store.load(node.path, deck));
         items.push({ label: 'Load to A', action: loadTo('A'), disabled: !readable }, { label: 'Load to B', action: loadTo('B'), disabled: !readable });
+        const cueTo = (deck: DeckId) => () => quietly(store.cue(node.path, deck));
+        items.push({ label: 'Cue on A', action: cueTo('A'), disabled: !readable }, { label: 'Cue on B', action: cueTo('B'), disabled: !readable });
       }
       items.push(
         { label: 'Rename', action: () => startRename(node.path), disabled: node.kind === 'unreadable', separated: leaf },
@@ -245,10 +247,10 @@ export function LibraryTree(props: { store: LibraryStore }) {
             setDropTarget(null);
           }}
           onClick={() => store.select(path())}
-          onDblClick={() => {
+          onDblClick={(e) => {
             hidePreview();
             if (isHeading()) store.toggleFold(path());
-            else quietly(store.loadToTarget(path()));
+            else quietly(store.doubleClick(path(), e.shiftKey));
           }}
           onContextMenu={(e) => openMenu(e, p.node)}
           {...drop}

@@ -194,6 +194,7 @@ export function Booth(props: {
                     keys.attach(id, api);
                   }}
                   onDropPattern={(path) => loadDropped(path, id)}
+                  onCuePattern={(path) => void props.library.cue(path, id).catch(() => {})}
                   target={props.library.state.target === id}
                   onUse={() => props.library.setTarget(id)}
                   canDropPattern={() => props.library.canDrop({ deck: true })}
