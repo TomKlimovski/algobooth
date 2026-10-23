@@ -3,6 +3,7 @@ import { vi } from 'vitest';
 import { fakeDeck, type FakeDeck } from '../../test/fakeDeck';
 import { createBoothState } from '../boothState';
 import { createDeckState, type DeckId } from '../deckState';
+import type { Pattern } from '../../library/api';
 import type { Binding, Layout, MethodPart, Quantise } from './bindings';
 import { KeyController } from './KeyController';
 
@@ -500,4 +501,118 @@ test('an Escape something else already handled (a menu, the editor) does not tog
     document.removeEventListener('keydown', handled, true);
     uninstall();
   }
+});
+
+const ACID = { name: 'Acid line', code: 'setcpm(126/4)\n$: note("c2")', cpm: 126, key: '', tags: [], source: { kind: 'mine' }, notes: '' } as Pattern;
+
+describe('cue, go and clear', () => {
+  const MARK = '// cued: Acid line · 126 cpm · its lines are on the home row · Go finishes, Clear drops';
+  test('a cue onto a playing deck appends the block at once with input.cue, evaluates, and the line is on KeyA', () => {
+    const { ctl, a, deckState } = setup({ started: true, now: 0.25, cps: 0.5 });
+    ctl.cue('A', 'bass/acid.json', ACID);
+    expect(a.getCode()).toBe(`${CODE}\n\n${MARK}\n_acid_line: note("c2")`);
+    expect(a.applyEdits.mock.calls[0][1]).toBe('input.cue');
+    expect(a.evaluate).toHaveBeenCalledTimes(1);
+    expect(deckState.A.state.cueSource).toEqual({ path: 'bass/acid.json', pattern: ACID });
+    expect(ctl.shown('A').KeyA).toMatchObject({ owner: 'cued', short: 'acid_line', on: false });
+  });
+  test('a cue onto a stopped deck does not evaluate', () => {
+    const { ctl, a } = setup();
+    ctl.cue('A', 'p.json', ACID);
+    expect(a.evaluate).not.toHaveBeenCalled();
+  });
+  test('a cued key flips its line on the bar like any line key', () => {
+    const { ctl, a } = setup({ started: true, now: 0.25, cps: 0.5 });
+    ctl.cue('A', 'p.json', ACID);
+    ctl.togglePerform();
+    tap(ctl, 'A', 'KeyA');
+    expect(a.getCode()).toContain('_acid_line:');
+    vi.advanceTimersByTime(1500);
+    expect(a.getCode()).toContain('\nacid_line:');
+  });
+  test('cueing over a sounding cue lands on the bar (review focus 5)', () => {
+    const { ctl, a } = setup({ started: true, now: 0.25, cps: 0.5 });
+    ctl.cue('A', 'p.json', ACID);
+    a.setCode(a.getCode().replace('_acid_line:', 'acid_line:'));
+    const two = { ...ACID, name: 'Two', code: '$: s("hh")' };
+    ctl.cue('A', 'two.json', two);
+    expect(a.getCode()).toContain('acid_line:');
+    vi.advanceTimersByTime(1500);
+    expect(a.getCode()).not.toContain('acid_line');
+    expect(a.getCode()).toContain('_two: s("hh")');
+    expect(a.applyEdits.mock.calls.at(-1)![1]).toBe('input.cue');
+  });
+  test('cueing over a silent cue replaces it at once', () => {
+    const { ctl, a } = setup({ started: true, now: 0.25, cps: 0.5 });
+    ctl.cue('A', 'p.json', ACID);
+    ctl.cue('A', 'two.json', { ...ACID, name: 'Two', code: '$: s("hh")' });
+    expect(a.getCode()).not.toContain('acid_line');
+    expect(a.getCode()).toContain('_two: s("hh")');
+  });
+  test('go runs through the queue, then points the deck at the cued file after the evaluation', () => {
+    const { ctl, a, deckState } = setup({ started: true, now: 0.25, cps: 0.5 });
+    ctl.cue('A', 'bass/acid.json', ACID);
+    a.setCode(a.getCode().replace('_acid_line:', 'acid_line:'));
+    ctl.go('A');
+    expect(deckState.A.state.queued).toBe(1);
+    expect(a.getCode()).toContain(MARK);
+    vi.advanceTimersByTime(1500);
+    expect(a.getCode()).toBe('setcpm(120/4)\n\n$: note("c2")');
+    expect(a.applyEdits.mock.calls.at(-1)![1]).toBe('input.go');
+    expect(a.setName).toHaveBeenCalledWith('Acid line');
+    expect(a.setFile).toHaveBeenCalledWith('bass/acid.json', ACID.code, ACID);
+    expect(a.evaluate.mock.invocationCallOrder[1]).toBeLessThan(a.setFile.mock.invocationCallOrder[0]);
+    expect(deckState.A.state.cueSource).toBeNull();
+  });
+  test('go without a cueSource keeps the name and file (review focus 3)', () => {
+    const { ctl, a } = setup({ code: `${CODE}\n\n${MARK}\n_acid_line: note("c2")` });
+    ctl.go('A');
+    expect(a.getCode()).toBe('setcpm(120/4)\n\n_acid_line: note("c2")');
+    expect(a.setFile).not.toHaveBeenCalled();
+    expect(a.setName).not.toHaveBeenCalled();
+  });
+  test('go does nothing without a cue', () => {
+    const { ctl, a } = setup();
+    ctl.go('A');
+    expect(a.applyEdits).not.toHaveBeenCalled();
+  });
+  test('clear on a silent cue is immediate with no evaluation; on a sounding cue it lands on the bar', () => {
+    const silent = setup({ started: true, now: 0.25, cps: 0.5 });
+    silent.ctl.cue('A', 'p.json', ACID);
+    silent.a.evaluate.mockClear();
+    silent.ctl.clearCue('A');
+    expect(silent.a.getCode()).toBe(CODE);
+    expect(silent.a.evaluate).not.toHaveBeenCalled();
+    expect(silent.deckState.A.state.cueSource).toBeNull();
+    const loud = setup({ started: true, now: 0.25, cps: 0.5 });
+    loud.ctl.cue('A', 'p.json', ACID);
+    loud.a.setCode(loud.a.getCode().replace('_acid_line:', 'acid_line:'));
+    loud.ctl.clearCue('A');
+    expect(loud.a.getCode()).toContain('acid_line:');
+    vi.advanceTimersByTime(1500);
+    expect(loud.a.getCode()).toBe(CODE);
+    expect(loud.a.applyEdits.mock.calls.at(-1)![1]).toBe('input.clear-cue');
+  });
+  test('a load clears the cue source', () => {
+    const { ctl, a, deckState } = setup();
+    ctl.cue('A', 'p.json', ACID);
+    a.setFile('other.json', 'x', ACID);
+    expect(deckState.A.state.cueSource).toBeNull();
+  });
+  test('Enter is Go and Shift+Enter is Clear, in perform mode only', () => {
+    const { ctl, a, booth } = setup();
+    const uninstall = ctl.install(window);
+    const enter = (shift: boolean) => document.body.dispatchEvent(new KeyboardEvent('keydown', { code: 'Enter', key: 'Enter', shiftKey: shift, bubbles: true, cancelable: true }));
+    ctl.cue('A', 'p.json', ACID);
+    enter(false);
+    expect(a.getCode()).toContain(MARK);  // not performing: nothing
+    ctl.togglePerform();
+    expect(booth.state.perform).toBe(true);
+    enter(true);
+    expect(a.getCode()).toBe(CODE);
+    ctl.cue('A', 'p.json', ACID);
+    enter(false);
+    expect(a.getCode()).toBe('setcpm(120/4)\n\n_acid_line: note("c2")');
+    uninstall();
+  });
 });

@@ -52,6 +52,8 @@ export interface DeckFields {
   /** Key edits waiting for the next boundary, and the beats until it (null when nothing waits). */
   queued: number;
   beatsLeft: number | null;
+  /** The library file whose lines are cued into this deck, so Go can point the deck at it; null when none is. */
+  cueSource: { path: string; pattern: Pattern } | null;
 }
 
 export type DeckState = ReturnType<typeof createDeckState>;
@@ -75,6 +77,7 @@ export function createDeckState(id: DeckId) {
     targetLine: null,
     queued: 0,
     beatsLeft: null,
+    cueSource: null,
   });
   return {
     state,
@@ -101,5 +104,6 @@ export function createDeckState(id: DeckId) {
     setKeys: (keys: Layout) => set({ keys }),
     setTargetLine: (targetLine: number | null) => set('targetLine', targetLine),
     setQueue: (queued: number, beatsLeft: number | null) => set({ queued, beatsLeft }),
+    setCueSource: (cueSource: { path: string; pattern: Pattern } | null) => set({ cueSource }),
   };
 }

@@ -4,6 +4,7 @@ import { DEFAULT_CLOCK_DURATION, DEFAULT_MIN_LATENCY } from '../../engine/sync';
 import type { BoothState } from '../boothState';
 import type { DeckApi } from '../Deck';
 import type { DeckId, DeckState } from '../deckState';
+import type { Pattern } from '../../library/api';
 import {
   dropTarget,
   effectiveLayout,
@@ -20,6 +21,7 @@ import {
   type Slot,
   type SnapshotKey,
 } from './bindings';
+import { clearCode, cueBlock, cuedLabel, cueOf, cueSounding, goCode } from './cue';
 import { PressTracker } from './hold';
 import { lineAt, lineLabels, patternLines, refindTarget, type PatternLine } from './lines';
 import { applyEdits, flipMute, isOn, nudge, REFUSED_LINE, toggle, type Edit, type Outcome } from './press';
@@ -66,8 +68,11 @@ type Target = { n: number; label: string | null };
 /** A hold's revert, queued or waiting out its boundary; `handle` is the wait's timer, null once queued. */
 interface Inverse { slot: string; job: Job; handle: ReturnType<typeof setTimeout> | null }
 
-/** A flush's working copy: each job reads and replaces `code`, so later jobs see earlier ones. */
-interface Work { code: string; refused: Set<string>; reasons: string[]; after: Inverse[] }
+/**
+ * A flush's working copy: each job reads and replaces `code`, so later jobs see earlier ones. `userEvent` tags the
+ * transaction; `then` runs after the evaluation (Go points the deck at its file only once the code has landed).
+ */
+interface Work { code: string; refused: Set<string>; reasons: string[]; after: Inverse[]; userEvent: string; then: (() => void)[] }
 
 const DECK_IDS: DeckId[] = ['A', 'B'];
 const other = (id: DeckId): DeckId => (id === 'A' ? 'B' : 'A');
@@ -280,6 +285,83 @@ export class KeyController {
     });
   }
 
+  // ---- cue, Go and Clear ----
+
+  /**
+   * A library pattern cued into the deck: its lines appended muted and prefixed under the marker, on the home row.
+   * At once (and evaluated on a playing deck, so its keys can audition); a cue that is sounding is replaced on the bar.
+   */
+  cue(id: DeckId, path: string, pattern: Pattern): void {
+    const deck = this.api(id);
+    if (!deck) return;
+    const ds = this.deps.deckState[id];
+    const block = cueBlock(pattern);
+    const withCue = (code: string) => {
+      const old = cueOf(code);
+      return `${(old ? clearCode(code, old) : code).replace(/\n+$/, '')}\n\n${block}`;
+    };
+    const code = deck.getCode();
+    const old = cueOf(code);
+    if (old && cueSounding(old)) {
+      this.push(id, 'Cue', () => {
+        const w = this.work!;
+        w.code = withCue(w.code);
+        w.userEvent = 'input.cue';
+        w.then.push(() => ds.setCueSource({ path, pattern }));
+      });
+      return;
+    }
+    deck.applyEdits([diff(code, withCue(code))], 'input.cue');
+    this.codeChanged(id);
+    ds.setCueSource({ path, pattern });
+    if (deck.scheduler.started) void deck.evaluate(false);
+  }
+
+  /** Enter: the cued pattern takes over the deck on the bar, and the deck then saves to the cued file. */
+  go(id: DeckId): void {
+    const deck = this.api(id);
+    if (!deck || !cueOf(deck.getCode())) return;
+    const ds = this.deps.deckState[id];
+    this.push(id, 'Go', () => {
+      const w = this.work!;
+      const c = cueOf(w.code);
+      if (!c) return;
+      w.code = goCode(w.code, c);
+      w.userEvent = 'input.go';
+      w.then.push(() => {
+        const src = ds.state.cueSource;
+        ds.setCueSource(null);
+        if (!src) return;
+        deck.setName(src.pattern.name);
+        deck.setFile(src.path, src.pattern.code, src.pattern);
+      });
+    });
+  }
+
+  /** Shift+Enter: the cue comes back out; on the bar when any of its lines sounds, else at once with no evaluation. */
+  clearCue(id: DeckId): void {
+    const deck = this.api(id);
+    if (!deck) return;
+    const ds = this.deps.deckState[id];
+    const code = deck.getCode();
+    const cue = cueOf(code);
+    if (!cue) return;
+    if (cueSounding(cue)) {
+      this.push(id, 'Clear', () => {
+        const w = this.work!;
+        const c = cueOf(w.code);
+        if (!c) return;
+        w.code = clearCode(w.code, c);
+        w.userEvent = 'input.clear-cue';
+        w.then.push(() => ds.setCueSource(null));
+      });
+      return;
+    }
+    deck.applyEdits([diff(code, clearCode(code, cue))], 'input.clear-cue');
+    this.codeChanged(id);
+    ds.setCueSource(null);
+  }
+
   // ---- perform mode ----
 
   /** Esc: both editors lock (or unlock); entering targets the line being edited, leaving puts the cursor on the target. */
@@ -350,7 +432,7 @@ export class KeyController {
     // A refusal is about one code and one target; either changing makes it moot.
     const refused = last && last.code === code && last.target === ds.state.targetLine ? last.slots : null;
     const out: Partial<Record<Slot, ShownKey>> = {};
-    for (const [slot, s] of Object.entries(this.layoutOf(id, lines))) {
+    for (const [slot, s] of Object.entries(this.layoutOf(id, code, lines))) {
       if (!s) continue;
       const b = s.binding;
       const line = b.kind === 'line' ? lines.find((l) => l.label === b.label) : target;
@@ -393,6 +475,13 @@ export class KeyController {
       return;
     }
     if (!this.deps.booth.state.perform) return;
+    if (e.code === 'Enter') {
+      if (e.ctrlKey || e.altKey) return;
+      e.preventDefault();
+      if (e.shiftKey) this.clearCue(id);
+      else this.go(id);
+      return;
+    }
     if (e.code === 'Tab') {
       if (!plain) return;
       e.preventDefault();
@@ -430,13 +519,19 @@ export class KeyController {
   }
 
   private layout(id: DeckId): Partial<Record<Slot, Shown>> {
-    return this.layoutOf(id, this.lines(id));
+    const code = this.deps.deckState[id].state.liveCode;
+    return this.layoutOf(id, code, patternLines(code));
   }
 
-  private layoutOf(id: DeckId, lines: PatternLine[]): Partial<Record<Slot, Shown>> {
+  /** The keys over `code`: the deck's own lines on the bottom row, a cue's on the home row. */
+  private layoutOf(id: DeckId, code: string, lines: PatternLine[]): Partial<Record<Slot, Shown>> {
     // Read through the store so a tracking caller follows `keys`, then unwrapped for the pure functions.
     void this.deps.deckState[id].state.keys;
-    return effectiveLayout(this.deps.global(), this.keys(id), lineLabels(lines));
+    const cue = cueOf(code);
+    const cuedLines = new Set(cue?.lines.map((l) => l.firstLine));
+    const cued = cue ? cue.lines.filter((l) => l.label !== null).map((l) => ({ label: l.label!, short: cuedLabel(cue, l) })) : [];
+    const own = lineLabels(lines.filter((l) => !cuedLines.has(l.firstLine)));
+    return effectiveLayout(this.deps.global(), this.keys(id), own, cued);
   }
 
   /** The target among `lines`, re-found from the last known one; the first line when none was ever chosen. */
@@ -537,7 +632,7 @@ export class KeyController {
     this.pending[1]((p) => ({ ...p, [id]: new Set() }));
     if (!deck) return;
     const start = deck.getCode();
-    const w: Work = { code: start, refused: new Set(), reasons: [], after: [] };
+    const w: Work = { code: start, refused: new Set(), reasons: [], after: [], userEvent: 'input.key', then: [] };
     this.work = w;
     try {
       jobs.forEach((job) => job());
@@ -546,10 +641,11 @@ export class KeyController {
     }
     const ds = this.deps.deckState[id];
     if (w.code !== start) {
-      deck.applyEdits([diff(start, w.code)], 'input.key');
+      deck.applyEdits([diff(start, w.code)], w.userEvent);
       this.codeChanged(id);
       void deck.evaluate(false);
     }
+    w.then.forEach((f) => f());
     // After the transaction, whose listener clears an earlier refusal, so this one shows.
     if (w.reasons.length) ds.setError(w.reasons[w.reasons.length - 1]);
     this.refused[1]((r) => ({
@@ -610,6 +706,7 @@ export class KeyController {
     this.queues[id].drop();
     this.pending[1]((p) => ({ ...p, [id]: new Set([...this.inverses[id]].filter((inv) => inv.handle !== null).map((inv) => inv.slot)) }));
     queued.forEach((inv) => this.queueInverse(id, inv));
+    this.deps.deckState[id].setCueSource(null);
     this.countdown();
   }
 
