@@ -1,4 +1,4 @@
-import { patternLines } from './lines';
+import { patternLines, type PatternLine } from './lines';
 
 /** A cue block's first line: what the deck's code carries to say a second pattern is cued in. */
 export const MARKER = '// cued: ';
@@ -57,4 +57,37 @@ export function cueBlock(pattern: { name: string; cpm: number; code: string }): 
     out.push(/^\s*\$:/.test(text) ? text.replace(/^(\s*)\$:/, `$1${name}:`) : text.replace(/^(\s*)/, `$1${name}: `));
   });
   return [`${MARKER}${pattern.name} · ${pattern.cpm} cpm · its lines are on the home row · Go finishes, Clear drops`, ...out].join('\n');
+}
+
+/** A deck's cued pattern, read back from its code: the marker line and the pattern lines under it that carry the slug. */
+export interface Cue { name: string; cpm: number | null; slug: string; markerLine: number; markerFrom: number; markerTo: number; lines: PatternLine[] }
+
+/** The marker line `cueBlock` writes. The name is greedy so a ` · ` inside it survives. */
+const MARKER_LINE = /^\/\/ cued: (.*) · (\d+(?:\.\d+)?) cpm · /;
+
+/**
+ * The cue in `code`, or null when there is no marker. The first marker wins. A marker someone edited by hand still
+ * counts: its name is the rest of the line and its cpm is null. The cued lines are the pattern lines below the marker
+ * whose label is the slug or starts with it, so a hand-typed line with the prefix joins the cue and one without stays
+ * the deck's own.
+ */
+export function cueOf(code: string): Cue | null {
+  const physical = code.split('\n');
+  const markerLine = physical.findIndex((l) => l.trim().startsWith(MARKER));
+  if (markerLine < 0) return null;
+  const text = physical[markerLine].trim();
+  const m = MARKER_LINE.exec(text);
+  const name = m ? m[1] : text.slice(MARKER.length).trim();
+  const slug = slugOf(name);
+  const markerFrom = physical.slice(0, markerLine).reduce((at, l) => at + l.length + 1, 0);
+  const lines = patternLines(code).filter(
+    (l) => l.firstLine > markerLine && l.label !== null && (l.label === slug || l.label.startsWith(`${slug}_`)),
+  );
+  return { name, cpm: m ? Number(m[2]) : null, slug, markerLine, markerFrom, markerTo: markerFrom + physical[markerLine].length, lines };
+}
+
+/** A cued line's label without the slug prefix (the bare slug stays as it is): what its key cap shows. */
+export function cuedLabel(cue: Cue, line: PatternLine): string {
+  const label = line.label ?? '';
+  return label.startsWith(`${cue.slug}_`) ? label.slice(cue.slug.length + 1) : label;
 }
