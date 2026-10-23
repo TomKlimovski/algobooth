@@ -28,7 +28,7 @@ const RESTART_WINDOW: Duration = Duration::from_secs(60);
 /// How often the supervisor checks whether the child has exited.
 const POLL_INTERVAL: Duration = Duration::from_millis(200);
 
-const NOT_FOUND: &str = "Python service not found: run `uv sync` in service/";
+const NOT_FOUND: &str = "Python service not found: run `uv sync` in service/ (pnpm tauri dev does this; is uv installed?)";
 const KEEPS_CRASHING: &str = "service keeps crashing; see the log";
 const SERVICE_STOPPED: &str = "service stopped";
 

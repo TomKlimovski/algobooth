@@ -46,11 +46,8 @@ Right-click a key for clear, hide for this pattern, keep with this pattern or ma
 
 The Rip tab sends a YouTube link and a start and end time to a local Python service (`service/`, package `algorip`), which downloads the clip, separates it into stems with Demucs, works out tempo, key, drums, bass and chords, and writes Strudel code for it: one named line per part (`drums:` for the kick, `claps:` or `snare:`, `hats:`, `ghosts:` for quiet hat ticks, `bass:`, `chords:`, `melody:`; the drum lines are loops, like the bass, each on the bank sample shaped like the stem's (`bd:3`) at the stem's level (`.gain()`), plus muted lines: `_bass2:` for what some bars add on top of the bass loop, and `_fills:` for the fills: bars where the drum loops miss at least three hits, each in its own bar, and any drum voice that has no steady loop), so you can mute one by writing `_bass:` in front of it. The app starts and stops the service itself.
 
-Set it up once, alongside the steps above (needs [uv](https://docs.astral.sh/uv/)):
-
-```sh
-cd service && uv sync
-```
+It needs [uv](https://docs.astral.sh/uv/) on the path; `pnpm tauri dev` syncs `service/.venv` itself
+(`uv sync`, a tenth of a second once it is there), so a fresh clone or worktree needs no separate step.
 
 - **First rip downloads the models.** PyTorch, torchaudio, Demucs and the htdemucs weights are not part of `uv sync`; the Rip tab offers a one-time download of about 600 MB (561 MB on disk, measured). They go in the app data folder, `~/Library/Application Support/io.klimovski.algobooth/models` on macOS, and nothing else needs the network after that except fetching new clips.
 - **Cache.** Downloads, stems and analysis results live in `~/Algobooth/cache` (change the folder in Settings). Ripping the same clip again is served from the cache, offline: the **Recent** menu on the Rip tab lists the cached clips; picking one fills in the link and window and brings back its last result at once (every rip stores its result beside its stems), and Analyse recomputes it. Source audio is deleted after a rip unless you tick "Keep downloaded audio" in Settings.
