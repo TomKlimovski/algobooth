@@ -50,6 +50,7 @@ export function fakeDeck(opts: FakeDeckOptions = {}) {
     id: opts.id ?? 'A',
     evaluate: vi.fn(async (_autostart?: boolean) => {}),
     stop: vi.fn(),
+    toggle: vi.fn(),
     setCode: vi.fn((code: string) => write(code)),
     getCode: vi.fn(() => editor.code),
     setName: vi.fn(),

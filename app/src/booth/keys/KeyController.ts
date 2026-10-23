@@ -398,15 +398,17 @@ export class KeyController {
       this.snapshot(id, e.code as SnapshotKey, e.shiftKey);
       return;
     }
-    if (!this.deps.booth.state.perform) return;
+    // Tab is reserved in both modes; in edit mode the editor keeps it.
     if (e.code === 'Tab') {
-      if (!plain) return;
+      if (!plain || (!this.deps.booth.state.perform && el && typeof el.closest === 'function' && el.closest('.cm-editor')))
+        return;
       e.preventDefault();
       const next = other(id);
       this.deps.setPerforming(next);
       this.ensureTarget(next);
       return;
     }
+    if (!this.deps.booth.state.perform) return;
     const digit = DIGIT.exec(e.code);
     if (digit) {
       if (!plain) return;

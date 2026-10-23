@@ -251,18 +251,35 @@ describe('the key handler', () => {
     expect(a.getCode()).toBe(CODE);
   });
 
-  test('digits pick the line, Tab the deck, F-keys work in both modes', () => {
+  test('digits pick the line in perform mode; Tab the deck and F-keys work in both modes', () => {
     const { ctl, deckState, setPerforming } = setup();
     uninstall = ctl.install(window);
     expect(key('F1', { shiftKey: true }).defaultPrevented).toBe(true);
     expect(deckState.A.state.keys.snapshots?.F1).toBe(CODE);
     expect(key('Digit2').defaultPrevented).toBe(false);
+    expect(key('Tab').defaultPrevented).toBe(true);
+    expect(setPerforming).toHaveBeenLastCalledWith('B');
+    expect(key('Tab').defaultPrevented).toBe(true);
+    expect(setPerforming).toHaveBeenLastCalledWith('A');
     key('Escape');
     expect(key('Digit2').defaultPrevented).toBe(true);
     expect(deckState.A.state.targetLine).toBe(2);
     expect(key('Tab').defaultPrevented).toBe(true);
-    expect(setPerforming).toHaveBeenCalledWith('B');
+    expect(setPerforming).toHaveBeenLastCalledWith('B');
     expect(deckState.B.state.targetLine).toBe(1);
+  });
+
+  test('in edit mode Tab inside the editor stays the editor\'s', () => {
+    const { ctl, setPerforming } = setup();
+    uninstall = ctl.install(window);
+    const editor = document.createElement('div');
+    editor.className = 'cm-editor';
+    const line = document.createElement('div');
+    editor.append(line);
+    document.body.append(editor);
+    expect(key('Tab', {}, line).defaultPrevented).toBe(false);
+    expect(setPerforming).not.toHaveBeenCalled();
+    editor.remove();
   });
 
   test('blur releases what is down as a hold', () => {

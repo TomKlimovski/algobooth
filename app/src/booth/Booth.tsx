@@ -11,7 +11,7 @@ import { cpmFromCps, createDeckState, type DeckId } from './deckState';
 import { Fader } from './Fader';
 import { MasterStrip } from './MasterStrip';
 import { MethodPanel } from './MethodPanel';
-import { isTransportKey, transportAction } from './spaceToggle';
+import { transportAction, transportKey } from './transportKeys';
 import { DECK_CONTROLS, MASTER_CONTROLS } from '../engine/controlMap';
 import { settings, updateSettings } from '../settings/settings';
 import type { Quantise } from './keys/bindings';
@@ -30,7 +30,7 @@ export function Booth(props: {
   library: LibraryStore;
   /** Hands the owner a getter for the mounted decks, so the library can load into them. */
   onDecks?: (decks: () => Record<DeckId, DeckApi | null>) => void;
-  /** Whether the Booth tab is showing; Space is the transport key only then. The Booth stays mounted. */
+  /** Whether the Booth tab is showing; the transport keys work only then. The Booth stays mounted. */
   active?: () => boolean;
 }) {
   const booth = createBoothState();
@@ -113,14 +113,19 @@ export function Booth(props: {
 
   const stopAll = () => DECK_IDS.forEach((id) => booth.state.decks[id]?.stop());
   const anyStarted = () => DECK_IDS.some((id) => booth.state.decks[id]?.scheduler.started);
+  // Captured on the window, so Cmd+Enter in the editor toggles the deck before CodeMirror inserts a line.
   const onKey = (e: KeyboardEvent) => {
-    if (!ready() || !isTransportKey(e, props.active?.() ?? true)) return;
+    const k = ready() ? transportKey(e, props.active?.() ?? true) : null;
+    if (!k) return;
     e.preventDefault();
-    if (transportAction(anyStarted()) === 'stop') stopAll();
+    if (k === 'deck') {
+      e.stopPropagation();
+      booth.state.decks[props.library.state.target]?.toggle();
+    } else if (k === 'stopAll' || transportAction(anyStarted()) === 'stop') stopAll();
     else masterPlay();
   };
-  onMount(() => window.addEventListener('keydown', onKey));
-  onCleanup(() => window.removeEventListener('keydown', onKey));
+  onMount(() => window.addEventListener('keydown', onKey, true));
+  onCleanup(() => window.removeEventListener('keydown', onKey, true));
 
   // The method keyboard: letters play the performing deck (the library's target) in perform mode.
   const keys = new KeyController({

@@ -5,6 +5,7 @@ import { findMethod, type MethodDoc } from '../../methods/catalogue';
 import type { DeckId, DeckState } from '../deckState';
 import { METHOD_MIME, type MethodDrag } from '../methodDrop';
 import { MethodTip } from '../MethodPanel';
+import { MOD_ENTER } from '../transportKeys';
 import { LETTER_ROWS, labelOf, nameOf, SLOT_LETTER, type Quantise, type Slot, type SnapshotKey } from './bindings';
 import type { KeyController, ShownKey } from './KeyController';
 import './keyStrip.css';
@@ -16,7 +17,7 @@ const DIGITS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const FKEYS: SnapshotKey[] = ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8'];
 const QUANTISE: Quantise[] = ['now', 'beat', 'bar'];
 const ROW_NAMES = ['q', 'a', 'z'];
-const HINT = 'tap commit · hold audition · shift/ctrl+key nudge · 1–9 line · F1–F8 snapshot · tab deck · esc edit';
+const HINT = `tap commit · hold audition · shift/ctrl+key nudge · 1–9 line · F1–F8 snapshot · tab deck · esc edit · ${MOD_ENTER} play/stop · space both · \` stop all`;
 
 type Action = Parameters<KeyController['menu']>[2];
 /** The menu per layer: a pattern's key can go global, a global key can be hidden or pinned for this pattern. */
