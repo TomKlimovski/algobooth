@@ -1,6 +1,8 @@
 // Dev-time only: downloads the bundled drum machine banks into app/public/samples
-// so the app never needs strudel.b-cdn.net at runtime. Run with `pnpm fetch-samples`.
-import { mkdir, stat, writeFile } from 'node:fs/promises';
+// so the app never needs strudel.b-cdn.net at runtime. `pnpm dev` and `pnpm build` run it first
+// (so a fresh clone or worktree gets its samples), and `pnpm fetch-samples` runs it by hand.
+// With the manifest already on disk it touches no network: it only fills in files that are missing.
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BUNDLED_MACHINES, filterManifest } from '../app/src/engine/banks.ts';
@@ -25,11 +27,26 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
-async function main(): Promise<void> {
-  const manifest = (await (await fetchOk(`${CDN}/tidal-drum-machines.json`)).json()) as Record<string, unknown>;
-  const alias = await (await fetchOk(`${CDN}/tidal-drum-machines-alias.json`)).text();
+/** The filtered manifest as written on disk, or null when it (or the alias file) is not there yet. */
+async function localManifest(): Promise<Record<string, unknown> | null> {
+  if (!(await exists(join(outDir, 'tidal-drum-machines-alias.json')))) return null;
+  try {
+    return JSON.parse(await readFile(join(outDir, 'tidal-drum-machines.json'), 'utf8')) as Record<string, unknown>;
+  } catch {
+    return null; // missing or not JSON (the app's own complaint): fetch it again
+  }
+}
 
-  const filtered = { ...filterManifest(manifest, BUNDLED_MACHINES), _base: './tidal-drum-machines/' };
+async function main(): Promise<void> {
+  let filtered = await localManifest();
+  if (!filtered) {
+    const manifest = (await (await fetchOk(`${CDN}/tidal-drum-machines.json`)).json()) as Record<string, unknown>;
+    const alias = await (await fetchOk(`${CDN}/tidal-drum-machines-alias.json`)).text();
+    filtered = { ...filterManifest(manifest, BUNDLED_MACHINES), _base: './tidal-drum-machines/' };
+    await mkdir(outDir, { recursive: true });
+    await writeFile(join(outDir, 'tidal-drum-machines.json'), JSON.stringify(filtered, null, 2) + '\n');
+    await writeFile(join(outDir, 'tidal-drum-machines-alias.json'), alias);
+  }
   const paths = [
     ...new Set(
       Object.entries(filtered)
@@ -40,10 +57,6 @@ async function main(): Promise<void> {
   for (const p of paths) {
     if (p.startsWith('/') || p.split('/').includes('..')) throw new Error(`refusing unsafe path ${p}`);
   }
-
-  await mkdir(outDir, { recursive: true });
-  await writeFile(join(outDir, 'tidal-drum-machines.json'), JSON.stringify(filtered, null, 2) + '\n');
-  await writeFile(join(outDir, 'tidal-drum-machines-alias.json'), alias);
 
   let totalBytes = 0;
   let downloaded = 0;
@@ -63,8 +76,8 @@ async function main(): Promise<void> {
   }
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
 
-  console.log(`downloaded ${downloaded}, skipped ${paths.length - downloaded} existing`);
-  console.log(`${paths.length} files, ${(totalBytes / 1024 / 1024).toFixed(1)} MB`);
+  if (downloaded === 0) console.log(`samples: ${paths.length} files present, ${(totalBytes / 1024 / 1024).toFixed(1)} MB`);
+  else console.log(`samples: downloaded ${downloaded}, ${paths.length - downloaded} already present, ${(totalBytes / 1024 / 1024).toFixed(1)} MB`);
 }
 
 main().catch((err) => {

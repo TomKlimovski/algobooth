@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "Desktop DJ booth around Strudel",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "pnpm fetch-samples && vite",
+    "build": "pnpm fetch-samples && vite build",
     "test": "vitest run",
     "tauri": "tauri",
     "fetch-samples": "tsx scripts/fetch-samples.ts",

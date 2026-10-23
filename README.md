@@ -11,8 +11,7 @@ A desktop DJ booth built around [Strudel](https://strudel.cc), the browser live-
 ```sh
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh   # Rust toolchain
 pnpm i
-pnpm fetch-samples
-pnpm tauri dev
+pnpm tauri dev   # fetches the drum machine samples first when they are missing
 ```
 
 ## Test
