@@ -1,6 +1,7 @@
 import { createStore, reconcile } from 'solid-js/store';
 import type { DeckApi } from '../booth/Deck';
 import { newPatternDecision } from '../booth/deckFile';
+import { askSave, type AskSave } from '../booth/saveChoice';
 import type { DeckId } from '../booth/deckState';
 import type { LibraryApi, Pattern, TreeNode } from './api';
 
@@ -63,14 +64,13 @@ const reroot = (p: string, from: string, to: string): string =>
 
 export type LibraryStore = ReturnType<typeof createLibraryStore>;
 
-export const LOAD_OVER_EDITS_PROMPT =
-  'Save changes before loading another pattern? OK saves first, Cancel keeps editing.';
+export const LOAD_OVER_EDITS_PROMPT = 'Save changes before loading another pattern?';
 
-/** `confirm` asks the OK / Cancel question before a load would replace a deck's unsaved edits. */
+/** `ask` asks Save / Don't Save / Cancel before a load would replace a deck's unsaved edits. */
 export function createLibraryStore(
   api: LibraryApi,
   decks: () => Record<DeckId, DeckApi | null>,
-  confirm: (message: string) => boolean = (message) => window.confirm(message),
+  ask: AskSave = askSave,
 ) {
   const [state, set] = createStore<LibraryFields>({
     root: null,
@@ -130,8 +130,8 @@ export function createLibraryStore(
   };
 
   /**
-   * Loads a pattern onto a deck (drag, double-click, Load to A/B); resolves to whether it loaded. Unsaved
-   * edits are never discarded: a dirty deck asks first, OK saves before loading and Cancel keeps editing.
+   * Loads a pattern onto a deck (drag, double-click, Load to A/B); resolves to whether it loaded. A dirty
+   * deck asks first: Save saves before loading, Don't Save loads over the edits, Cancel keeps editing.
    */
   const load = (path: string, deckId: DeckId) =>
     attempt(async () => {
@@ -141,7 +141,7 @@ export function createLibraryStore(
       const deck = decks()[deckId];
       if (!deck) throw new Error(`Deck ${deckId} is not ready yet`);
       const dirty = deck.isDirty();
-      const decision = newPatternDecision(dirty, dirty && confirm(LOAD_OVER_EDITS_PROMPT));
+      const decision = newPatternDecision(dirty, dirty ? await ask(LOAD_OVER_EDITS_PROMPT) : null);
       if (decision === 'abort') return false;
       if (decision === 'save-then-start' && !(await deck.save())) return false;
       const pattern = await api.read_pattern(path);

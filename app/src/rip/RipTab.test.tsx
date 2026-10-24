@@ -69,6 +69,8 @@ vi.mock('./ripApi', async (orig) => ({
 }));
 vi.mock('../library/api', async (orig) => ({ ...(await orig<typeof import('../library/api')>()), hasTauriRuntime: () => true }));
 vi.mock('@strudel/webaudio', () => ({ getAudioContext: () => h.ctx }));
+const dialog = vi.hoisted(() => ({ message: vi.fn() }));
+vi.mock('@tauri-apps/plugin-dialog', () => dialog);
 vi.mock('../engine/mixer', () => ({ getMixer: () => h.mixer, RIP_ORBIT: 3 }));
 vi.mock('./ResultEditor', () => ({
   ResultEditor: (props: { code: string; onReady?: (api: unknown) => void }) => {
@@ -240,10 +242,12 @@ test('a done rip shows the analysis, loads the stems, and Load to A asks over ed
   expect(tidied.disabled).toBe(true);
   expect(tidied.title).toBe('no key');
 
-  const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false);
+  dialog.message.mockResolvedValueOnce('Cancel');
   button('Load to A')!.click();
   await flush();
-  expect(confirm).toHaveBeenCalledWith('Save changes before loading another pattern? OK saves first, Cancel keeps editing.');
+  expect(dialog.message).toHaveBeenCalledWith('Save changes before loading another pattern?', expect.objectContaining({
+    buttons: { yes: 'Save', no: "Don't Save", cancel: 'Cancel' },
+  }));
   expect(A.setCode).not.toHaveBeenCalled();
   expect(onLoadedToDeck).not.toHaveBeenCalled();
 
@@ -255,7 +259,6 @@ test('a done rip shows the analysis, loads the stems, and Load to A asks over ed
     source: expect.objectContaining({ kind: 'rip', url: 'https://www.youtube.com/watch?v=x', start: 72, end: 88 }),
   }));
   expect(onLoadedToDeck).toHaveBeenCalledWith('B');
-  confirm.mockRestore();
 });
 
 test('stems audition over the bars, and A/B plays both with the toggle picking one', async () => {

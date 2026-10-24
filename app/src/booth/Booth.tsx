@@ -15,6 +15,7 @@ import { LessonPanel } from '../lessons/LessonPanel';
 import type { Lesson } from '../lessons/lessons';
 import { LOAD_OVER_EDITS_PROMPT } from '../library/store';
 import { newPatternDecision } from './deckFile';
+import { askSave } from './saveChoice';
 import { transportAction, transportKey } from './transportKeys';
 import { DECK_CONTROLS, MASTER_CONTROLS } from '../engine/controlMap';
 import { settings, updateSettings } from '../settings/settings';
@@ -130,7 +131,7 @@ export function Booth(props: {
     if (!deck) return;
     const scratch = decks[id].state.name.startsWith(LESSON_PREFIX);
     const dirty = !scratch && deck.isDirty();
-    const decision = newPatternDecision(dirty, dirty && window.confirm(LOAD_OVER_EDITS_PROMPT));
+    const decision = newPatternDecision(dirty, dirty ? await askSave(LOAD_OVER_EDITS_PROMPT) : null);
     if (decision === 'abort') return;
     if (decision === 'save-then-start' && !(await deck.save())) return;
     deck.setFile(null, null);

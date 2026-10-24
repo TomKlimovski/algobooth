@@ -22,10 +22,12 @@ test('a root change in the batch counts as a change to every open file', () => {
   expect(onDiskChange({ filePath: 'mine/x.json', dirty: true }, ['', 'other.json'])).toBe('prompt');
   expect(onDiskChange({ filePath: null, dirty: true }, [''])).toBe('ignore');
 });
-test('new pattern never discards unsaved edits', () => {
-  expect(newPatternDecision(false, false)).toBe('start');
-  expect(newPatternDecision(true, true)).toBe('save-then-start');
-  expect(newPatternDecision(true, false)).toBe('abort');
+test('new pattern on a dirty deck saves, discards or keeps editing as answered', () => {
+  expect(newPatternDecision(false, null)).toBe('start');
+  expect(newPatternDecision(true, 'save')).toBe('save-then-start');
+  expect(newPatternDecision(true, 'discard')).toBe('start');
+  expect(newPatternDecision(true, 'cancel')).toBe('abort');
+  expect(newPatternDecision(true, null)).toBe('abort');
 });
 test('disk change decision', () => {
   expect(onDiskChange({ filePath: 'mine/x.json', dirty: false }, ['mine/y.json'])).toBe('ignore');

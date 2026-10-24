@@ -1,6 +1,7 @@
 import type { Pattern } from '../library/api';
 import type { DeckFields } from './deckState';
 import type { Layout } from './keys/bindings';
+import type { SaveChoice } from './saveChoice';
 
 /** CodeMirror keeps LF line endings, so a CRLF file on disk must not count as a difference. */
 const normalise = (code: string): string => code.replace(/\r\n/g, '\n');
@@ -35,12 +36,13 @@ export function onDiskChange(
 export type NewPatternDecision = 'start' | 'save-then-start' | 'abort';
 
 /**
- * New on a deck: a clean deck starts at once; a dirty one asks first, and `confirmed` (OK) saves before
- * starting while Cancel keeps editing. Unsaved edits are never discarded.
+ * New or a load on a deck: a clean deck starts at once; a dirty one asks first, and the answer saves before
+ * starting, starts without saving (Don't Save), or keeps editing (Cancel).
  */
-export function newPatternDecision(dirty: boolean, confirmed: boolean): NewPatternDecision {
+export function newPatternDecision(dirty: boolean, choice: SaveChoice | null): NewPatternDecision {
   if (!dirty) return 'start';
-  return confirmed ? 'save-then-start' : 'abort';
+  if (choice === 'save') return 'save-then-start';
+  return choice === 'discard' ? 'start' : 'abort';
 }
 
 /**

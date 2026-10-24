@@ -1,5 +1,6 @@
 import { createDeckState, type DeckId } from '../booth/deckState';
 import type { DeckApi } from '../booth/Deck';
+import type { SaveChoice } from '../booth/saveChoice';
 import type { LibraryApi, Pattern, TreeNode } from './api';
 import { createLibraryStore } from './store';
 
@@ -302,30 +303,40 @@ test('renaming or moving a deck\'s open file keeps the deck on it', async () => 
   expect(b.state.state.filePath).toBe('live/other.json');
 });
 
-test('loading onto a deck with unsaved edits asks first: Cancel keeps editing, OK saves then loads', async () => {
+test('loading onto a deck with unsaved edits asks first: Cancel keeps editing, Save saves then loads', async () => {
   const api = fakeApi(heading('', [leaf('x.json')]));
-  const confirm = vi.fn(() => false);
+  const confirm = vi.fn(async (): Promise<SaveChoice> => 'cancel');
   const a = fakeDeck('A', { dirty: true });
   const lib = createLibraryStore(api, () => ({ A: a.api, B: null }), confirm);
   await lib.refresh();
 
   await expect(lib.load('x.json', 'A')).resolves.toBe(false);
-  expect(confirm).toHaveBeenCalledWith('Save changes before loading another pattern? OK saves first, Cancel keeps editing.');
+  expect(confirm).toHaveBeenCalledWith('Save changes before loading another pattern?');
   expect(a.save).not.toHaveBeenCalled();
   expect(api.read_pattern).not.toHaveBeenCalled();
   expect(a.setCode).not.toHaveBeenCalled();
 
-  confirm.mockReturnValue(true);
+  confirm.mockResolvedValue('save');
   await expect(lib.load('x.json', 'A')).resolves.toBe(true);
   expect(a.save).toHaveBeenCalledTimes(1);
   expect(a.save.mock.invocationCallOrder[0]).toBeLessThan(api.read_pattern.mock.invocationCallOrder[0]);
   expect(a.setCode).toHaveBeenCalledWith('y');
 });
 
+test("Don't Save loads over the unsaved edits without saving", async () => {
+  const api = fakeApi(heading('', [leaf('x.json')]));
+  const a = fakeDeck('A', { dirty: true });
+  const lib = createLibraryStore(api, () => ({ A: a.api, B: null }), async () => 'discard');
+  await lib.refresh();
+  await expect(lib.load('x.json', 'A')).resolves.toBe(true);
+  expect(a.save).not.toHaveBeenCalled();
+  expect(a.setCode).toHaveBeenCalledWith('y');
+});
+
 test('a failed or cancelled save keeps the edits and loads nothing', async () => {
   const api = fakeApi(heading('', [leaf('x.json')]));
   const a = fakeDeck('A', { dirty: true, saves: false });
-  const lib = createLibraryStore(api, () => ({ A: a.api, B: null }), () => true);
+  const lib = createLibraryStore(api, () => ({ A: a.api, B: null }), async () => 'save');
   await lib.refresh();
   await expect(lib.load('x.json', 'A')).resolves.toBe(false);
   expect(a.save).toHaveBeenCalled();
@@ -334,7 +345,7 @@ test('a failed or cancelled save keeps the edits and loads nothing', async () =>
 
 test('a clean deck loads without asking', async () => {
   const api = fakeApi(heading('', [leaf('x.json')]));
-  const confirm = vi.fn(() => false);
+  const confirm = vi.fn(async (): Promise<SaveChoice> => 'cancel');
   const a = fakeDeck('A');
   const lib = createLibraryStore(api, () => ({ A: a.api, B: null }), confirm);
   await lib.refresh();

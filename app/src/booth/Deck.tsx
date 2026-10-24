@@ -22,6 +22,7 @@ import { REFUSED_ARG, REFUSED_LINE, type Edit } from './keys/press';
 import { insertAtCursor, methodDropExtension, type MethodDrag } from './methodDrop';
 import { MOD_ENTER } from './transportKeys';
 import { SaveDialog, type SaveTarget } from './SaveDialog';
+import { askSave } from './saveChoice';
 import './deck.css';
 
 export interface DeckApi {
@@ -282,9 +283,8 @@ export function Deck(props: {
     return succeeded(lib.savePattern(path, pattern).then(() => deck.setFile(path, pattern.code, pattern)));
   };
   const newPattern = async () => {
-    const confirmed =
-      dirty() && window.confirm('Save changes before starting a new pattern? OK saves first, Cancel keeps editing.');
-    const decision = newPatternDecision(dirty(), confirmed);
+    const choice = dirty() ? await askSave('Save changes before starting a new pattern?') : null;
+    const decision = newPatternDecision(dirty(), choice);
     if (decision === 'abort') return;
     if (decision === 'save-then-start' && !(await save())) return;
     mirror.setCode(DEFAULT_CODE[id]);

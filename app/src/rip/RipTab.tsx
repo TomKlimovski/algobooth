@@ -3,6 +3,7 @@ import { getAudioContext } from '@strudel/webaudio';
 import type { DeckApi } from '../booth/Deck';
 import type { DeckId } from '../booth/deckState';
 import { SaveDialog, type SaveTarget } from '../booth/SaveDialog';
+import { askSave } from '../booth/saveChoice';
 import { getMixer } from '../engine/mixer';
 import { hasTauriRuntime } from '../library/api';
 import type { LibraryStore } from '../library/store';
@@ -258,7 +259,7 @@ export function RipTab(props: {
     const deck = props.decks()[id];
     if (!deck) return flash(`Deck ${id} is not ready yet`);
     try {
-      if (await loadToDeck(deck, pattern, (q) => window.confirm(q))) props.onLoadedToDeck(id);
+      if (await loadToDeck(deck, pattern, askSave)) props.onLoadedToDeck(id);
     } catch (e) {
       flash(`Load failed: ${message(e)}`);
     }
