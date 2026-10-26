@@ -67,7 +67,7 @@ def test_job_status_round_trips_as_json():
     assert data["result"]["analysis"]["drums"] == {"bd": [[0, 0], [0, 4]]}
     assert data["result"]["analysis"]["meter"] == "4/4"
     assert data["result"]["analysis"]["steps_per_bar"] == 16
-    assert data["result"]["sounds"]["chord_sound"] == "sawtooth"
+    assert data["result"]["sounds"]["chord_sound"] == "gm_epiano1"
     assert JobStatus.model_validate(data) == job
     m = ModelStatus(ready=False, torch_installed=True, weights_present=False, installing=True,
                     stage="weights", progress=0.5, error=None)
@@ -83,9 +83,34 @@ def test_drum_samples_by_shape_and_gains_by_level():
                                              falls={"bd": 150, "oh": 62, "sd": 65, "hh": 40}))
     s = choose_sounds(a)
     assert s.drum_samples == {"bd": 3, "oh": 2, "sd": 4, "hh": 1}
-    assert s.drum_gains["oh"] == pytest.approx(0.52, abs=0.03)
-    assert s.drum_gains["sd"] == pytest.approx(0.32, abs=0.03)
-    # the closed hats here sit where the samples put them (within 2 dB): no gain
-    assert "hh" not in s.drum_gains and "bd" not in s.drum_gains
-    assert gain_for(1.9) is None and gain_for(-2.0) == pytest.approx(0.64, abs=0.01) and gain_for(6.0) == 1.0
-    assert choose_sounds(analysis()).drum_samples == {} and choose_sounds(analysis()).drum_gains == {}
+    # against the kick at 0.65 (the house examples' kick): the open hats 2 dB under it, the claps 6 dB under
+    assert s.drum_gains["bd"] == 0.65
+    assert s.drum_gains["oh"] == pytest.approx(0.42, abs=0.03)
+    assert s.drum_gains["sd"] == pytest.approx(0.26, abs=0.03)
+    # the closed hats here sit where the samples put them: about the kick's gain
+    assert s.drum_gains["hh"] == pytest.approx(0.65, abs=0.1)
+    assert gain_for(0.0) == 0.65 and gain_for(-6.0) == pytest.approx(0.33, abs=0.01) and gain_for(6.0) == 1.0
+    # nothing measured: the house examples' gains
+    assert choose_sounds(analysis()).drum_samples == {}
+    assert choose_sounds(analysis()).drum_gains == {"bd": 0.65, "sd": 0.5, "hh": 0.35, "oh": 0.35, "gh": 0.15}
+
+
+def test_the_other_stems_instrument_by_its_decay_and_brightness():
+    from algorip.schema import OtherTone
+
+    def chosen(**tone):
+        s = choose_sounds(analysis(other_tone=OtherTone(**tone)))
+        return s.chord_sound, s.chord_lpf, s.chord_gain, s.melody_gain
+
+    assert chosen(decay_db=-0.4, rolloff_hz=495) == ("supersaw", 500, 0.2, 0.3)  # a held pad, lowpassed where it sits
+    assert chosen(decay_db=-1.0, rolloff_hz=20000)[1] == 8000
+    assert chosen(decay_db=-16.6, rolloff_hz=1324) == ("gm_epiano1", None, 0.6, 0.6)  # Solomun 36:40's mellow stabs
+    assert chosen(decay_db=-6.0, rolloff_hz=5254) == ("piano", None, 0.55, 0.55)  # 48:50's bright part
+    assert (choose_sounds(analysis()).chord_sound, choose_sounds(analysis()).chord_lpf) == ("gm_epiano1", None)
+
+
+def test_the_bass_keeps_its_oscillator_and_gains_a_little_richness():
+    sine = choose_sounds(analysis(bass_harmonics=0.05))
+    assert (sine.bass_sound, sine.bass_fm, sine.bass_shape, sine.bass_gain) == ("sine", 1.5, 0.3, 0.5)
+    saw = choose_sounds(analysis(bass_harmonics=0.7))
+    assert (saw.bass_sound, saw.bass_fm, saw.bass_shape, saw.bass_gain) == ("sawtooth", None, 0.3, 0.55)

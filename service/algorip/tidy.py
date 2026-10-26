@@ -32,6 +32,7 @@ def summary_text(a: Analysis, s: SoundChoice) -> str:
         f"bars: {a.bars}",
         f"bank: {s.drum_bank}",
         f"bass sound: {s.bass_sound}",
+        f"chord sound: {s.chord_sound}",
         f"chords: {' '.join(a.chords) or 'none'}",
         f"hits: {hits or 'none'}",
     ])

@@ -59,9 +59,9 @@ def test_bass_lines_write_the_loop_and_a_muted_layer():
     with_loop = a.model_copy(update={"bass_loop": BassLoop(period=1, templates=[t], layer=[layer], layer_bars=(5, 9), match=0.92, match_with_layer=0.97)})
     s = choose_sounds(with_loop)
     assert bass_lines(with_loop, s) == [
-        f'bass: note("[~ ~ g1 g1] [~ g1 ~ g1] [~ ~ g1 g1] [~ g1 g1 g2]").s("{s.bass_sound}").lpf({s.bass_lpf})',
+        f'bass: note("[~ ~ g1 g1] [~ g1 ~ g1] [~ ~ g1 g1] [~ g1 g1 g2]").s("{s.bass_sound}").lpf({s.bass_lpf}).shape(0.3).gain(0.55)',
         "// bars 5–9 add this under the bass (a variation): remove the underscore to hear it (match 0.92 without, 0.97 with)",
-        f'_bass2: note("[g1 g1 ~ ~] [g1 ~ g1 ~] [g1 g1 ~ ~] [g1 ~ ~ ~]").s("{s.bass_sound}").lpf({s.bass_lpf}).gain(0.6)',
+        f'_bass2: note("[g1 g1 ~ ~] [g1 ~ g1 ~] [g1 g1 ~ ~] [g1 ~ ~ ~]").s("{s.bass_sound}").lpf({s.bass_lpf}).shape(0.3).gain(0.41)',  # 0.75 of the bass
     ]
     assert bass_lines(a.model_copy(update={"bass": []}), s) == []
     no_layer = with_loop.model_copy(update={"bass_loop": with_loop.bass_loop.model_copy(update={"layer": None, "layer_bars": None, "match_with_layer": None})})
@@ -76,9 +76,9 @@ def test_drum_lines_write_the_loop_and_a_muted_fills_line():
     # bar 4 has three snare strays (a fill); the lone strays in bars 2 and 8 are under FILL_MIN_HITS
     snare_line = "claps" if s.snare_name == "cp" else "snare"
     assert drum_lines(a, s) == [
-        f'drums: s("bd*4").bank("{s.drum_bank}")',
-        f'{snare_line}: s("[~ {s.snare_name}]*2").bank("{s.drum_bank}")',
-        f'hats: s("hh*8").bank("{s.drum_bank}")',
+        f'drums: s("bd*4").bank("{s.drum_bank}").gain(0.65)',
+        f'{snare_line}: s("[~ {s.snare_name}]*2").bank("{s.drum_bank}").gain(0.5)',
+        f'hats: s("hh*8").bank("{s.drum_bank}").gain(0.35)',
         "// bars 4–4 add these hits (a fill): remove the underscore to hear them",
         f'_fills: s("<~ ~ ~ [~ ~ ~ [~ {s.snare_name} {s.snare_name} {s.snare_name}]] ~ ~ ~ ~>").bank("{s.drum_bank}")',
     ]
@@ -94,7 +94,7 @@ def test_a_voice_every_fourth_bar_is_written_as_a_four_bar_cycle():
     bars = {b: {2, 6, 10, 14} for b in (0, 4, 8)}
     a = analysis(drums={"bd": [(b, s) for b in range(9) for s in (0, 4, 8, 12)], "sd": [], "hh": [], "oh": [(b, s) for b, steps in bars.items() for s in steps]}, bars=9)
     lines = drum_lines(a, choose_sounds(a))
-    assert lines[-1] == f'hats: s("<[~ oh]*4 ~ ~ ~>").bank("{choose_sounds(a).drum_bank}")'
+    assert lines[-1] == f'hats: s("<[~ oh]*4 ~ ~ ~>").bank("{choose_sounds(a).drum_bank}").gain(0.35)'
 
 
 def test_the_gate_is_written_on_both_bass_lines_and_on_the_fallback_line():
@@ -103,12 +103,12 @@ def test_the_gate_is_written_on_both_bass_lines_and_on_the_fallback_line():
     a = Analysis.model_validate_json((GOLDEN / "solomun.analysis.json").read_text())
     s = choose_sounds(a).model_copy(update={"bass_envelope": StrudelEnvelope(attack=0.005, clip=0.5, release=0.04)})
     lines = bass_lines(a, s)
-    assert lines[0].endswith('.attack(0.005).clip(0.5).release(0.04)')
-    assert lines[-1].endswith('.attack(0.005).clip(0.5).release(0.04).gain(0.6)')
+    assert lines[0].endswith('.attack(0.005).clip(0.5).release(0.04).shape(0.3).gain(0.55)')
+    assert lines[-1].endswith('.attack(0.005).clip(0.5).release(0.04).shape(0.3).gain(0.41)')
     fallback = bass_lines(a.model_copy(update={"bass_loop": None}), s)
-    assert fallback[0].endswith('.attack(0.005).clip(0.5).release(0.04)')
+    assert fallback[0].endswith('.attack(0.005).clip(0.5).release(0.04).shape(0.3).gain(0.55)')
     no_clip = choose_sounds(a).model_copy(update={"bass_envelope": StrudelEnvelope(attack=0.012, clip=None, release=0.025)})
-    assert bass_lines(a, no_clip)[0].endswith('.attack(0.012).release(0.025)')
+    assert bass_lines(a, no_clip)[0].endswith('.attack(0.012).release(0.025).shape(0.3).gain(0.55)')
     assert not any('.attack(' in line for line in bass_lines(a, choose_sounds(a)))
 
 
@@ -118,8 +118,8 @@ def test_the_filter_envelope_and_tremolo_are_written_after_the_filter():
     a = Analysis.model_validate_json((GOLDEN / "solomun.analysis.json").read_text())
     s = choose_sounds(a).model_copy(update={"bass_lpf": 210, "bass_filter_env": FilterEnvelope(octaves=3.0, close=0.118), "bass_tremolo": Tremolo(rate=9.4, depth=0.5)})
     lines = bass_lines(a, s)
-    assert lines[0].endswith('.s("sawtooth").lpf(210).lpenv(3).lpdecay(0.118).lpsustain(0).tremolo(9.4).tremolodepth(0.5)')
-    assert lines[-1].endswith('.lpsustain(0).tremolo(9.4).tremolodepth(0.5).gain(0.6)')
+    assert lines[0].endswith('.s("sawtooth").lpf(210).lpenv(3).lpdecay(0.118).lpsustain(0).tremolo(9.4).tremolodepth(0.5).shape(0.3).gain(0.55)')
+    assert lines[-1].endswith('.lpsustain(0).tremolo(9.4).tremolodepth(0.5).shape(0.3).gain(0.41)')
 
 
 def test_drum_lines_carry_the_shaped_samples_and_the_stems_gains():
@@ -134,9 +134,9 @@ def test_drum_lines_carry_the_shaped_samples_and_the_stems_gains():
     s = choose_sounds(a)
     assert (s.drum_bank, s.snare_name) == ("tr909", "cp")
     lines = drum_lines(a, s)
-    assert lines[0] == 'drums: s("bd:3*4").bank("tr909")'
-    assert lines[1].startswith('claps: s("[~ cp:4]*2").bank("tr909").gain(0.3')
-    assert lines[2].startswith('hats: s("[~ oh:2]*4").bank("tr909").gain(0.5')
+    assert lines[0] == 'drums: s("bd:3*4").bank("tr909").gain(0.65)'
+    assert lines[1].startswith('claps: s("[~ cp:4]*2").bank("tr909").gain(0.2')
+    assert lines[2].startswith('hats: s("[~ oh:2]*4").bank("tr909").gain(0.4')
     assert lines[3].startswith('ghosts: s("hh:1(2,16,5)").bank("tr909").gain(0.0')  # 18 dB under the hats
     assert not any(".gain(" in line for line in lines if line.startswith("_fills"))
 
@@ -146,3 +146,19 @@ def test_the_snare_line_is_named_snare_on_the_808():
     a = a.model_copy(update={"four_on_the_floor": False})
     lines = drum_lines(a, choose_sounds(a))
     assert any(line.startswith('snare: s("[~ sd]*2").bank("tr808")') for line in lines)
+
+
+def test_a_sine_bass_writes_its_fm_before_the_gate():
+    a = HOUSE.model_copy(update={"bass_harmonics": 0.05, "bass_loop": None})
+    line = bass_lines(a, choose_sounds(a))[0]
+    assert line.endswith('.s("sine").fm(1.5).fmdecay(0.1).shape(0.3).gain(0.5)')
+
+
+def test_a_pad_plays_the_chords_and_the_melody_on_the_supersaw():
+    from algorip.schema import OtherTone
+
+    a = HOUSE.model_copy(update={"other_tone": OtherTone(decay_db=-0.4, rolloff_hz=1320),
+                                 "melody": [Note(bar=0, step=0, length=4, midi=69)]})
+    lines = generate(a, choose_sounds(a), "t", 0, 8).splitlines()
+    assert lines[-2] == 'chords: chord("<Am F C G>").voicing().s("supersaw").unison(5).detune(0.2).lpf(1320).room(0.4).gain(0.2)'
+    assert lines[-1].startswith('melody: note("') and lines[-1].endswith('.s("supersaw").unison(5).detune(0.2).lpf(1320).gain(0.3)')

@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from algorip.audio import SR, load_mono
 from algorip.bass import bass_envelope, bass_tone, choose_bass_loop, harmonic_ratio, transcribe_bass
-from algorip.chords import estimate_chords
+from algorip.chords import estimate_chords, other_tone
 from algorip.download import Fetcher, Runner, clip_key, fetch_clip, run_command, yt_dlp_fetch
 from algorip.drumloop import drum_loops
 from algorip.drums import VOICES, classify_drums, drum_tone, is_four_on_the_floor
@@ -154,6 +154,7 @@ def _analyse(stems: dict[str, Path], predict: Predictor, report: Callable[[float
         bass_tone=bass_tone(bass, SR, bass_notes, grid),
         tuning_cents=bg.tuning_cents,
         drum_tone=drum_tone(drums, SR, hits, grid),
+        other_tone=other_tone(other, SR),
     )
     analysis = analysis.model_copy(update={"drum_summary": _drum_summary(analysis)})
     report(1.0)

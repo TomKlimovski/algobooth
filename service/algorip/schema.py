@@ -77,6 +77,13 @@ class DrumTone(BaseModel):
     falls: dict[str, float]
 
 
+class OtherTone(BaseModel):
+    """How the "other" stem (chords and melody) sounds, each a median over its loud onsets and frames."""
+
+    decay_db: float  # the level 250 ms after an onset's peak, relative to it: a pad holds near 0, keys fall
+    rolloff_hz: float  # the 85% spectral rolloff over the loud frames: how bright the part is
+
+
 class Analysis(BaseModel):
     bpm: float
     key: str
@@ -96,6 +103,7 @@ class Analysis(BaseModel):
     bass_envelope: MeasuredEnvelope | None = None
     bass_tone: BassTone | None = None
     tuning_cents: float = 0.0  # the clip's offset from 440 tuning, removed before the bass was rounded
+    other_tone: OtherTone | None = None
 
 
 class SoundChoice(BaseModel):
@@ -103,14 +111,23 @@ class SoundChoice(BaseModel):
     snare_name: Literal["sd", "cp"]
     bass_sound: Literal["sawtooth", "triangle", "sine"]
     bass_lpf: int | None
-    chord_sound: str = "sawtooth"
-    chord_lpf: int = 1200
+    # The chords and melody both come from the "other" stem, so they share its instrument; the lowpass is written
+    # only on an oscillator (a sampled instrument already has its tone).
+    chord_sound: str = "gm_epiano1"
+    chord_lpf: int | None = None
     room: float = 0.4
     bass_envelope: StrudelEnvelope | None = None
     bass_filter_env: FilterEnvelope | None = None
     bass_tremolo: Tremolo | None = None
+    bass_fm: float | None = None  # a sine bass's FM index: harmonics on the attack only
+    bass_shape: float | None = None  # waveshaping after the filter, so the bass carries on small speakers
     drum_samples: dict[str, int] = {}  # voice -> the bank sample's index, when not 0 (chosen by shape)
-    drum_gains: dict[str, float] = {}  # voice -> the line's gain, when 2 dB or more from Strudel's 0.8
+    drum_gains: dict[str, float] = {}  # voice -> the line's gain, the kick's KICK_GAIN and the rest by level against it
+    # Each tonal line's gain, from the house examples' gains for the same instrument (their lines were measured
+    # through the engine: bass about -20 dBFS RMS, chords about -22, the kick peaking about 0.55 at 0.65).
+    bass_gain: float | None = None
+    chord_gain: float = 0.6
+    melody_gain: float = 0.6
 
 
 class RipRequest(BaseModel):

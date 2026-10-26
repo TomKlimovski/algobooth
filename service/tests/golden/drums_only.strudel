@@ -1,4 +1,4 @@
 // Around The World 1:12 to 1:28 · 120 cpm · C minor · 1 bar
 setcpm(120/4)
 
-drums: s("bd(3,8)").bank("tr808")
+drums: s("bd(3,8)").bank("tr808").gain(0.65)

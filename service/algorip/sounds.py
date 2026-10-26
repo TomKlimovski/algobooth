@@ -1,4 +1,4 @@
-"""Rule-based sound choice from the analysis: drum bank, snare name and bass oscillator."""
+"""Rule-based sound choice from the analysis: drum bank, snare name, bass oscillator, the chords' instrument and levels."""
 
 import math
 
@@ -21,10 +21,25 @@ FILTER_ENV_MIN_OCTAVES = 1.0  # an opening under this is not worth a filter enve
 FILTER_ENV_MIN_CLOSE_MS = 50.0
 # Drum voices: the bank sample whose first 12 dB of fall is nearest the stem's (kits.nearest_sample), and a gain
 # per voice from the stem's level relative to its kick against the chosen samples' (the kick is the reference).
-# Strudel's default gain is 0.8 on a linear curve; a gain within GAIN_WRITE_DB of it is not written, none exceeds 1
-# and none rounds to 0. Without a kick on the stem there is no reference and no gain is written.
-DEFAULT_GAIN = 0.8
-GAIN_WRITE_DB = 2.0
+# The kick plays at KICK_GAIN, the house examples' kick (it peaks about 0.55); none exceeds 1 and none rounds to 0.
+# A voice the stem does not measure (no kick to measure against, or no hits of its own) takes the examples' gain.
+KICK_GAIN = 0.65
+DRUM_GAINS = {"sd": 0.5, "hh": 0.35, "oh": 0.35, "gh": 0.15}
+# The bass's richness on top of the measured oscillator (the house examples' sub and saw basses): a sine gets an FM
+# pluck on its attack, and every bass a little waveshaping after its filter. Its gain is the examples' for that
+# oscillator.
+SINE_FM = 1.5
+BASS_SHAPE = 0.3
+BASS_GAINS = {"sawtooth": 0.55, "triangle": 0.5, "sine": 0.5}
+# The "other" stem's instrument. A part that holds within KEYS_DECAY_DB 250 ms after an onset is a pad: the
+# supersaw, lowpassed at the stem's measured brightness. A part that falls is keys: the sampled piano when bright,
+# the Rhodes (gm_epiano1) when mellow, and the Rhodes when there is nothing to measure. Measured: the synthetic pad
+# holds at -0.4 dB; Solomun 36:40's stabs fall 16.6 dB (mellow, 1.3 kHz), 48:50's part 6 dB (bright, 5.3 kHz).
+KEYS_DECAY_DB = -3.0
+BRIGHT_HZ = 2500
+PAD_LPF = (300, 8000)  # Hz: the pad's cutoff is kept within this
+CHORD_GAINS = {"gm_epiano1": 0.6, "piano": 0.55, "supersaw": 0.2}  # a voiced chord: three or four notes
+MELODY_GAINS = {"gm_epiano1": 0.6, "piano": 0.55, "supersaw": 0.3}
 _SAMPLE_VOICE = {"bd": "bd", "hh": "hh", "oh": "oh", "gh": "hh"}  # the snare voice uses the bank's snare_name list
 
 
@@ -65,29 +80,35 @@ def sample_for(bank: str, voice: str, snare_name: str, fall_ms: float) -> KitSam
     return nearest_sample(bank, snare_name if voice == "sd" else _SAMPLE_VOICE.get(voice, voice), fall_ms)
 
 
-def gain_for(diff_db: float) -> float | None:
-    """The line's gain for a voice the stem plays diff_db louder (or quieter) than the chosen samples would; None when within GAIN_WRITE_DB."""
-    if abs(diff_db) < GAIN_WRITE_DB:
-        return None
-    return max(0.01, min(1.0, round(DEFAULT_GAIN * 10 ** (diff_db / 20), 2)))  # never silent
+def gain_for(diff_db: float) -> float:
+    """The line's gain for a voice the stem plays diff_db louder (or quieter) against its kick than the chosen samples would."""
+    return max(0.01, min(1.0, round(KICK_GAIN * 10 ** (diff_db / 20), 2)))  # never silent
 
 
 def _drum_samples_and_gains(a: Analysis, bank: str, snare_name: str) -> tuple[dict[str, int], dict[str, float]]:
+    gains = {"bd": KICK_GAIN, **DRUM_GAINS}
     t = a.drum_tone
     if t is None:
-        return {}, {}
+        return {}, gains
     chosen = {voice: s for voice, fall in t.falls.items() if (s := sample_for(bank, voice, snare_name, fall)) is not None}
     samples = {voice: s.n for voice, s in chosen.items() if s.n != 0}
-    gains: dict[str, float] = {}
     kick = chosen.get("bd")
     if kick is not None and "bd" in t.levels:
         for voice, s in chosen.items():
-            if voice == "bd" or voice not in t.levels:
-                continue
-            diff = (t.levels[voice] - t.levels["bd"]) - (s.level_db - kick.level_db)
-            if (g := gain_for(diff)) is not None:
-                gains[voice] = g
+            if voice != "bd" and voice in t.levels:
+                gains[voice] = gain_for((t.levels[voice] - t.levels["bd"]) - (s.level_db - kick.level_db))
     return samples, gains
+
+
+def other_instrument(a: Analysis) -> tuple[str, int | None]:
+    """The chords' and melody's instrument by the "other" stem's decay and brightness, and its lowpass if it needs one."""
+    t = a.other_tone
+    if t is None:
+        return "gm_epiano1", None
+    if t.decay_db > KEYS_DECAY_DB:
+        lo, hi = PAD_LPF
+        return "supersaw", max(lo, min(hi, int(round(t.rolloff_hz / 10) * 10)))
+    return ("piano" if t.rolloff_hz >= BRIGHT_HZ else "gm_epiano1"), None
 
 
 def choose_sounds(a: Analysis) -> SoundChoice:
@@ -101,6 +122,7 @@ def choose_sounds(a: Analysis) -> SoundChoice:
         bass_sound, bass_lpf = "sine", None
     bass_lpf, filter_env = _filter(a, bass_lpf)
     drum_samples, drum_gains = _drum_samples_and_gains(a, drum_bank, snare_name)
+    chord_sound, chord_lpf = other_instrument(a)
     return SoundChoice(
         drum_bank=drum_bank,
         snare_name=snare_name,
@@ -111,4 +133,11 @@ def choose_sounds(a: Analysis) -> SoundChoice:
         bass_tremolo=_tremolo(a),
         drum_samples=drum_samples,
         drum_gains=drum_gains,
+        bass_fm=SINE_FM if bass_sound == "sine" else None,
+        bass_shape=BASS_SHAPE,
+        bass_gain=BASS_GAINS[bass_sound],
+        chord_sound=chord_sound,
+        chord_lpf=chord_lpf,
+        chord_gain=CHORD_GAINS[chord_sound],
+        melody_gain=MELODY_GAINS[chord_sound],
     )

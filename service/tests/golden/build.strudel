@@ -1,10 +1,10 @@
 // Build 0:00 to 0:16 · 123 cpm · A minor · 8 bars
 setcpm(123/4)
 
-drums: s("bd*4").bank("tr909")
-claps: s("[~ cp]*2").bank("tr909")
-hats: s("[~ ~ hh ~] [hh ~ hh ~] [hh ~ hh ~] [hh ~ ~ ~], ~ ~ ~ [~ ~ oh:2 ~]").bank("tr909")
-bass: note("<[a1@8 c2 ~ e2 a1 g1 ~ e2 d2] [a1@8 g1 a1 d2 ~ e2 c2 a1 ~]>").s("sawtooth").lpf(430)
+drums: s("bd*4").bank("tr909").gain(0.65)
+claps: s("[~ cp]*2").bank("tr909").gain(0.64)
+hats: s("[~ ~ hh ~] [hh ~ hh ~] [hh ~ hh ~] [hh ~ ~ ~], ~ ~ ~ [~ ~ oh:2 ~]").bank("tr909").gain(0.63)
+bass: note("<[a1@8 c2 ~ e2 a1 g1 ~ e2 d2] [a1@8 g1 a1 d2 ~ e2 c2 a1 ~]>").s("sawtooth").lpf(430).shape(0.3).gain(0.55)
 // bars 6–8 add this under the bass (a variation): remove the underscore to hear it (match 0.92 without, 0.91 with)
-_bass2: note("[~ a1 a1 a1] a1*4 ~ ~").s("sawtooth").lpf(430).gain(0.6)
-chords: chord("<Am F C G>").voicing().s("sawtooth").lpf(1200).room(0.4).gain(0.6)
+_bass2: note("[~ a1 a1 a1] a1*4 ~ ~").s("sawtooth").lpf(430).shape(0.3).gain(0.41)
+chords: chord("<Am F C G>").voicing().s("supersaw").unison(5).detune(0.2).lpf(500).room(0.4).gain(0.2)

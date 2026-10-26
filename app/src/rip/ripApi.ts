@@ -50,6 +50,8 @@ export interface Analysis {
   drum_summary: DrumSummary | null;
   /** Each drum voice's level (dB) and first-12-dB fall (ms) on the stem; null without hits. */
   drum_tone: { levels: Record<string, number>; falls: Record<string, number> } | null;
+  /** The "other" stem's median level 250 ms after a loud onset (dB; a pad holds near 0) and its 85% rolloff (Hz). */
+  other_tone: { decay_db: number; rolloff_hz: number } | null;
 }
 
 export interface SoundChoice {
@@ -63,10 +65,17 @@ export interface SoundChoice {
   bass_tremolo: { rate: number; depth: number } | null;
   /** Voice to the bank sample's index, when the stem's shape chose one other than 0. */
   drum_samples: Record<string, number>;
-  /** Voice to the line's gain, when 2 dB or more from Strudel's 0.8. */
+  /** Voice to the line's gain: the kick's 0.65, the rest by their level against it (or the house examples'). */
   drum_gains: Record<string, number>;
+  /** A sine bass's FM index (on its attack only) and every bass's waveshaping after the filter. */
+  bass_fm: number | null;
+  bass_shape: number | null;
+  bass_gain: number | null;
+  /** The chords' and melody's instrument (`gm_epiano1`, `piano` or a `supersaw` pad), and the pad's lowpass. */
   chord_sound: string;
-  chord_lpf: number;
+  chord_lpf: number | null;
+  chord_gain: number;
+  melody_gain: number;
   room: number;
 }
 

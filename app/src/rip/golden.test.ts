@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import { expectShippedSounds } from '../test/shippedSounds';
 
 // No audio is needed to evaluate a pattern, so webaudio is mocked as in strudel.test.ts.
 const webaudio = vi.hoisted(() => ({
@@ -44,6 +45,36 @@ test.each(files)('%s evaluates headlessly and plays in its first cycle', async (
   const r = core.repl({ transpiler, defaultOutput: async () => {}, getTime: () => 0 });
   const pat = await r.evaluate(code, false);
   expect((pat ?? r.scheduler.pattern).queryArc(0, 1).length).toBeGreaterThan(0);
+});
+
+/** Each named line of a golden (`bass: note(...)`, muted `_bass2:` too) with the golden's `setcpm(...)` before it. */
+function namedLines(code: string): { name: string; code: string }[] {
+  const all = code.split('\n');
+  const setup = all.filter((l) => /^setcpm\(/.test(l));
+  return all
+    .filter((l) => /^[A-Za-z_$][\w$]*:\s/.test(l))
+    .map((l) => ({ name: l.slice(0, l.indexOf(':')), code: [...setup, l].join('\n') }));
+}
+
+const lineCases = files.flatMap((file) =>
+  namedLines(golden[file]).map((l): [string, string, string] => [file.slice(file.lastIndexOf('/') + 1), l.name, l.code]),
+);
+
+// A chord symbol the voicing dictionary lacks voices to nothing, silently; a sound the booth does not ship is silent
+// too. Every line plays only shipped sounds; every playing line (not a muted `_` one: those are variations and
+// fills, silent in the bars they do not cover) sounds in every bar of the clip, and a chord is at least a triad.
+test.each(lineCases)('%s: the %s line plays shipped sounds in every bar', async (file, name, code) => {
+  const bars = Number(/· (\d+) bars?/.exec(golden[files.find((f) => f.endsWith(`/${file}`))!])![1]);
+  const r = core.repl({ transpiler, defaultOutput: async () => {}, getTime: () => 0 });
+  const pat = (await r.evaluate(code, false)) ?? r.scheduler.pattern;
+  const whole = (h: { whole?: unknown }) => h.whole;
+  expectShippedSounds(pat.queryArc(0, bars).filter(whole), `${file} ${name}`);
+  if (name.startsWith('_')) return;
+  for (let bar = 0; bar < bars; bar++) {
+    const haps = pat.queryArc(bar, bar + 1).filter(whole);
+    expect(haps.length, `${file} ${name} bar ${bar + 1}`).toBeGreaterThan(0);
+    if (name === 'chords') expect(haps.length, `${file} chords bar ${bar + 1} is voiced`).toBeGreaterThanOrEqual(3);
+  }
 });
 
 test('a flat bar with weighted rests sustains each note for its weight', async () => {

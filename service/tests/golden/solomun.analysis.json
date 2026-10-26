@@ -1244,5 +1244,9 @@
     "wobble_hz": null,
     "wobble_db": null
   },
-  "tuning_cents": -8.6
+  "tuning_cents": -8.6,
+  "other_tone": {
+    "decay_db": -16.6,
+    "rolloff_hz": 1324.0
+  }
 }

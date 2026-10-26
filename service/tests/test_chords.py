@@ -24,3 +24,15 @@ def test_chord_names_use_sharps():
 def test_first_silent_bar_has_no_chord():
     y = np.concatenate([silence(2.0), pad_chords([(57, "minor")], 120)])
     assert estimate_chords(y, SR, Grid(bpm=120, first_downbeat=0.0, bars=2)) == ["~", "Am"]
+
+
+def test_other_tone_tells_a_held_pad_from_struck_keys():
+    from algorip.chords import other_tone
+    from tests.synth import decaying_bass
+
+    pad = other_tone(pad_chords([(57, "minor"), (53, "major"), (48, "major"), (55, "major")], 120), SR)
+    assert pad is not None and pad.decay_db > -3.0
+    # a quarter-note C4 struck and dying over 80 ms, every beat
+    keys = other_tone(decaying_bass([(b, s, 4, 60) for b in range(4) for s in (0, 4, 8, 12)], 120, 4, 0.08), SR)
+    assert keys is not None and keys.decay_db < -15.0
+    assert other_tone(silence(4.0), SR) is None

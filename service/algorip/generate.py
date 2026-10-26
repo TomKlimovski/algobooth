@@ -6,6 +6,10 @@ from algorip.drumloop import VOICE_LINES, drum_loops
 from algorip.mini import bar_mini, cycle, fold_octaves, loop_mini, notes_mini
 from algorip.schema import Analysis, SoundChoice
 
+LAYER_GAIN = 0.75  # the muted bass layer under the loop, as a share of the bass's own gain
+FM_DECAY = 0.1  # seconds: a sine bass's FM fades this fast, so only the attack carries its harmonics
+PAD_VOICES = ".unison(5).detune(0.2)"  # the supersaw as a pad: five detuned saws per note
+
 
 def fmt_time(seconds: float) -> str:
     """Whole seconds (floored) as m:ss, or h:mm:ss from an hour."""
@@ -53,7 +57,9 @@ def bass_lines(a: Analysis, s: SoundChoice) -> list[str]:
     """The bass voice: the loop's phases when one was found, else the consensus line; a muted layer after it."""
     if not a.bass:
         return []
-    suffix = f".lpf({s.bass_lpf})" if s.bass_lpf is not None else ""
+    suffix = f".fm({s.bass_fm:g}).fmdecay({FM_DECAY:g})" if s.bass_fm is not None else ""
+    if s.bass_lpf is not None:
+        suffix += f".lpf({s.bass_lpf})"
     # the filter's opening and closing, measured on the stem, when it moves at least an octave
     f = s.bass_filter_env
     if f is not None and s.bass_lpf is not None:
@@ -66,18 +72,29 @@ def bass_lines(a: Analysis, s: SoundChoice) -> list[str]:
     tr = s.bass_tremolo
     if tr is not None:
         suffix += f".tremolo({tr.rate:g}).tremolodepth({tr.depth:g})"
+    if s.bass_shape is not None:
+        suffix += f".shape({s.bass_shape:g})"
+    gain = f".gain({s.bass_gain:g})" if s.bass_gain is not None else ""
     loop = a.bass_loop
     if loop is None:
-        return [f'bass: note("{notes_mini(fold_octaves(a.bass), a.bars)}").s("{s.bass_sound}"){suffix}']
-    lines = [f'bass: note("{loop_mini(loop.templates)}").s("{s.bass_sound}"){suffix}']
+        return [f'bass: note("{notes_mini(fold_octaves(a.bass), a.bars)}").s("{s.bass_sound}"){suffix}{gain}']
+    lines = [f'bass: note("{loop_mini(loop.templates)}").s("{s.bass_sound}"){suffix}{gain}']
     if loop.layer is not None and loop.layer_bars is not None:
         lo, hi = loop.layer_bars
         lines.append(
             f"// bars {lo}–{hi} add this under the bass (a variation): remove the underscore to hear it "
             f"(match {loop.match:.2f} without, {loop.match_with_layer:.2f} with)"
         )
-        lines.append(f'_bass2: note("{loop_mini(loop.layer)}").s("{s.bass_sound}"){suffix}.gain(0.6)')
+        layer_gain = round((s.bass_gain if s.bass_gain is not None else 0.8) * LAYER_GAIN, 2)
+        lines.append(f'_bass2: note("{loop_mini(loop.layer)}").s("{s.bass_sound}"){suffix}.gain({layer_gain:g})')
     return lines
+
+
+def _instrument(s: SoundChoice) -> str:
+    """The "other" stem's instrument as written on the chords and melody: the sound, a pad's voices, its lowpass."""
+    voices = PAD_VOICES if s.chord_sound == "supersaw" else ""
+    lpf = f".lpf({s.chord_lpf})" if s.chord_lpf is not None else ""
+    return f'.s("{s.chord_sound}"){voices}{lpf}'
 
 
 def generate(a: Analysis, s: SoundChoice, title: str, start: float, end: float) -> str:
@@ -92,10 +109,7 @@ def generate(a: Analysis, s: SoundChoice, title: str, start: float, end: float) 
     body = drum_lines(a, s)
     body.extend(bass_lines(a, s))
     if a.chords:
-        body.append(
-            f'chords: chord("{cycle(a.chords)}").voicing().s("{s.chord_sound}")'
-            f".lpf({s.chord_lpf}).room({s.room}).gain(0.6)"
-        )
+        body.append(f'chords: chord("{cycle(a.chords)}").voicing(){_instrument(s)}.room({s.room:g}).gain({s.chord_gain:g})')
     if a.melody:  # None (no melody stem) or an empty line: no melody voice
-        body.append(f'melody: note("{notes_mini(a.melody, a.bars)}").s("triangle").gain(0.5)')
+        body.append(f'melody: note("{notes_mini(a.melody, a.bars)}"){_instrument(s)}.gain({s.melody_gain:g})')
     return "\n".join(head + body) + "\n"
