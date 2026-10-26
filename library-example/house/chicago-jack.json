@@ -1,0 +1,16 @@
+{
+  "name": "Chicago jack",
+  "cpm": 122,
+  "key": "G minor",
+  "tags": [
+    "house",
+    "chicago",
+    "raw",
+    "full track"
+  ],
+  "source": {
+    "kind": "mine"
+  },
+  "notes": "Raw jacking house: an 808 kick and cowbell, swung 909 hats, a JV bass and a rave stab.",
+  "code": "setcpm(122/4)\n\ndrums: s(\"bd*4\").bank(\"RolandTR808\").gain(1.1).duckorbit(2).duckattack(0.1).duckdepth(0.5)\nclaps: s(\"~ cp ~ [cp cp]\").bank(\"RolandTR909\").gain(0.5)\nhats: s(\"hh*16\").bank(\"RolandTR909\").gain(\"[0.25 0.12 0.35 0.12]*4\").swingBy(1/24, 4)\ncowbell: s(\"~ ~ ~ cb ~ ~ cb ~ ~ cb ~ ~ ~ ~ cb ~\").bank(\"RolandTR808\").gain(0.3)\nbass: n(\"<[0 ~ 0 3] [0 ~ 5 3] [0 ~ 0 3] [7 5 3 ~]>\").s(\"jvbass\").gain(0.55).lpf(1200).orbit(2)\nstab: s(\"~ stab:4 ~ ~\").gain(0.5).room(0.4).delay(0.3).delaytime(0.37).orbit(2)"
+}

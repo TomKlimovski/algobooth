@@ -1,8 +1,8 @@
 import { convertLesson, swapSounds } from './convert';
 
 test('swapSounds replaces unshipped sounds and banks in code, keeping sample numbers on drums', () => {
-  expect(swapSounds('sound("casio:1 jazz bd")')).toBe('sound("rim:1 lt bd")');
-  expect(swapSounds('note("c").sound("gm_accordion:2")')).toBe('note("c").sound("sawtooth")');
+  expect(swapSounds('sound("perc:1 casio bd")')).toBe('sound("rim:1 casio bd")');
+  expect(swapSounds('note("c").sound("piano gm_accordion:2")')).toBe('note("c").sound("piano gm_accordion:2")');
   expect(swapSounds('s("bd").bank("CasioRZ1")')).toBe('s("bd").bank("EmuSP12")');
   expect(swapSounds('s("bd").bank("RolandTR909")')).toBe('s("bd").bank("RolandTR909")');
 });
@@ -15,11 +15,11 @@ import { MiniRepl } from '@src/docs/MiniRepl';
 
 # First Sounds
 
-Some **bold** text with \`casio\` in code and casio in prose.
+Some **bold** text with \`perc\` in code and perc in prose.
 
 <MiniRepl
   client:visible
-  tune={\`sound("casio")
+  tune={\`sound("perc")
 .room(1)\`}
   claviatureLabels={Object.fromEntries([1].map((n) => [n, n]))}
 />
@@ -46,7 +46,7 @@ test('convertLesson takes the title from the heading and turns tags, lists and t
   const lesson = convertLesson('first-sounds', MDX);
   expect(lesson.title).toBe('First Sounds');
   expect(lesson.blocks).toEqual([
-    { kind: 'text', text: 'Some **bold** text with `rim` in code and casio in prose.' },
+    { kind: 'text', text: 'Some **bold** text with `rim` in code and perc in prose.' },
     { kind: 'example', code: 'sound("rim")\n.room(1)' },
     { kind: 'box', blocks: [{ kind: 'list', ordered: true, items: ['one', 'two'] }] },
     { kind: 'solution', question: 'Click', blocks: [{ kind: 'text', text: 'the answer' }] },

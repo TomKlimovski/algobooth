@@ -9,6 +9,6 @@
   "source": {
     "kind": "mine"
   },
-  "notes": "Slow Am7 to Fmaj7 pad with a long attack and plenty of room.",
-  "code": "setcpm(120/4)\n\n$: chord(\"<Am7 Fmaj7>\").voicing().s(\"triangle\").attack(0.8).release(1.5).lpf(1800).room(0.8).gain(0.5)"
+  "notes": "Slow Am9 to F^7 pad: detuned supersaw voices, a long attack, a filter that breathes and plenty of room.",
+  "code": "setcpm(120/4)\n\npad: chord(\"<Am9 F^7>\").voicing().s(\"supersaw\").unison(5).detune(0.2).spread(0.8).attack(0.8).release(2).lpf(sine.range(800, 2000).slow(8)).gain(0.25).room(0.8).roomsize(6)"
 }

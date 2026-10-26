@@ -1,0 +1,16 @@
+{
+  "name": "Piano house",
+  "cpm": 124,
+  "key": "Bb minor",
+  "tags": [
+    "house",
+    "piano",
+    "classic",
+    "full track"
+  ],
+  "source": {
+    "kind": "mine"
+  },
+  "notes": "Nineties piano house: offbeat grand piano stabs, an organ bass and a ride, all ducked by the kick.",
+  "code": "setcpm(124/4)\n\ndrums: s(\"bd*4\").bank(\"RolandTR909\").gain(0.65).duckorbit(2).duckattack(0.14).duckdepth(0.55)\nclaps: s(\"~ cp ~ cp\").bank(\"RolandTR909\").gain(0.55).room(0.3)\nhats: s(\"[~ oh]*4\").bank(\"RolandTR909\").gain(0.35)\nride: s(\"rd*8\").bank(\"RolandTR909\").gain(0.12).pan(0.4)\npiano: chord(\"<Bbm9 Bbm9 Gb^9 Ab9sus>\").voicing().struct(\"[~ x] [~ x] [~ x@3] [x ~]\").s(\"piano\").gain(0.7).velocity(perlin.range(0.65, 0.95)).room(0.4).roomsize(3).orbit(2)\nbass: note(\"<[bb1 ~ bb1 ~]*2 [bb1 ~ bb1 ~]*2 [gb1 ~ gb1 ~]*2 [ab1 ~ ab1 ab2]*2>\").s(\"gm_drawbar_organ\").clip(0.8).gain(1.3).lpf(900).orbit(2)"
+}

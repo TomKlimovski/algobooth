@@ -9,7 +9,7 @@ const copyLayout = (l: Layout): Layout => JSON.parse(JSON.stringify(unwrap(l)));
 
 export type DeckId = 'A' | 'B';
 
-/** Each deck plays on its own superdough orbit, whatever its code says. */
+/** Each deck plays on its own superdough orbit and that orbit's lanes (engine/lanes.ts), whatever its code says. */
 export const ORBIT: Record<DeckId, number> = { A: 1, B: 2 };
 
 /**

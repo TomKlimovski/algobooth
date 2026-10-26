@@ -1,0 +1,16 @@
+{
+  "name": "French filter house",
+  "cpm": 124,
+  "key": "A minor",
+  "tags": [
+    "house",
+    "french",
+    "filter",
+    "full track"
+  ],
+  "source": {
+    "kind": "mine"
+  },
+  "notes": "A Juno chord loop through a slowly opening filter, with a phased supersaw lead and a rubbery bass.",
+  "code": "setcpm(124/4)\n\ndrums: s(\"bd*4\").bank(\"RolandTR909\").gain(0.65).duckorbit(2).duckattack(0.2).duckdepth(0.8)\nclaps: s(\"~ cp ~ cp\").bank(\"RolandTR909\").gain(0.5)\nhats: s(\"[~ hh]*4, [~ ~ oh ~]*2\").bank(\"RolandTR909\").gain(0.3).hpf(7000)\nchords: s(\"juno:4\").struct(\"[x ~ x ~] [~ x ~ x] [x ~ x ~] [~ x x ~]\").speed(\"<1 1 0.891 0.944>\").lpf(sine.range(400, 5000).slow(32)).lpq(6).shape(0.2).gain(0.3).juxBy(0.6, x => x.late(0.012)).orbit(2)\nlead: note(\"<a3 c4 e4 g4>*4\").s(\"supersaw\").unison(3).detune(0.1).decay(0.12).sustain(0).phaser(2).phaserdepth(0.6).lpf(2400).gain(0.35).delay(0.35).delaytime(0.36).delayfeedback(0.45).orbit(2)\nbass: note(\"<a1 a1 f1 g1>\").struct(\"[~ x]*4\").s(\"sawtooth\").lpf(300).lpenv(3).lpdecay(0.12).lpsustain(0).lpq(8).decay(0.2).sustain(0.3).shape(0.3).gain(0.55).orbit(2)"
+}

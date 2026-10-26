@@ -1,0 +1,15 @@
+{
+  "name": "Rhodes chords",
+  "cpm": 122,
+  "key": "F minor",
+  "tags": [
+    "chords",
+    "keys",
+    "house"
+  ],
+  "source": {
+    "kind": "mine"
+  },
+  "notes": "Offbeat Rhodes chords with a dotted echo. Lane 2, so a kick with .duckorbit(2) pumps it.",
+  "code": "setcpm(122/4)\n\nkeys: chord(\"<Fm9 Db^9 Eb^7 Cm7>\").voicing().struct(\"[~ x] ~ [~ x] ~\").s(\"gm_epiano1\").velocity(perlin.range(0.6, 0.9)).gain(0.8).room(0.35).delay(0.25).delaytime(0.37).delayfeedback(0.4).orbit(2)"
+}

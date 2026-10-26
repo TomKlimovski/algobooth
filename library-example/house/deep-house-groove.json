@@ -1,0 +1,15 @@
+{
+  "name": "Deep house groove",
+  "cpm": 122,
+  "key": "F minor",
+  "tags": [
+    "house",
+    "deep",
+    "full track"
+  ],
+  "source": {
+    "kind": "mine"
+  },
+  "notes": "A whole deep house loop: a 909 kick that pumps the bass, Rhodes and pad on lane 2, plus swung hats. Mute a part with a leading underscore.",
+  "code": "setcpm(122/4)\n\n// The kick ducks lane 2 (bass, keys, pad): the sidechain pump\ndrums: s(\"bd:3*4\").bank(\"RolandTR909\").gain(0.65).duckorbit(2).duckattack(0.18).duckdepth(0.7)\nclaps: s(\"~ cp ~ cp\").bank(\"RolandTR909\").gain(0.5).room(0.2)\nhats: s(\"[~ oh]*4\").bank(\"RolandTR909\").gain(0.42).hpf(5000).pan(0.6)\nshaker: s(\"hh*16\").bank(\"RolandTR909\").gain(perlin.range(0.1, 0.25)).hpf(8000).pan(sine.range(0.35, 0.65).slow(4)).swingBy(1/48, 4)\nbass: note(\"<[~ f1]*4 [~ f1]*4 [~ db1]*4 [~ eb1 ~ eb1 ~ eb1 ~ eb2]>\").s(\"sine\").fm(1.5).fmh(1).fmdecay(0.1).decay(0.3).sustain(0.4).shape(0.3).lpf(600).gain(0.5).orbit(2)\nkeys: chord(\"<Fm9 Fm9 Db^9 Eb9sus>\").voicing().struct(\"[~ x] ~ [~ x] [~ ~ x ~]\").s(\"gm_epiano1\").velocity(perlin.range(0.6, 0.9)).gain(0.8).room(0.35).delay(0.2).delaytime(0.37).delayfeedback(0.35).orbit(2)\npad: chord(\"<Fm9 Fm9 Db^9 Eb9sus>\").voicing().s(\"supersaw\").unison(5).detune(0.18).spread(0.9).attack(0.5).release(1.5).lpf(sine.range(700, 1900).slow(16)).lpq(2).gain(0.2).room(0.6).roomsize(5).orbit(2)"
+}

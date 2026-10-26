@@ -4,6 +4,7 @@ import { transpiler } from '@strudel/transpiler';
 import { getAudioContext, webaudioOutput } from '@strudel/webaudio';
 import type { DeckApi } from '../booth/Deck';
 import { evaluateExclusive } from '../engine/evalLock';
+import { routeToChannel } from '../engine/lanes';
 import { installMixer, RIP_ORBIT } from '../engine/mixer';
 import { initEngine } from '../engine/strudel';
 
@@ -17,8 +18,8 @@ export interface ResultApi {
 }
 
 /**
- * The rip's Strudel code in an editor that plays on orbit 3, like a deck but outside the booth: the mixer
- * gives orbit 3 only the A/B gain, so the crossfader and master section never touch it.
+ * The rip's Strudel code in an editor that plays on orbit 3 (and its lanes), like a deck but outside the booth: the
+ * mixer gives orbit 3 only the A/B gain, so the crossfader and master section never touch it.
  */
 export function ResultEditor(props: {
   code: string;
@@ -61,7 +62,7 @@ export function ResultEditor(props: {
       transpiler,
       defaultOutput: webaudioOutput,
       getTime: () => getAudioContext().currentTime,
-      editPattern: (pat: any) => pat.orbit(RIP_ORBIT),
+      editPattern: (pat: any) => routeToChannel(pat, RIP_ORBIT),
       onToggle: (started: boolean) => onToggle.forEach((f) => f(started)),
       onEvalError: (e: unknown) => setError(String(e)),
       afterEval: () => setError(null),

@@ -9,6 +9,6 @@
   "source": {
     "kind": "mine"
   },
-  "notes": "Sawtooth line with a slow filter sweep.",
-  "code": "setcpm(126/4)\n\n$: note(\"c2(5,8)\").s(\"sawtooth\").lpf(sine.range(300, 2200).slow(8)).lpq(8).decay(0.2).sustain(0).gain(0.7)"
+  "notes": "A 303-style saw line: resonant filter sweep, accent from the filter envelope and a little drive and delay.",
+  "code": "setcpm(126/4)\n\nacid: note(\"c2(5,8) [~ c3] eb2 [c2 g1]\").s(\"sawtooth\").lpf(sine.range(300, 1800).slow(8)).lpq(12).lpenv(2).lpdecay(0.12).lpsustain(0).decay(0.2).sustain(0).distort(0.4).gain(0.6).delay(0.25).delaytime(0.36).delayfeedback(0.4)"
 }

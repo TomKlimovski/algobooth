@@ -1,29 +1,12 @@
 import type { Block, Lesson } from './lessons';
 
 /**
- * The workshop's sounds that the booth does not ship (it is offline, with drum machines and synths only),
- * and what plays in their place. Swapped in code, never in prose.
+ * The workshop's sounds that the booth does not ship, and what plays in their place. Swapped in code, never in
+ * prose. The piano, the workshop's Dirt-Samples and its `gm_*` instruments ship (`engine/packs.ts`); only the
+ * Dirt-Samples `perc` does not, and its name is a drum voice here.
  */
 export const SOUND_SWAPS: Record<string, string> = {
-  piano: 'triangle',
-  casio: 'rim',
-  jazz: 'lt',
-  metal: 'mt',
-  insect: 'ht',
-  wind: 'oh',
-  east: 'cp',
-  crow: 'rd',
-  space: 'cr',
-  numbers: 'sd',
   perc: 'rim',
-  gm_acoustic_bass: 'sawtooth',
-  gm_synth_bass_1: 'sawtooth',
-  gm_xylophone: 'triangle',
-  gm_electric_guitar_muted: 'square',
-  gm_accordion: 'sawtooth',
-  gm_synth_strings_1: 'supersaw',
-  gm_voice_oohs: 'sine',
-  gm_blown_bottle: 'supersaw',
 };
 
 /** The workshop's drum machines that the booth does not ship, and the bundled one that stands in. */

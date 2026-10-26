@@ -334,10 +334,18 @@ pub fn delete_entry(root: &Path, path: &str) -> Result<(), String> {
 }
 
 /// Example patterns from `library-example/`, written into a brand-new library.
-const SEED_PATTERNS: [(&str, &str); 3] = [
+const SEED_PATTERNS: [(&str, &str); 11] = [
   ("mine/drums/four-on-the-floor.json", include_str!("../../library-example/mine/drums/four-on-the-floor.json")),
   ("mine/bass/acid-line.json", include_str!("../../library-example/mine/bass/acid-line.json")),
   ("mine/pads/warm-pad.json", include_str!("../../library-example/mine/pads/warm-pad.json")),
+  ("house/chicago-jack.json", include_str!("../../library-example/house/chicago-jack.json")),
+  ("house/deep-house-groove.json", include_str!("../../library-example/house/deep-house-groove.json")),
+  ("house/french-filter-house.json", include_str!("../../library-example/house/french-filter-house.json")),
+  ("house/parts/rhodes-chords.json", include_str!("../../library-example/house/parts/rhodes-chords.json")),
+  ("house/parts/sidechain-kick.json", include_str!("../../library-example/house/parts/sidechain-kick.json")),
+  ("house/parts/strings-and-choir.json", include_str!("../../library-example/house/parts/strings-and-choir.json")),
+  ("house/parts/sub-bass.json", include_str!("../../library-example/house/parts/sub-bass.json")),
+  ("house/piano-house.json", include_str!("../../library-example/house/piano-house.json")),
 ];
 
 /// Creates the library folder if missing, seeding examples when it does, and checks it is writable.
@@ -601,11 +609,12 @@ mod tests {
     let dir = tempfile::tempdir().unwrap();
     let fresh = dir.path().join("fresh");
     ensure_library(&fresh).unwrap();
-    for rel in ["mine/drums/four-on-the-floor.json", "mine/bass/acid-line.json", "mine/pads/warm-pad.json"] {
+    for (rel, _) in SEED_PATTERNS {
       let p = read_pattern(&fresh, rel).unwrap();
       assert!(p.code.starts_with("setcpm("), "{rel} should start with setcpm");
     }
     assert_eq!(read_pattern(&fresh, "mine/bass/acid-line.json").unwrap().cpm, 126.0);
+    assert_eq!(read_pattern(&fresh, "house/deep-house-groove.json").unwrap().cpm, 122.0);
 
     let empty = dir.path().join("empty");
     fs::create_dir(&empty).unwrap();

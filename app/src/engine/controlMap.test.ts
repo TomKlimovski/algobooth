@@ -1,4 +1,4 @@
-import { DECK_CONTROL, DECK_CONTROLS, MASTER_CONTROL, MASTER_CONTROLS } from './controlMap';
+import { DECK_CONTROL, DECK_CONTROLS, glue, MASTER_CONTROL, MASTER_CONTROLS } from './controlMap';
 
 test('deck controls map [0,1] to lpf 200..20k Hz exponential, gain 0..1.2, reverb send 0..0.6', () => {
   expect(DECK_CONTROL.lpf(0)).toBeCloseTo(200);
@@ -27,6 +27,12 @@ test('master adds a high-pass from 20 Hz (open) to 8 kHz, exponential', () => {
 test('every listed control has a mapping and a default (the booth iterates these lists)', () => {
   for (const c of DECK_CONTROLS) expect(typeof DECK_CONTROL[c]).toBe('function');
   for (const c of MASTER_CONTROLS) expect(typeof MASTER_CONTROL[c]).toBe('function');
-  expect(MASTER_CONTROLS).toEqual(['hpf', 'lpf', 'volume', 'reverb']);
+  expect(MASTER_CONTROLS).toEqual(['hpf', 'lpf', 'volume', 'reverb', 'glue']);
   expect(DECK_CONTROLS).toEqual(['lpf', 'gain', 'reverb', 'volume']);
+});
+
+test('glue is off at 0 and a -18 dB 3:1 compressor at the top', () => {
+  expect(glue(0)).toEqual({ threshold: -0, ratio: 1 });
+  expect(glue(1)).toEqual({ threshold: -18, ratio: 3 });
+  expect(MASTER_CONTROL.glue(0.5)).toBe(-9);
 });

@@ -14,9 +14,9 @@ test('the catalogue matches the installed Strudel', () => {
   });
 });
 
-test('orbit is never offered and every row is complete', () => {
+test('orbit is offered as a lane of the deck and every row is complete', () => {
   const names = methods.map((m) => m.name);
-  expect(names).not.toContain('orbit');
+  expect(methods.find((m) => m.name === 'orbit')?.group).toBe('Ducking');
   expect(new Set(names).size, 'one method row per name').toBe(names.length);
   for (const m of methods) {
     expect(m.description.length, m.name).toBeGreaterThan(0);
@@ -55,8 +55,10 @@ test('every grouped name exists and the voicing family carries its note', () => 
   const names = new Set(methods.map((m) => m.name));
   for (const n of Object.keys(GROUP_OF)) expect(names.has(n), n).toBe(true);
   expect(catalogue.methods.find((m) => m.name === 'voicing')?.note).toBe('needs a chord() pattern');
-  expect(catalogue.methods.find((m) => m.name === 'duckorbit')?.note).toBe('orbits here are decks: 1 = deck A, 2 = deck B');
-  expect(catalogue.methods.find((m) => m.name === 'duckattack')?.note).toBe('needs .duckorbit(); orbits here are decks: 1 = deck A, 2 = deck B');
+  const lanes = "orbits are this deck's own lanes 1-8: .orbit(2) on the pads, .duckorbit(2) on the kick";
+  expect(catalogue.methods.find((m) => m.name === 'duckorbit')?.note).toBe(lanes);
+  expect(catalogue.methods.find((m) => m.name === 'orbit')?.note).toBe(lanes);
+  expect(catalogue.methods.find((m) => m.name === 'duckattack')?.note).toBe(`needs .duckorbit(); ${lanes}`);
 });
 
 test('a hand default selects its marked literal, an example default selects the whole literal', () => {

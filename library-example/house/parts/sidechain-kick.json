@@ -1,0 +1,14 @@
+{
+  "name": "Sidechain kick",
+  "cpm": 122,
+  "key": "",
+  "tags": [
+    "drums",
+    "sidechain"
+  ],
+  "source": {
+    "kind": "mine"
+  },
+  "notes": "A 909 kick that ducks lane 2. Load it beside any line marked .orbit(2) to make that line pump.",
+  "code": "setcpm(122/4)\n\ndrums: s(\"bd:3*4\").bank(\"RolandTR909\").gain(0.65).duckorbit(2).duckattack(0.18).duckdepth(0.7)"
+}

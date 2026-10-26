@@ -1,0 +1,15 @@
+{
+  "name": "Strings and choir",
+  "cpm": 122,
+  "key": "F minor",
+  "tags": [
+    "pad",
+    "strings",
+    "house"
+  ],
+  "source": {
+    "kind": "mine"
+  },
+  "notes": "An ensemble string bed with a quiet choir on top, for breakdowns.",
+  "code": "setcpm(122/4)\n\nstrings: chord(\"<Fm9 Db^9 Eb^7 Cm7>\").voicing().s(\"gm_string_ensemble_1\").attack(0.3).release(1).gain(0.6).room(0.5).orbit(2)\nchoir: chord(\"<Fm9 Db^9 Eb^7 Cm7>\").voicing().s(\"gm_choir_aahs\").attack(0.5).release(1.5).gain(0.4).room(0.7).orbit(2)"
+}

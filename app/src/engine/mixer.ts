@@ -5,10 +5,13 @@ import {
   DECK_CONTROL,
   DEFAULT_DECK_CONTROLS,
   DEFAULT_MASTER_CONTROLS,
+  glue,
   MASTER_CONTROL,
   type DeckControl,
   type MasterControl,
 } from './controlMap';
+import { hallImpulse } from './impulse';
+import { channelOf } from './lanes';
 
 export type Knob = DeckControl;
 
@@ -25,11 +28,14 @@ interface SuperdoughAudioController {
   output: SuperdoughOutput;
   nodes: Record<number, Orbit>;
   getOrbit(orbitNum: number, channels?: number[]): Orbit;
+  duck(targetOrbits: number | number[], t: number, ...rest: unknown[]): void;
   reset(): void;
 }
 type ControllerClass = new (audioContext: AudioContext) => SuperdoughAudioController;
 
 interface DeckChain {
+  /** Where the deck's lanes sum. */
+  input: GainNode;
   lpf: BiquadFilterNode;
   knobGain: GainNode;
   reverbSend: GainNode;
@@ -39,19 +45,25 @@ interface DeckChain {
   faderGain: GainNode;
 }
 
-/** The summed deck mix: input -> hpf -> lpf -> volume -> destination, with volume -> reverb send -> convolver -> destination. */
+/**
+ * The summed deck mix: input -> hpf -> lpf -> glue -> volume -> limiter -> clipper -> destination, with
+ * volume -> reverb send -> convolver -> limiter. The glue compressor thickens the mix (the master's glue fader);
+ * the limiter and the soft clipper after it keep a hot mix of two decks from clipping the output.
+ */
 interface MasterChain {
   input: GainNode;
   hpf: BiquadFilterNode;
   lpf: BiquadFilterNode;
+  glue: DynamicsCompressorNode;
   volume: GainNode;
   reverbSend: GainNode;
   convolver: ConvolverNode;
+  limiter: DynamicsCompressorNode;
+  clipper: WaveShaperNode;
 }
 
 /** Smoothing time constant for knob and fader moves, short enough to feel instant without zipper clicks. */
 const SMOOTHING = 0.02;
-const REVERB_SECONDS = 2;
 const DECKS: DeckId[] = ['A', 'B'];
 
 /** The Rip tab's result editor plays here: gain only, outside the decks, crossfader and master section. */
@@ -59,14 +71,22 @@ export const RIP_ORBIT = 3;
 
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
 
-function noiseImpulse(ac: AudioContext): AudioBuffer {
-  const length = Math.round(REVERB_SECONDS * ac.sampleRate);
-  const buffer = ac.createBuffer(2, length, ac.sampleRate);
-  for (let ch = 0; ch < 2; ch++) {
-    const data = buffer.getChannelData(ch);
-    for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3);
+/** Where the soft clipper starts to bend: below it the signal passes untouched. */
+const CLIP_KNEE = 0.8;
+
+/**
+ * The soft clipper's curve over [-1, 1]: straight up to the knee, then a tanh shoulder that never reaches full scale,
+ * so what the limiter lets through (its attack is not instant) is rounded instead of clipped hard.
+ */
+export function softClipCurve(points = 2049): Float32Array<ArrayBuffer> {
+  const curve = new Float32Array(points);
+  const room = 1 - CLIP_KNEE;
+  for (let i = 0; i < points; i++) {
+    const x = (i / (points - 1)) * 2 - 1;
+    const a = Math.abs(x);
+    curve[i] = a <= CLIP_KNEE ? x : Math.sign(x) * (CLIP_KNEE + room * Math.tanh((a - CLIP_KNEE) / room));
   }
-  return buffer;
+  return curve;
 }
 
 /**
@@ -89,24 +109,40 @@ function defineDeckMixer(Base: ControllerClass) {
     private ripGain: GainNode | undefined;
     private ripLevel = 1;
 
+    /** A deck's or the rip's lane orbit (see lanes.ts) goes to its channel; any other orbit stays superdough's. */
     override getOrbit(orbitNum: number, channels?: number[]): Orbit {
-      if (orbitNum === RIP_ORBIT && this.nodes[orbitNum] == null) {
-        // orbit 3 -> ripGain -> destination: no knobs, no crossfader, no master section.
-        const orbit = super.getOrbit(orbitNum, channels);
-        orbit.output.disconnect();
-        this.ripGain = new GainNode(this.audioContext, { gain: this.ripLevel });
-        orbit.output.connect(this.ripGain);
-        this.output.connectToDestination(this.ripGain, channels);
-        return orbit;
-      }
-      const deck = DECKS.find((d) => ORBIT[d] === orbitNum);
-      if (deck === undefined || this.nodes[orbitNum] != null) return super.getOrbit(orbitNum, channels);
-      // The superclass creates the orbit and wires it straight to the output; reroute it through the deck chain.
+      const channel = channelOf(orbitNum);
+      if (channel === null || this.nodes[orbitNum] != null) return super.getOrbit(orbitNum, channels);
+      // The superclass creates the orbit and wires it straight to the output; reroute it through the channel.
       const orbit = super.getOrbit(orbitNum, channels);
       orbit.output.disconnect();
-      // Both deck chains sum into the master chain, which is what reaches the destination.
-      this.buildChain(deck, orbit.output).connect(this.masterChain(channels).input);
+      orbit.output.connect(this.channelInput(channel, channels));
       return orbit;
+    }
+
+    /**
+     * A kick's `.duckorbit(2)` can come before the pads' lane has sounded; superdough would log that the target
+     * does not exist and skip the duck. A lane of a channel is created on demand instead.
+     */
+    override duck(targetOrbits: number | number[], t: number, ...rest: unknown[]): void {
+      for (const target of [targetOrbits].flat()) {
+        if (this.nodes[target] == null && channelOf(target) !== null) this.getOrbit(target);
+      }
+      super.duck(targetOrbits, t, ...rest);
+    }
+
+    /** Where a channel's lanes sum: the deck chain's input, or the rip's A/B gain. */
+    private channelInput(channel: number, channels?: number[]): AudioNode {
+      if (channel === RIP_ORBIT) {
+        if (!this.ripGain) {
+          // rip lanes -> ripGain -> destination: no knobs, no crossfader, no master section.
+          this.ripGain = new GainNode(this.audioContext, { gain: this.ripLevel });
+          this.output.connectToDestination(this.ripGain, channels);
+        }
+        return this.ripGain;
+      }
+      const deck = DECKS.find((d) => ORBIT[d] === channel)!;
+      return (this.chains[deck] ?? this.buildChain(deck, channels)).input;
     }
 
     override reset(): void {
@@ -125,12 +161,15 @@ function defineDeckMixer(Base: ControllerClass) {
     setMaster(control: MasterControl, value: number): void {
       this.masterValues[control] = clamp01(value);
       this.ramp(this.masterParam(control), MASTER_CONTROL[control](this.masterValues[control]));
+      if (control === 'glue') this.ramp(this.master?.glue.ratio, glue(this.masterValues.glue).ratio);
     }
 
     private masterParam(control: MasterControl): AudioParam | undefined {
       const m = this.master;
       if (!m) return undefined;
-      return { hpf: m.hpf.frequency, lpf: m.lpf.frequency, volume: m.volume.gain, reverb: m.reverbSend.gain }[control];
+      return { hpf: m.hpf.frequency, lpf: m.lpf.frequency, volume: m.volume.gain, reverb: m.reverbSend.gain, glue: m.glue.threshold }[
+        control
+      ];
     }
 
     private masterChain(channels?: number[]): MasterChain {
@@ -140,15 +179,19 @@ function defineDeckMixer(Base: ControllerClass) {
       const input = new GainNode(ac);
       const hpf = new BiquadFilterNode(ac, { type: 'highpass', frequency: MASTER_CONTROL.hpf(v.hpf) });
       const lpf = new BiquadFilterNode(ac, { type: 'lowpass', frequency: MASTER_CONTROL.lpf(v.lpf) });
+      const g = glue(v.glue);
+      const glueNode = new DynamicsCompressorNode(ac, { threshold: g.threshold, ratio: g.ratio, knee: 6, attack: 0.01, release: 0.2 });
       const volume = new GainNode(ac, { gain: MASTER_CONTROL.volume(v.volume) });
       const reverbSend = new GainNode(ac, { gain: MASTER_CONTROL.reverb(v.reverb) });
-      this.impulse ??= noiseImpulse(ac);
+      this.impulse ??= hallImpulse(ac);
       const convolver = new ConvolverNode(ac, { buffer: this.impulse });
-      input.connect(hpf).connect(lpf).connect(volume);
-      volume.connect(reverbSend).connect(convolver);
-      this.output.connectToDestination(volume, channels);
-      this.output.connectToDestination(convolver, channels);
-      this.master = { input, hpf, lpf, volume, reverbSend, convolver };
+      const limiter = new DynamicsCompressorNode(ac, { threshold: -1, knee: 0, ratio: 20, attack: 0.002, release: 0.1 });
+      const clipper = new WaveShaperNode(ac, { curve: softClipCurve(), oversample: '4x' });
+      input.connect(hpf).connect(lpf).connect(glueNode).connect(volume).connect(limiter);
+      volume.connect(reverbSend).connect(convolver).connect(limiter);
+      limiter.connect(clipper);
+      this.output.connectToDestination(clipper, channels);
+      this.master = { input, hpf, lpf, glue: glueNode, volume, reverbSend, convolver, limiter, clipper };
       return this.master;
     }
 
@@ -181,21 +224,26 @@ function defineDeckMixer(Base: ControllerClass) {
       param?.setTargetAtTime(value, this.audioContext.currentTime, SMOOTHING);
     }
 
-    /** orbit -> lowpass -> trim -> volume -> crossfader gain, with trim -> reverb send -> convolver -> volume. */
-    private buildChain(deck: DeckId, input: AudioNode): GainNode {
+    /**
+     * lanes -> input -> lowpass -> trim -> volume -> crossfader gain -> master, with trim -> reverb send -> convolver
+     * -> volume. Both decks' chains sum into the master chain, which is what reaches the destination.
+     */
+    private buildChain(deck: DeckId, channels?: number[]): DeckChain {
       const ac = this.audioContext;
       const knobs = this.knobs[deck];
+      const input = new GainNode(ac);
       const lpf = new BiquadFilterNode(ac, { type: 'lowpass', frequency: DECK_CONTROL.lpf(knobs.lpf) });
       const knobGain = new GainNode(ac, { gain: DECK_CONTROL.gain(knobs.gain) });
       const reverbSend = new GainNode(ac, { gain: DECK_CONTROL.reverb(knobs.reverb) });
-      this.impulse ??= noiseImpulse(ac);
+      this.impulse ??= hallImpulse(ac);
       const convolver = new ConvolverNode(ac, { buffer: this.impulse });
       const volume = new GainNode(ac, { gain: DECK_CONTROL.volume(knobs.volume) });
       const faderGain = new GainNode(ac, { gain: crossfadeGains(this.fader)[DECKS.indexOf(deck)] });
-      input.connect(lpf).connect(knobGain).connect(volume).connect(faderGain);
+      input.connect(lpf).connect(knobGain).connect(volume).connect(faderGain).connect(this.masterChain(channels).input);
       knobGain.connect(reverbSend).connect(convolver).connect(volume);
-      this.chains[deck] = { lpf, knobGain, reverbSend, convolver, volume, faderGain };
-      return faderGain;
+      const chain: DeckChain = { input, lpf, knobGain, reverbSend, convolver, volume, faderGain };
+      this.chains[deck] = chain;
+      return chain;
     }
   };
 }

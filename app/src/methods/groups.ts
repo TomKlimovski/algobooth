@@ -40,7 +40,7 @@ const MEMBERS: Record<string, string[]> = {
   ],
   Envelope: ['attack', 'decay', 'sustain', 'release', 'adsr'],
   Dynamics: ['gain', 'velocity', 'postgain', 'compressor', 'transient'],
-  Ducking: ['duckorbit', 'duckattack', 'duckdepth', 'duckonset'],
+  Ducking: ['orbit', 'duckorbit', 'duckattack', 'duckdepth', 'duckonset'],
   'Delay and Reverb': [
     'delay', 'delayfeedback', 'delayspeed', 'delaysync',
     'room', 'roomsize', 'roomlp', 'roomdim', 'roomfade', 'iresponse', 'irspeed', 'irbegin',

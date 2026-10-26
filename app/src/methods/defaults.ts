@@ -17,7 +17,6 @@ const MIDI = 'MIDI output, not sound';
 
 /** Methods the panel never offers: name → one-line reason. */
 export const DENY: Record<string, string> = {
-  orbit: 'orbits are the deck channels; a dropped orbit would reroute the deck',
   p: 'names a pattern; the editor handles it',
   q: 'names a pattern; the editor handles it',
   hush: 'transport; the deck has its own stop',
@@ -87,7 +86,7 @@ type Default = { args?: string; expr?: string; base?: string; note?: string };
 
 const SYNTH = 'note("c3 e3 g3 c4").s("sawtooth")';
 const DRUMS = 's("bd*4").bank("tr909")';
-const DUCK_NOTE = 'orbits here are decks: 1 = deck A, 2 = deck B';
+const DUCK_NOTE = "orbits are this deck's own lanes 1-8: .orbit(2) on the pads, .duckorbit(2) on the kick";
 const FOR_SYNTH = 'for s(...) synths, e.g. s("sawtooth")';
 const MODULATES = 'needs a filter to modulate, e.g. .lpf()';
 const NEEDS_NOTE = 'needs note(); silent on a drum deck';
@@ -210,6 +209,7 @@ export const DEFAULTS: Record<string, Default> = {
   transient: { args: '§0.5§' },
 
   // Ducking
+  orbit: { args: '§2§', note: DUCK_NOTE },
   duckorbit: { args: '§2§', note: DUCK_NOTE },
   ...needs(`${DRUMS}.duckorbit(2)`, `needs .duckorbit(); ${DUCK_NOTE}`, { duckattack: '§0.2§', duckdepth: '§0.8§', duckonset: '§0.01§' }),
 

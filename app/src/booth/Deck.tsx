@@ -9,6 +9,7 @@ import { parentOf, PATTERN_MIME, type LibraryStore } from '../library/store';
 import { settings } from '../settings/settings';
 import { evaluateExclusive } from '../engine/evalLock';
 import { DECK_CLOCK } from '../engine/sync';
+import { routeToChannel } from '../engine/lanes';
 import { initEngine } from '../engine/strudel';
 import { isDirty, newPatternDecision, onDiskChange, patternFromDeck, sameCode } from './deckFile';
 import { formatEdits } from './format';
@@ -79,9 +80,19 @@ export interface DeckApi {
   onLoad: Set<() => void>;
 }
 
+/** A fresh deck's code: a 909 groove on A, Rhodes chords over an FM sub on B, so the first Play sounds like a booth. */
 export const DEFAULT_CODE: Record<DeckId, string> = {
-  A: 'setcpm(120/4)\n$: s("bd*4, [~ cp]*2, hh*8").bank("tr909")',
-  B: 'setcpm(120/4)\n$: note("c2(5,8)").s("sawtooth").lpf(sine.range(200,3000).slow(8))',
+  A: [
+    'setcpm(120/4)',
+    'drums: s("bd*4").bank("tr909").gain(0.7)',
+    'claps: s("~ cp ~ cp").bank("tr909").gain(0.5)',
+    'hats: s("[~ oh]*4, hh*16").bank("tr909").gain(0.3)',
+  ].join('\n'),
+  B: [
+    'setcpm(120/4)',
+    'keys: chord("<Am9 Dm9>").voicing().struct("[~ x]*2").s("gm_epiano1").gain(0.8).room(0.3)',
+    'bass: note("<[~ a1]*4 [~ d2]*4>").s("sine").fm(1.5).decay(0.3).sustain(0.4).shape(0.3).lpf(600).gain(0.5)',
+  ].join('\n'),
 };
 
 // Browsers keep the AudioContext suspended until a user gesture; every
@@ -351,7 +362,8 @@ export function Deck(props: {
       // mirror's drawContext. Pattern.pianoroll() would draw to a global canvas.
       // scope takes its own ctx; its draw id starts with the mirror id so stop() cancels it.
       editPattern: (pat: any) => {
-        const routed = pat.orbit(ORBIT[id]);
+        // `.orbit(n)` in the code picks one of this deck's own lanes (engine/lanes.ts), never another deck.
+        const routed = routeToChannel(pat, ORBIT[id]);
         return settings().visualiser === 'scope'
           ? routed.scope({ ctx: canvas.getContext('2d'), id: 'deck-' + id })
           : routed.punchcard({ fold: 1 });

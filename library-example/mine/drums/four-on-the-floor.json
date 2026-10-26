@@ -9,6 +9,6 @@
   "source": {
     "kind": "mine"
   },
-  "notes": "Classic 909 kick, offbeat open hats, clap on 2 and 4.",
-  "code": "setcpm(120/4)\n\n$: s(\"bd*4\").bank(\"tr909\")\n$: s(\"~ oh ~ oh ~ oh ~ oh\").bank(\"tr909\").gain(0.5)\n$: s(\"hh*16\").bank(\"tr909\").gain(0.3)\n$: s(\"~ cp ~ cp\").bank(\"tr909\").gain(0.8)"
+  "notes": "Classic 909 kick, offbeat open hats, clap on 2 and 4, and swung 16th hats with a little life in their level.",
+  "code": "setcpm(120/4)\n\ndrums: s(\"bd:3*4\").bank(\"tr909\").gain(0.65)\nhats: s(\"[~ oh]*4\").bank(\"tr909\").gain(0.4)\nshaker: s(\"hh*16\").bank(\"tr909\").gain(perlin.range(0.12, 0.3)).swingBy(1/48, 4)\nclaps: s(\"~ cp ~ cp\").bank(\"tr909\").gain(0.5).room(0.2)"
 }

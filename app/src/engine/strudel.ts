@@ -6,27 +6,27 @@ import * as webaudio from '@strudel/webaudio';
 // The editor package provides the `slider(...)` widget (transpiled to `sliderWithID`) and `markcss`.
 import * as codemirror from '@strudel/codemirror';
 import { withPlainNames } from './banks';
+import type { SoundfontManifest } from './packs';
+import { registerSoundfonts } from './soundfonts';
 
 let enginePromise: Promise<void> | undefined;
 
 const asset = (path: string): string => new URL(path, location.href).href;
 
-const MANIFEST = '/samples/tidal-drum-machines.json';
-
-/** Shown when the bundled drum machine samples are missing (a fresh clone that skipped the fetch). */
-export const SAMPLES_HINT = 'The drum machine samples are missing: run `pnpm fetch-samples`, then Retry.';
+/** Shown when the bundled samples are missing (a fresh clone that skipped the fetch, or one from before a pack was added). */
+export const SAMPLES_HINT = 'The bundled samples are missing: run `pnpm fetch-samples`, then Retry.';
 
 /**
- * The bundled sample manifest. Fetched here rather than by superdough so that a missing file gives
+ * A bundled manifest. Fetched here rather than by superdough so that a missing file gives
  * the fetch-samples hint (a dev server may answer it with its HTML fallback page instead of a 404).
  */
-async function sampleManifest(): Promise<unknown> {
-  const res = await fetch(asset(MANIFEST));
-  if (!res.ok) throw new Error(`${SAMPLES_HINT} (${MANIFEST}: HTTP ${res.status})`);
+async function manifest<T = Record<string, unknown>>(path: string): Promise<T> {
+  const res = await fetch(asset(path));
+  if (!res.ok) throw new Error(`${SAMPLES_HINT} (${path}: HTTP ${res.status})`);
   try {
-    return await res.json();
+    return (await res.json()) as T;
   } catch {
-    throw new Error(`${SAMPLES_HINT} (${MANIFEST} is not JSON)`);
+    throw new Error(`${SAMPLES_HINT} (${path} is not JSON)`);
   }
 }
 
@@ -46,11 +46,18 @@ async function boot(): Promise<void> {
   closeAudioOnPageHide();
   await core.evalScope(...SCOPE_MODULES);
   webaudio.registerSynthSounds();
-  await webaudio.samples(withPlainNames((await sampleManifest()) as Record<string, unknown>), asset('/samples/tidal-drum-machines/'), {
-    prebake: true,
-    tag: 'drum-machines',
-  });
+  // Every manifest is read before anything registers, so a missing pack fails the boot as a whole.
+  const [drums, piano, dirt, fonts] = await Promise.all([
+    manifest('/samples/tidal-drum-machines.json'),
+    manifest('/samples/piano.json'),
+    manifest('/samples/dirt.json'),
+    manifest<SoundfontManifest>('/samples/soundfonts.json'),
+  ]);
+  await webaudio.samples(withPlainNames(drums), asset('/samples/tidal-drum-machines/'), { prebake: true, tag: 'drum-machines' });
   await webaudio.aliasBank(asset('/samples/tidal-drum-machines-alias.json'));
+  await webaudio.samples(piano, asset('/samples/piano/'), { prebake: true, tag: 'piano' });
+  await webaudio.samples(dirt, asset('/samples/dirt/'), { prebake: true, tag: 'dirt' });
+  registerSoundfonts(fonts, asset('/samples/soundfonts/'));
 }
 
 /**

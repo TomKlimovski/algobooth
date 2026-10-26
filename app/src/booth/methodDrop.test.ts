@@ -73,8 +73,9 @@ test('insertAtCursor on an untouched default deck lands on its pattern line', ()
   const view = new EditorView({ doc: DEFAULT_CODE.A, parent: document.body });
   expect(view.state.selection.main.head).toBe(0);
   expect(insertAtCursor(view, drag)).toBe(true);
-  expect(view.state.doc.toString()).toBe(`${DEFAULT_CODE.A}.lpf(800)`);
-  expect(view.state.doc.line(2).text.endsWith('.lpf(800)')).toBe(true);
+  const lines = DEFAULT_CODE.A.split('\n');
+  lines[1] += '.lpf(800)';
+  expect(view.state.doc.toString()).toBe(lines.join('\n'));
   view.destroy();
 });
 

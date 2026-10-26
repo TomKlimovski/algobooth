@@ -2319,7 +2319,7 @@
         15
       ],
       "group": "Ducking",
-      "note": "needs .duckorbit(); orbits here are decks: 1 = deck A, 2 = deck B",
+      "note": "needs .duckorbit(); orbits are this deck's own lanes 1-8: .orbit(2) on the pads, .duckorbit(2) on the kick",
       "base": "s(\"bd*4\").bank(\"tr909\").duckorbit(2)"
     },
     {
@@ -2341,7 +2341,7 @@
         14
       ],
       "group": "Ducking",
-      "note": "needs .duckorbit(); orbits here are decks: 1 = deck A, 2 = deck B",
+      "note": "needs .duckorbit(); orbits are this deck's own lanes 1-8: .orbit(2) on the pads, .duckorbit(2) on the kick",
       "base": "s(\"bd*4\").bank(\"tr909\").duckorbit(2)"
     },
     {
@@ -2365,7 +2365,7 @@
         15
       ],
       "group": "Ducking",
-      "note": "needs .duckorbit(); orbits here are decks: 1 = deck A, 2 = deck B",
+      "note": "needs .duckorbit(); orbits are this deck's own lanes 1-8: .orbit(2) on the pads, .duckorbit(2) on the kick",
       "base": "s(\"bd*4\").bank(\"tr909\").duckorbit(2)"
     },
     {
@@ -2389,7 +2389,31 @@
         12
       ],
       "group": "Ducking",
-      "note": "orbits here are decks: 1 = deck A, 2 = deck B",
+      "note": "orbits are this deck's own lanes 1-8: .orbit(2) on the pads, .duckorbit(2) on the kick",
+      "base": null
+    },
+    {
+      "name": "orbit",
+      "synonyms": [
+        "o"
+      ],
+      "description": "An `orbit` is a global parameter context for patterns. Patterns with the same orbit will share the same global effects.",
+      "params": [
+        {
+          "name": "number",
+          "type": "number | Pattern",
+          "description": ""
+        }
+      ],
+      "source": "@strudel/core/controls.mjs",
+      "kind": "method",
+      "snippet": ".orbit(2)",
+      "argRange": [
+        7,
+        8
+      ],
+      "group": "Ducking",
+      "note": "orbits are this deck's own lanes 1-8: .orbit(2) on the pads, .duckorbit(2) on the kick",
       "base": null
     },
     {

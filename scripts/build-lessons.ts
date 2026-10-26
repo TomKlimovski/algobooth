@@ -12,7 +12,7 @@ const CHAPTERS = ['getting-started', 'first-sounds', 'first-notes', 'first-effec
 
 const CREDIT =
   'Adapted from the Strudel workshop by the Strudel contributors (strudel.cc, AGPL-3.0). ' +
-  'Sounds the booth does not ship are swapped for its drum machines and synths.';
+  'The one sound the booth does not ship, the Dirt-Samples perc, plays its drum machine rim.';
 
 const dir = process.argv[2];
 if (!dir) throw new Error('usage: pnpm build-lessons <strudel>/website/src/pages/workshop');

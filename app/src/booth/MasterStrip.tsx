@@ -2,9 +2,9 @@ import { For } from 'solid-js';
 import { DEFAULT_MASTER_CONTROLS, type MasterControl } from '../engine/controlMap';
 import { Fader } from './Fader';
 
-const CONTROLS: MasterControl[] = ['hpf', 'lpf', 'reverb'];
+const CONTROLS: MasterControl[] = ['hpf', 'lpf', 'reverb', 'glue'];
 
-/** Master section over the whole mix: filters, gain, reverb, and start/stop for both decks. */
+/** Master section over the whole mix: filters, reverb, glue (bus compression), volume, and start/stop for both decks. */
 export function MasterStrip(props: {
   values: Record<MasterControl, number>;
   onChange: (control: MasterControl, v: number) => void;

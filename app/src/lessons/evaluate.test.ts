@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import { BUNDLED_MACHINES } from '../engine/banks';
+import { DIRT_SOUNDS, SOUNDFONTS } from '../engine/packs';
 import { examples, workshop } from './lessons';
 
 // No audio is needed to evaluate a pattern, so webaudio is mocked as in methods/evaluate.test.ts.
@@ -21,6 +22,8 @@ await core.evalScope(core, mini, tonal);
 /** The drum names that play without a bank (the 808's voices, the 909's ride) and the built-in synths. */
 const PLAIN = ['bd', 'sd', 'rim', 'hh', 'oh', 'cp', 'lt', 'mt', 'ht', 'cr', 'rd', 'cb', 'perc', 'sh'];
 const SYNTHS = ['sine', 'square', 'triangle', 'sawtooth', 'supersaw'];
+/** The bundled packs: the piano, the Dirt-Samples folders and the soundfonts. */
+const PACKS = ['piano', ...DIRT_SOUNDS, ...Object.keys(SOUNDFONTS)];
 
 const all = workshop.lessons.flatMap((l) => examples(l.blocks).map((e, i): [string, string] => [`${l.id} #${i + 1}`, e.code]));
 if (all.length < 100) throw new Error(`only ${all.length} examples`); // never pass vacuously
@@ -35,7 +38,7 @@ test.each(all)('%s evaluates and plays shipped sounds', async (_name, code) => {
   for (const h of haps as { value: { s?: string; bank?: string } }[]) {
     const { s, bank } = h.value;
     if (s === undefined) continue; // a note with no sound plays the default triangle
-    if (SYNTHS.includes(s)) continue;
+    if (SYNTHS.includes(s) || PACKS.includes(s)) continue;
     if (bank) expect(BUNDLED_MACHINES, `${code}: bank ${bank}`).toContain(bank);
     else expect(PLAIN, `${code}: sound ${s}`).toContain(s);
   }
