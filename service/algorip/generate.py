@@ -9,6 +9,10 @@ from algorip.schema import Analysis, SoundChoice
 LAYER_GAIN = 0.75  # the muted bass layer under the loop, as a share of the bass's own gain
 FM_DECAY = 0.1  # seconds: a sine bass's FM fades this fast, so only the attack carries its harmonics
 PAD_VOICES = ".unison(5).detune(0.2)"  # the supersaw as a pad: five detuned saws per note
+# The sidechain: the kick ducks the deck's lane 2, where the bass and chords play (engine/lanes.ts), by the middle of
+# the house examples' settings (attack 0.1 to 0.2 s, depth 0.5 to 0.8; Strudel's default depth 1 silences the lane).
+DUCK = ".duckorbit(2).duckattack(0.15).duckdepth(0.6)"
+LANE = ".orbit(2)"
 
 
 def fmt_time(seconds: float) -> str:
@@ -26,8 +30,8 @@ def _voice_name(voice: str, s: SoundChoice) -> str:
     return f"{base}:{n}" if n else base
 
 
-def drum_lines(a: Analysis, s: SoundChoice) -> list[str]:
-    """One line per drum voice (its loop, the bank, its gain); every hit a loop does not play on a muted fills line after them."""
+def drum_lines(a: Analysis, s: SoundChoice, duck: str = "") -> list[str]:
+    """One line per drum voice (its loop, the bank, its gain, `duck` on the kick's); every hit a loop does not play on a muted fills line after them."""
     loops = drum_loops(a)
     lines = []
     for label, voices in VOICE_LINES.items():
@@ -39,7 +43,8 @@ def drum_lines(a: Analysis, s: SoundChoice) -> list[str]:
             label = "claps"
         main = max(present, key=lambda v: len(a.drums.get(v, [])))  # a line with two voices takes the busier one's gain
         gain = s.drum_gains.get(main)
-        lines.append(f'{label}: s("{", ".join(parts)}").bank("{s.drum_bank}")' + (f".gain({gain:g})" if gain is not None else ""))
+        lines.append(f'{label}: s("{", ".join(parts)}").bank("{s.drum_bank}")' + (f".gain({gain:g})" if gain is not None else "")
+                     + (duck if label == "drums" else ""))
     if loops.fill_bars is not None:
         lo, hi = loops.fill_bars
         fills = [
@@ -53,8 +58,8 @@ def drum_lines(a: Analysis, s: SoundChoice) -> list[str]:
     return lines
 
 
-def bass_lines(a: Analysis, s: SoundChoice) -> list[str]:
-    """The bass voice: the loop's phases when one was found, else the consensus line; a muted layer after it."""
+def bass_lines(a: Analysis, s: SoundChoice, lane: str = "") -> list[str]:
+    """The bass voice: the loop's phases when one was found, else the consensus line; a muted layer after it; `lane` last."""
     if not a.bass:
         return []
     suffix = f".fm({s.bass_fm:g}).fmdecay({FM_DECAY:g})" if s.bass_fm is not None else ""
@@ -74,7 +79,7 @@ def bass_lines(a: Analysis, s: SoundChoice) -> list[str]:
         suffix += f".tremolo({tr.rate:g}).tremolodepth({tr.depth:g})"
     if s.bass_shape is not None:
         suffix += f".shape({s.bass_shape:g})"
-    gain = f".gain({s.bass_gain:g})" if s.bass_gain is not None else ""
+    gain = (f".gain({s.bass_gain:g})" if s.bass_gain is not None else "") + lane
     loop = a.bass_loop
     if loop is None:
         return [f'bass: note("{notes_mini(fold_octaves(a.bass), a.bars)}").s("{s.bass_sound}"){suffix}{gain}']
@@ -86,7 +91,7 @@ def bass_lines(a: Analysis, s: SoundChoice) -> list[str]:
             f"(match {loop.match:.2f} without, {loop.match_with_layer:.2f} with)"
         )
         layer_gain = round((s.bass_gain if s.bass_gain is not None else 0.8) * LAYER_GAIN, 2)
-        lines.append(f'_bass2: note("{loop_mini(loop.layer)}").s("{s.bass_sound}"){suffix}.gain({layer_gain:g})')
+        lines.append(f'_bass2: note("{loop_mini(loop.layer)}").s("{s.bass_sound}"){suffix}.gain({layer_gain:g}){lane}')
     return lines
 
 
@@ -106,10 +111,14 @@ def generate(a: Analysis, s: SoundChoice, title: str, start: float, end: float) 
     ]
     # Each part is a named pattern (`bass: ...` rather than `$: ...`), matching the stems it was transcribed
     # from: a name can be muted by writing `_bass:` in front of it, the way a stem button isolates a part.
-    body = drum_lines(a, s)
-    body.extend(bass_lines(a, s))
+    # The sidechain only when there is a kick to duck with and a bass or chords line to duck.
+    kick = any(line.startswith("drums:") for line in drum_lines(a, s))
+    side = kick and bool(a.bass or a.chords)
+    lane = LANE if side else ""
+    body = drum_lines(a, s, DUCK if side else "")
+    body.extend(bass_lines(a, s, lane))
     if a.chords:
-        body.append(f'chords: chord("{cycle(a.chords)}").voicing(){_instrument(s)}.room({s.room:g}).gain({s.chord_gain:g})')
+        body.append(f'chords: chord("{cycle(a.chords)}").voicing(){_instrument(s)}.room({s.room:g}).gain({s.chord_gain:g}){lane}')
     if a.melody:  # None (no melody stem) or an empty line: no melody voice
         body.append(f'melody: note("{notes_mini(a.melody, a.bars)}"){_instrument(s)}.gain({s.melody_gain:g})')
     return "\n".join(head + body) + "\n"

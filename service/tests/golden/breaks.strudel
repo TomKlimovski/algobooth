@@ -1,8 +1,8 @@
 // Around The World 1:12 to 1:28 · 160 cpm · D minor · 4 bars
 setcpm(160/4)
 
-drums: s("<[[bd ~ ~ ~] ~ [~ ~ bd ~] ~] [[bd ~ ~ ~] [~ ~ bd ~] ~ ~]>").bank("tr808").gain(0.65)
+drums: s("<[[bd ~ ~ ~] ~ [~ ~ bd ~] ~] [[bd ~ ~ ~] [~ ~ bd ~] ~ ~]>").bank("tr808").gain(0.65).duckorbit(2).duckattack(0.15).duckdepth(0.6)
 snare: s("[~ sd]*2").bank("tr808").gain(0.5)
 hats: s("hh*16").bank("tr808").gain(0.35)
-chords: chord("Dm").voicing().s("gm_epiano1").room(0.4).gain(0.6)
+chords: chord("Dm").voicing().s("gm_epiano1").room(0.4).gain(0.6).orbit(2)
 melody: note("<[[d4@2 f4@2] ~ a4 ~] [[g4 f4 ~ ~] e4 ~ ~] [d4 ~ ~ ~] [~ ~ ~ [a3@2 ~ ~]]>").s("gm_epiano1").gain(0.6)

@@ -160,5 +160,18 @@ def test_a_pad_plays_the_chords_and_the_melody_on_the_supersaw():
     a = HOUSE.model_copy(update={"other_tone": OtherTone(decay_db=-0.4, rolloff_hz=1320),
                                  "melody": [Note(bar=0, step=0, length=4, midi=69)]})
     lines = generate(a, choose_sounds(a), "t", 0, 8).splitlines()
-    assert lines[-2] == 'chords: chord("<Am F C G>").voicing().s("supersaw").unison(5).detune(0.2).lpf(1320).room(0.4).gain(0.2)'
+    assert lines[-2] == 'chords: chord("<Am F C G>").voicing().s("supersaw").unison(5).detune(0.2).lpf(1320).room(0.4).gain(0.2).orbit(2)'
     assert lines[-1].startswith('melody: note("') and lines[-1].endswith('.s("supersaw").unison(5).detune(0.2).lpf(1320).gain(0.3)')
+
+
+def test_the_kick_ducks_the_bass_and_chords_on_lane_2():
+    lines = generate(HOUSE, choose_sounds(HOUSE), "t", 0, 8).splitlines()
+    by_name = {line.split(":")[0]: line for line in lines if ": " in line and not line.startswith("//")}
+    assert by_name["drums"].endswith(".gain(0.65).duckorbit(2).duckattack(0.15).duckdepth(0.6)")
+    assert by_name["bass"].endswith(".orbit(2)") and by_name["chords"].endswith(".orbit(2)")
+    assert not any(".orbit(" in by_name[n] or ".duck" in by_name[n] for n in ("claps", "hats"))
+    # no bass or chords: nothing to duck; no kick: nothing ducks
+    drums_only = generate(HOUSE.model_copy(update={"bass": [], "chords": []}), choose_sounds(HOUSE), "t", 0, 8)
+    assert ".duckorbit(" not in drums_only
+    no_kick = HOUSE.model_copy(update={"drums": {**HOUSE.drums, "bd": []}})
+    assert ".orbit(" not in generate(no_kick, choose_sounds(no_kick), "t", 0, 8)

@@ -20,13 +20,13 @@ describe('toggle', () => {
   it('adds the method after the last call on bass', () => {
     const r = run(SOLOMUN, 'bass', (l) => toggle(SOLOMUN, l, lpenv)) as { ok: true; on: boolean; code: string };
     expect(r.on).toBe(true);
-    expect(r.code).toContain('.shape(0.3).gain(0.55).lpenv(2)\n');
+    expect(r.code).toContain('.gain(0.55).orbit(2).lpenv(2)\n');
     expect(r.code.replace('.lpenv(2)', '')).toBe(SOLOMUN);
   });
 
   it('removes it again, whatever its argument became', () => {
     for (const arg of ['2', '0.75, 3', 'sine.range(1,4)']) {
-      const code = SOLOMUN.replace('.gain(0.55)\n', `.gain(0.55).lpenv(${arg})\n`);
+      const code = SOLOMUN.replace('.orbit(2)\n', `.orbit(2).lpenv(${arg})\n`);
       const r = run(code, 'bass', (l) => toggle(code, l, lpenv)) as { ok: true; on: boolean; code: string };
       expect(r.on).toBe(false);
       expect(r.code).toBe(SOLOMUN);
