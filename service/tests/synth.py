@@ -302,12 +302,12 @@ def _wobbling_tone(freq: float, n: int) -> np.ndarray:
     return sum(np.sin(k * phase) / k for k in (1, 2))
 
 
-def pad_chords(chords: list[tuple[int, str]], bpm: float) -> np.ndarray:
+def pad_chords(chords: list[tuple[int, str]], bpm: float, detune_cents: float = 0.0) -> np.ndarray:
     """One (root_midi, quality) chord per bar; each note harmonics 1 and 2 at 1/n, held the whole bar.
 
     Qualities: "major", "minor", "m7", "7", "^7", "m9", "9", "7+^7" (both 7ths, the major one an octave up so the
     two read at different levels), "5" (root, fifth, octave), and "5wobble", the same notes each wobbling +-40 cents
-    at 6 Hz, which smears the chroma as Solomun 36:40's stab does.
+    at 6 Hz, which smears the chroma as Solomun 36:40's stab does. `detune_cents` shifts every note off A440 tuning.
     Each bar gets 10 ms fades so chord changes do not click.
     """
     out = np.zeros(_samples(len(chords) * _bar_seconds(bpm)))
@@ -317,9 +317,11 @@ def pad_chords(chords: list[tuple[int, str]], bpm: float) -> np.ndarray:
         start = _step_start(bar, 0, bpm)
         n = _step_start(bar + 1, 0, bpm) - start
         if quality == "5wobble":
-            chord = sum(_wobbling_tone(_midi_hz(root + i), n) for i in _CHORDS[quality])
+            chord = sum(_wobbling_tone(_midi_hz(root + i + detune_cents / 100), n) for i in _CHORDS[quality])
         else:
-            chord = sum(_harmonic_tone(_midi_hz(root + i), n, harmonics=2) for i in _CHORDS[quality])
+            chord = sum(
+                _harmonic_tone(_midi_hz(root + i + detune_cents / 100), n, harmonics=2) for i in _CHORDS[quality]
+            )
         _place(out, start, chord * _ramps(n, 0.01))
     return out.astype(np.float32)
 

@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from algorip.audio import SR
-from algorip.chords import _parse, chord_name, colour_chords, estimate_chords, peak_chroma_bars, spell
+from algorip.chords import _parse, _third, chord_name, colour_chords, estimate_chords, peak_chroma_bars, spell
 from algorip.grid import Grid
 from algorip.key import Key
 from tests.synth import mix, pad_chords, silence
@@ -71,7 +71,6 @@ def test_the_diminished_degree_keeps_the_templates_pick():
     assert estimate_chords(y, SR, g, G_MINOR) == estimate_chords(y, SR, g)
     # Every bare fifth's template pick is minor, so the rule itself is pinned on a peak chroma: a template A major
     # with no third heard stays major on ii in G minor and on vii in A# major, where a full degree would follow the key.
-    from algorip.chords import _third
     peak = np.zeros(12)
     peak[[9, 4]] = 1.0, 0.5  # A and E
     assert _third(9, False, peak, G_MINOR) is False
@@ -107,6 +106,13 @@ def test_peak_chroma_names_the_notes_not_their_smear():
 def test_heard_extensions_round_trip(quality, symbol):
     y = pad_chords([(57, quality)], 120)
     assert estimate_chords(y, SR, Grid(bpm=120, first_downbeat=0.0, bars=1)) == [symbol]
+
+
+@pytest.mark.parametrize("cents", [-40, -25, -10, 10, 25, 40])
+def test_a_detuned_pad_reads_the_same_chord(cents):
+    # The tuning is estimated to the semitone, so a stem off A440 still lands each note on its centre bin.
+    y = pad_chords([(55, "m7")], 120, detune_cents=cents)
+    assert estimate_chords(y, SR, Grid(bpm=120, first_downbeat=0.0, bars=1), G_MINOR) == ["Gm7"]
 
 
 def test_a_wobbling_fifth_gets_no_seventh_or_ninth():

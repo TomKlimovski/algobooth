@@ -2,8 +2,9 @@
 
 The triad's root comes from a template match on CQT chroma. Its third, and whether the bar has a chord of its own,
 come from a peak chroma (`peak_chroma_bars`), which measures notes rather than their smear: on Solomun 36:40 the CQT
-chroma puts G# 0.44 to 0.58 and F# 0.30 to 0.43 either side of a bare G. Measured with the peak chroma, bars 0 to 6
-read G and D with A# at most 0.17 of G and B at most 0.16: a root and a fifth, which takes G minor's third.
+chroma puts G# 0.44 to 0.58 and F# 0.30 to 0.43 either side of the G. Measured with the peak chroma (tuning estimated
+to the semitone, -15 cents), bars 0 and 2 to 6 read G, D and B (B 0.42 to 1.27 of G, A# at most 0.18): G major
+against the G minor key. Bar 1's B is 0.22, under the line, so it takes the key's third.
 """
 
 import librosa
@@ -118,14 +119,17 @@ def peak_chroma_bars(other: np.ndarray, sr: int, grid: Grid) -> list[np.ndarray]
     A CQT at 3 bins per semitone from C1 over 7 octaves, tuned by the clip's own tuning, so bin 3k is semitone k's
     centre and 3k-1, 3k+1 its neighbours. Per frame a semitone scores max(0, centre - max(neighbours)), and the
     octaves sum into 12 pitch classes. A pitch wobble or a neighbour's skirt raises a centre bin and its neighbours
-    together, so it scores little; a held note stands alone. Measured on 36:40: G and D (D from 0.35 of G to louder
-    than G) where the CQT chroma shows F# and G# around the G; on a fifth wobbling +-40 cents, F# 0.01 and G# 0.00
-    of G, against D 0.24. Zeros for a bar with no frames.
+    together, so it scores little; a held note stands alone. Measured on 36:40: G, D and B (D from 0.57 of G to
+    louder than G) where the CQT chroma shows F# and G# around the G; on a fifth wobbling +-40 cents, F# 0.06 and
+    G# 0.11 of G, against D 0.51. A Gm7 pad detuned -40 to +40 cents reads Gm7. Zeros for a bar with no frames.
     """
     y = np.asarray(other, dtype=np.float32)
     per_octave = 12 * _PEAK_BINS_PER_SEMITONE
-    # librosa.cqt reads tuning in fractions of one of its own bins, so it is estimated at the same resolution.
-    tuning = librosa.estimate_tuning(y=y, sr=sr, bins_per_octave=per_octave)
+    # estimate_tuning measures the offset from the nearest semitone in fractions of a semitone (-0.5 to 0.5);
+    # librosa.cqt reads tuning in fractions of one of its own bins, a third of a semitone here, hence the 3. Estimated
+    # at 36 bins per octave instead, it measures from the nearest third of a semitone, folds any offset past
+    # +-16.7 cents and is noisy: a Gm7 pad read Gm, Gadd9, Gm9 or G7 by its detuning.
+    tuning = _PEAK_BINS_PER_SEMITONE * librosa.estimate_tuning(y=y, sr=sr)
     c = np.abs(
         librosa.cqt(
             y,
@@ -149,9 +153,9 @@ def _is_clear(peak: np.ndarray) -> bool:
     """Whether the bar's four strongest peak pitch classes hold at least CLEAR_SHARE of its peak chroma.
 
     A chord concentrates the weight, flat chroma spreads it. Measured top-four shares: synthetic triads and fifths
-    1.0, white noise 0.38 to 0.43 (three seeds), 36:40's bars 0.53 to 0.78, 48:50's bars 0.69, 0.42, 0.43, 0.447 and
-    0.54. So 48:50's bars 1 to 3 repeat bar 0's chord, bar 3 by 0.003 under the line: an open finding (see the
-    design), and the margins either side are thin, so a bar that moves on a rerun is a finding, not a reason to tune.
+    1.0, white noise 0.38 to 0.43 (three seeds), 36:40's bars 0.536 to 0.830, 48:50's bars 0.725, 0.403, 0.447, 0.481
+    and 0.581. So 48:50's bars 1 and 2 repeat bar 0's chord, and bar 3 clears the line by 0.031. The margins either
+    side are thin, so a bar that moves on a rerun is a finding, not a reason to tune.
     """
     total = float(peak.sum())
     return total > 0 and float(np.sort(peak)[-4:].sum()) >= CLEAR_SHARE * total
@@ -165,9 +169,10 @@ def _third(root: int, minor: bool, peak: np.ndarray, key: Key | None) -> bool:
     if the minor third is in the scale and the major third is not, major the other way. A root outside the key, or
     on its diminished degree (no perfect fifth in the scale), keeps the template's pick.
 
-    Measured on 36:40 (of G): A# at most 0.17 and B at most 0.16 in bars 0 to 6, so they take G minor's third; bar 7
-    A# 0.77; bar 8 B 0.40 against A# 0.37, so it writes `G`. On 48:50, bar 0 reads G 0.29 of D#, so it writes `D#`,
-    and bar 4 D 0.40 against C# 0.39 of A#, so it writes `A#`. Those three are open findings (see the design).
+    Measured on 36:40 (of G): B 0.42 to 1.27 in bars 0 and 2 to 6 (A# at most 0.18), so they write `G`; bar 1 B 0.22
+    and A# 0.07, neither heard, so it takes G minor's third; bar 7 A# 1.68; bar 8 B 0.76 against A# 0.40, so `G`. On
+    48:50, bar 0 reads F# 0.23 and G 0.18 of D#, neither heard, so `D#m`; bar 3 C# 0.41 against D 0.34 of A#, and bar
+    4 C# 0.29 against D 0.26, so `A#m`. Whether 36:40 is G major is an open finding (see the design).
     """
     lower, upper = peak[(root + 3) % 12], peak[(root + 4) % 12]
     floor = THIRD_SHARE * peak[root]
@@ -191,9 +196,9 @@ def _extensions(root: int, peak: np.ndarray) -> tuple[int | None, bool]:
     F# 0.6675 of G) they are smear around the 9th, a 0.002 coin flip; `colour_chords` then borrows the key's 7th. A
     minor 9th is never written. The peak chroma keeps a smear out: the wobbling fifth reads F# 0.01 and G# 0.00 of G.
 
-    Measured on 36:40 (of G): 7ths at most 0.23 and 9ths at most 0.33 in bars 0 to 7, except bar 3's F# 0.49, which
-    writes `Gm^7`; bar 8 A 1.00, F# 0.6675 and F 0.6656, so `Gadd9`. On 48:50, bar 0 F 0.44 of D#
-    (`D#add9`), bar 4 G# 0.43 and C 0.62 of A# (`A#9`). Bar 3's F#, and bar 8's 7th, are open findings (see the design).
+    Measured on 36:40 (of G): 7ths at most 0.35 and 9ths at most 0.39 in bars 0 to 7; bar 8 A 0.43, F# 0.52 and
+    F 0.48, so `Gadd9`. On 48:50, bar 0 F 0.49 of D# (`D#madd9`); bar 3 A 0.41, G# 0.37 and C 0.44 of A# (`A#m^9`);
+    bar 4 G# 0.403 and C 0.68 (`A#m9`). Bar 3's major 7th and bar 4's 7th are within 0.011 and 0.003 of the line.
     """
     floor = EXT_SHARE * peak[root]
     if floor <= 0:
