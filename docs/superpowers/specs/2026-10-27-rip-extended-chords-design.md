@@ -1,4 +1,4 @@
-# Rip chords: a sharper ear, thirds from the key, sevenths and ninths only when heard
+# Rip chords: a sharper ear, thirds from the key, the key's seventh for colour, ninths when heard
 
 Date: 2026-10-27. Follows the rip sounds work (handover, "Rip sounds"). Tom asked for 7th and 9th chords in the rip,
 checked on Solomun 36:40 and 48:50. The house examples use them (`Fm9 Db^9 Eb^7 Cm7`); the rip writes triads only
@@ -33,13 +33,18 @@ What this means:
    - 36:40 has no third, so the template tie goes to major, and the rip writes `G` against a G minor key.
    - 48:50's bars 1 and 2 are noise to a chord template, and the rip writes `Em`, a chord outside D# minor.
 
-So this change does three things, in order of what the two clips will hear: a sharper ear, the key's third where the
-record plays none, and a 7th or 9th only where it is heard.
+So this change does four things, in order of what the two clips will hear: a sharper ear, the key's third where the
+record plays none, the key's 7th on every chord for house colour (Tom, 2026-10-27: "thirdless or triad stabs should
+borrow the key's diatonic 7th for colour"), and a 9th, or a 7th other than the key's, only where it is heard.
 
 ## Goals
 
 - **Chords the record plays.** A thirdless stab takes the third of the key, so the rip writes `Gm` for 36:40, not
-  `G`. A 7th or 9th is written when the peak chroma shows it; neither clip is expected to gain one.
+  `G`. A 7th or 9th that differs from the key's is written when the peak chroma shows it; neither clip is expected to
+  show one.
+- **House colour.** A chord on a degree of the key gets the key's diatonic 7th, whether or not the stem plays it, so
+  36:40 writes `Gm7` and 48:50 `D#m7 … A#m7`. Colour is the rip's style choice, so a muted `_triads:` line keeps the
+  chords as heard (no borrowed 7th) for an A/B by unmuting.
 - **Honest bars.** A bar with no clear pitch class has no chord of its own: it repeats the previous bar's chord,
   exactly as a silent bar does now.
 - **Symbols that voice.** Only spellings the house examples already play, which the golden test proves sound:
@@ -49,8 +54,9 @@ record plays none, and a 7th or 9th only where it is heard.
 
 ## Non-goals and anti-goals
 
-- **No invented colour.** No 7th or 9th that the stem does not play, even though house usually has one. Turning a
-  thirdless `Gm` into `Gm7` for taste is a separate choice; it is listed below as an open question for Tom, not built.
+- **Colour only from the key.** A borrowed 7th is the key's own scale note. There is no borrowed 7th on a root
+  outside the key, on a diminished degree, or where it would make a minor chord with a major 7th. A 9th is never
+  borrowed, only heard.
 - **No sus, diminished, augmented, 6th, 11th or 13th** chords, and no slash chords or inversions. `.voicing()` picks
   the voicing.
 - **No change to how many chords per bar** (one), the bar grid, or the instrument choice.
@@ -100,20 +106,43 @@ All in `service/algorip/chords.py` unless named otherwise.
      | 7th only | `7` or `^7` | `m7` or `m^7` |
      | 9th only | `add9` | `madd9` |
 
-   - Expected on 48:50: `D#m` for bar 0 (no third heard, so D# minor's i) and `A#m` for bars 3 and 4 (v in D#
-     minor). Bars 1 and 2 are covered under the clear-bar test.
-   - Expected on 36:40: `Gm` in every bar, except perhaps bar 3. Its F# reads 0.47 against G at 0.95 (0.49), which
+   - The heard chords, before colour (these are what `_triads:` holds), on 48:50: `D#m` for bar 0 (no third heard,
+     so D# minor's i) and `A#m` for bars 3 and 4 (v in D# minor). Bars 1 and 2 are covered under the clear-bar test.
+   - On 36:40: `Gm` in every bar, except perhaps bar 3. Its F# reads 0.47 against G at 0.95 (0.49), which
      clears 0.4 and would write `Gm^7`. Whether that F# is a note or the G's wobble is the first thing to check when
-     built. If it is the wobble, the smear test needs strengthening, not a higher `EXT_SHARE`. Bar 7 is the one ambiguous bar: the CQT template picks G (G, A#, D),
+     built. If it is the wobble, the smear test needs strengthening, not a higher `EXT_SHARE`.
+   - Bar 7 is the one ambiguous bar: the CQT template picks G (G, A#, D),
      while the peak chroma's loudest pitch class is C (C 1.0, G 0.67, A# 0.65), which is `Cm7` with no third. The
      root stays the template's in this change. If Tom hears `Cm7` there, moving the root choice to the peak chroma
      is the follow-up.
 
-5. **Schema and the app.** `Analysis.chords` stays a list of symbol strings, so the schema does not change.
-   - The app takes the symbols as they are; `ripApi.ts` needs no change.
-   - The Rip tab's analysis line shows the symbols it is given.
+5. **The key's 7th for colour.** After the third and the heard extensions, a chord with no heard 7th borrows one:
+   - **The borrowed 7th** is the key's scale note 10 or 11 semitones above the root. For a root in the scale, exactly
+     one of the two is in it.
+     - In minor: i `m7`, III `^7`, iv `m7`, v `m7`, VI `^7`, VII `7`.
+     - In major: I `^7`, ii `m7`, iii `m7`, IV `^7`, V `7`, vi `m7`.
+   - **No colour** on a root outside the key, on the diminished degree (ii in minor, vii in major), or where the
+     borrowed 7th would make `m^7`. Such a bar keeps its heard symbol.
+   - **A heard 7th wins.** If the stem plays a 7th, that one is written, even if it is not the key's.
+   - **A heard 9th** with a borrowed 7th spells as a 9th chord (`m9`, `9`, `^9`) by the table above.
+   - **Repeated bars.** A silent or unclear bar repeats the previous bar's symbol, colour included.
+   - **Expected:**
+     - 36:40: `Gm7` in every bar (bar 3 `Gm^7` if its F# is heard, see above).
+     - 48:50: `D#m7` for bar 0 and `A#m7` for bars 3 and 4. A bar 2 `Em` would stay `Em`, since E is outside D#
+       minor.
 
-6. **Fixtures and tests.**
+6. **Where it lives.**
+   - `estimate_chords` returns the heard symbols as now.
+   - A new `colour_chords(chords, key)` in `chords.py` adds the borrowed 7ths. `pipeline._analyse` stores both:
+     - `Analysis.chords`: the coloured symbols, which every line of the rip reads.
+     - New `Analysis.heard_chords: list[str] | None = None`: the heard ones, `None` on old saved results.
+   - `generate.py` writes the coloured `chords:` line as now. When `heard_chords` differs from `chords`, it adds,
+     right after `chords:`, a muted `_triads:` line: the same instrument and gains on the heard symbols. Tom's
+     principle: variations go in muted `_name:` lines.
+   - `ripApi.ts` `Analysis` gains `heard_chords: string[] | null`, and the test fixtures gain `heard_chords: null`.
+     The Rip tab's analysis line shows `chords` as now.
+
+7. **Fixtures and tests.**
    - `tests/synth.py` `pad_chords` gains qualities: `m7`, `7`, `^7`, `m9`, `9`, a bare fifth `5`, and a fifth with
      pitch wobble, which smears the chroma the way 36:40 does.
    - `test_chords.py` checks:
@@ -121,13 +150,17 @@ All in `service/algorip/chords.py` unless named otherwise.
      - A bare fifth in a minor key reads minor, and in a major key reads major.
      - The wobbling fifth gets no 7th or 9th.
      - A noise bar repeats the previous chord.
+     - `colour_chords` covers every degree in both modes, the no-colour cases (outside the key, diminished, `m^7`),
+       a heard 7th that is not the key's, and a heard 9th.
+   - `test_generate.py` checks that `_triads:` is written only when the heard and coloured chords differ, and that
+     it is muted.
    - Regenerate the goldens (`scripts/bass_fixture.py stems` for `solomun` and `solomun2`, `synthetic build`).
      `rip/golden.test.ts` then proves every written symbol voices to at least three notes in every bar.
-   - The golden diffs should be exactly the chord changes above. Anything else is a finding to report, not to tune
+   - The golden diffs should be exactly the chord changes above, plus the `_triads:` lines. Anything else is a finding to report, not to tune
      away.
 
-7. **Docs.** README "Rip" (what the chords line can now hold) and the handover's Rip sounds section get the peak
-   chroma, the third rule, the extension rule, and the measurements in the table above.
+8. **Docs.** README "Rip" (what the chords line can now hold, and `_triads:`) and the handover's Rip sounds section
+   get the peak chroma, the third rule, the extension rule, the colour rule, and the measurements in the table above.
 
 ## Left to the builder
 
@@ -139,6 +172,7 @@ All in `service/algorip/chords.py` unless named otherwise.
 ## Open questions for Tom (by ear, after it is built)
 
 - **Thirds:** does `Gm` under 36:40 sound right where `G` played before? Is bar 7 `Gm`, or `Cm7`?
-- **House colour:** should a thirdless or plain triad stab borrow the key's diatonic 7th (`Gm7`) for colour, even
-  though the record plays none? That is a taste choice, not a measurement. A clip that really plays 7ths and 9ths
-  (a deep house record) would test the extension rule properly; neither Solomun clip does.
+- **House colour:** does `Gm7` on the Rhodes sit better than the heard `Gm`? Unmute `_triads:` and mute `chords:`
+  to compare.
+- A clip that really plays 7ths and 9ths (a deep house record) would test the heard-extension rule properly; neither
+  Solomun clip does.
