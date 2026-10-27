@@ -87,3 +87,16 @@ def test_anthropic_chat_cut_off_at_max_tokens_is_a_tidy_error(monkeypatch):
 def test_the_prompt_forbids_renaming_in_its_own_sentence():
     assert "Do not rename anything. You may reorder lines" in TIDY_SYSTEM
     assert "keep those names on the lines they belong to" in TIDY_SYSTEM
+
+
+def test_the_prompt_keeps_the_muted_alternatives():
+    assert "Lines starting with _ (_bass2:, _fills:, _triads:) are muted alternatives" in TIDY_SYSTEM
+    assert "neither merged into another line nor dropped" in TIDY_SYSTEM
+
+
+def test_summary_text_names_the_heard_chords_only_when_they_differ():
+    assert "heard chords" not in summary_text(ANALYSIS, SOUNDS)
+    assert "heard chords" not in summary_text(ANALYSIS.model_copy(update={"heard_chords": list(ANALYSIS.chords)}), SOUNDS)
+    coloured = ANALYSIS.model_copy(update={"chords": ["Am7", "F^7", "C^7", "G7"], "heard_chords": list(ANALYSIS.chords)})
+    text = summary_text(coloured, SOUNDS)
+    assert "chords: Am7 F^7 C^7 G7" in text and "heard chords: Am F C G" in text

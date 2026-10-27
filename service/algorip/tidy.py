@@ -13,7 +13,9 @@ TIDY_SYSTEM = (
     "Make it more idiomatic and readable without changing what it plays: keep every setcpm value, every sound, "
     "every note and every rhythm exactly as given. Do not rename anything. You may reorder lines, merge voices "
     "into one mini-notation string, use Euclidean notation, and add brief comments. Each line is a named pattern "
-    "(drums:, hats:, bass:, chords:, melody:): keep those names on the lines they belong to."
+    "(drums:, hats:, bass:, chords:, melody:): keep those names on the lines they belong to. "
+    "Lines starting with _ (_bass2:, _fills:, _triads:) are muted alternatives: keep each as written, "
+    "neither merged into another line nor dropped."
 )
 
 Chat = Callable[[str, str, str], str]  # (system, user, api_key) -> reply text
@@ -34,6 +36,7 @@ def summary_text(a: Analysis, s: SoundChoice) -> str:
         f"bass sound: {s.bass_sound}",
         f"chord sound: {s.chord_sound}",
         f"chords: {' '.join(a.chords) or 'none'}",
+        *([f"heard chords: {' '.join(a.heard_chords)}"] if a.heard_chords and a.heard_chords != a.chords else []),
         f"hits: {hits or 'none'}",
     ])
 
