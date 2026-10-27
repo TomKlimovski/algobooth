@@ -39,6 +39,8 @@ export interface Analysis {
   bass: Note[];
   bass_harmonics: number;
   chords: string[];
+  /** The chords as the stem plays them; `chords` has the key's 7th added. Null on a result from before they were kept. */
+  heard_chords: string[] | null;
   melody: Note[] | null;
   bass_loop: BassLoop | null;
   /** How the stem's notes shape over time (medians): attack, hold, fall, level at the end, hold as a share of the note. */

@@ -6,7 +6,7 @@ function result(a: { bpm: number; key: string }): RipResult {
     title: 'Around The World',
     analysis: {
       bpm: a.bpm, key: a.key, meter: '4/4', bars: 8, steps_per_bar: 16, first_downbeat: 0.1,
-      drums: { bd: [[0, 0]] }, four_on_the_floor: true, bass: [], bass_harmonics: 0.2, bass_envelope: null, bass_tone: null, tuning_cents: 0, chords: [], melody: null, bass_loop: null, drum_summary: null, drum_tone: null, other_tone: null,
+      drums: { bd: [[0, 0]] }, four_on_the_floor: true, bass: [], bass_harmonics: 0.2, bass_envelope: null, bass_tone: null, tuning_cents: 0, chords: [], melody: null, bass_loop: null, drum_summary: null, drum_tone: null, other_tone: null, heard_chords: null,
     },
     sounds: { drum_bank: 'RolandTR909', snare_name: 'cp', bass_sound: 'sawtooth', bass_lpf: 800, bass_envelope: null, bass_filter_env: null, bass_tremolo: null, drum_samples: {}, drum_gains: {}, bass_fm: null, bass_shape: 0.3, bass_gain: 0.55, chord_sound: 'gm_epiano1', chord_lpf: null, chord_gain: 0.6, melody_gain: 0.6, room: 0.4 },
     code: 'code', tidied_code: null, tidy_error: null, stems: ['drums', 'bass', 'other', 'vocals', 'mix'],

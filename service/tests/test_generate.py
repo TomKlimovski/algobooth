@@ -175,3 +175,17 @@ def test_the_kick_ducks_the_bass_and_chords_on_lane_2():
     assert ".duckorbit(" not in drums_only
     no_kick = HOUSE.model_copy(update={"drums": {**HOUSE.drums, "bd": []}})
     assert ".orbit(" not in generate(no_kick, choose_sounds(no_kick), "t", 0, 8)
+
+
+def test_the_heard_chords_are_a_muted_triads_line_under_the_coloured_ones():
+    a = HOUSE.model_copy(update={"chords": ["Am7", "F^7", "C^7", "G7"], "heard_chords": ["Am", "F", "C", "G"]})
+    lines = generate(a, choose_sounds(a), "t", 0, 8).splitlines()
+    i = next(n for n, line in enumerate(lines) if line.startswith("chords:"))
+    assert lines[i].startswith('chords: chord("<Am7 F^7 C^7 G7>")')
+    assert lines[i + 1] == lines[i].replace("chords:", "_triads:", 1).replace("<Am7 F^7 C^7 G7>", "<Am F C G>")
+
+
+def test_no_triads_line_when_nothing_was_borrowed_or_on_an_old_result():
+    for heard in (None, list(HOUSE.chords)):
+        code = generate(HOUSE.model_copy(update={"heard_chords": heard}), choose_sounds(HOUSE), "t", 0, 8)
+        assert "_triads:" not in code

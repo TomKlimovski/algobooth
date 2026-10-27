@@ -102,6 +102,11 @@ def _instrument(s: SoundChoice) -> str:
     return f'.s("{s.chord_sound}"){voices}{lpf}'
 
 
+def _chord_line(name: str, chords: list[str], s: SoundChoice, lane: str) -> str:
+    """A chord voice: one helper so `chords:` and `_triads:` cannot drift apart."""
+    return f'{name}: chord("{cycle(chords)}").voicing(){_instrument(s)}.room({s.room:g}).gain({s.chord_gain:g}){lane}'
+
+
 def generate(a: Analysis, s: SoundChoice, title: str, start: float, end: float) -> str:
     cpm = round(a.bpm)
     head = [
@@ -118,7 +123,10 @@ def generate(a: Analysis, s: SoundChoice, title: str, start: float, end: float) 
     body = drum_lines(a, s, DUCK if side else "")
     body.extend(bass_lines(a, s, lane))
     if a.chords:
-        body.append(f'chords: chord("{cycle(a.chords)}").voicing(){_instrument(s)}.room({s.room:g}).gain({s.chord_gain:g}){lane}')
+        body.append(_chord_line("chords", a.chords, s, lane))
+        # The chords as heard, muted, under the coloured ones: unmute `_triads:` to hear the stem's own.
+        if a.heard_chords and a.heard_chords != a.chords:
+            body.append(_chord_line("_triads", a.heard_chords, s, lane))
     if a.melody:  # None (no melody stem) or an empty line: no melody voice
         body.append(f'melody: note("{notes_mini(a.melody, a.bars)}"){_instrument(s)}.gain({s.melody_gain:g})')
     return "\n".join(head + body) + "\n"
