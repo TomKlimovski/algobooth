@@ -7,7 +7,9 @@ checked on Solomun 36:40 and 48:50. The house examples use them (`Fm9 Db^9 Eb^7 
 ## What the two clips' "other" stems play
 
 Measured on the cached stems (`~/Algobooth/cache/stems/6d44d581d8ad286f` is 36:40, `3dd127e18e1f4e87` is 48:50), on the
-golden grids. Two chromas per bar, each scaled to the bar's loudest pitch class:
+golden grids. Two chromas per bar, each scaled to the bar's loudest pitch class. The peak chroma numbers, the
+top-four shares and the expected chords below were re-measured on 2026-10-27 with the built peak chroma
+(`chords.peak_chroma_bars`); the first probe's bin alignment was approximate.
 
 - **CQT chroma** is what `estimate_chords` uses now.
 - **Peak chroma** is a CQT at 36 bins per octave. A semitone counts only by how far its centre bin stands above the
@@ -15,16 +17,17 @@ golden grids. Two chromas per bar, each scaled to the bar's loudest pitch class:
 
 | | 36:40 (key G minor, 9 bars) | 48:50 (key D# minor, 5 bars) |
 |---|---|---|
-| written now | `G G G G G G G Gm G` | `D# Em Em A# A#` |
+| written before this change | `G G G G G G G Gm G` | `D# Em Em A# A#` |
 | CQT chroma | G 1.0; G# 0.44 to 0.58 and F# 0.30 to 0.43 either side of it; B and A# about 0.2 | bar 0: D# 1.0, A# 0.65; bars 1 to 3: every pitch class 0.7 to 1.0 |
-| peak chroma | G and D (D 0.35 to 1.0), plus F# 0.47 in bar 3; B 0.01 to 0.12, A# 0.00 to 0.07; bar 7: C 1.0, G 0.67, A# 0.65 | bar 0: D# 1.0, A# 0.63, F 0.32; bars 3 and 4: A# and F; bars 1 and 2: no clear pitch class |
+| peak chroma | G and D (D 0.35 of G to louder than G), plus F# 0.49 in bar 3; bars 0 to 6: A# at most 0.17 of G, B at most 0.16; bar 7: G 1.0, C 0.91, A# 0.77; bar 8: D 1.0, G 0.55, A 0.55, D# 0.48, B 0.40 of G | bar 0: D# 1.0, A# 0.90, F 0.44, G 0.29; bars 1 to 3: no clear pitch class (top four under 0.45); bar 4: F 1.0, A# 0.84, C 0.52 |
 | spectral peaks | G2 (with energy 33 cents either side), G3, D4 | D#3, A#3, D#4 |
 
 What this means:
 
 1. **Neither clip plays a 7th or a 9th** that a fair test would hear:
    - 36:40's stab is a root and a fifth.
-   - 48:50 has an F above D# at 0.32 in one bar, which is weak.
+   - 48:50 has an F above D# at 0.32 in one bar, which is weak. (Re-measured with the built peak chroma: 0.44 of
+     D#, which clears `EXT_SHARE`; see the predictions under "Sevenths and ninths".)
    - Bar 7 of 36:40 (C, G, A#) is the one place a 7th might be there: `Cm7` with no third, or `Gm` with C over it.
 2. **The CQT chroma would invent extensions.** At 36:40 it puts F# and G# at 0.3 to 0.58 around the G: the smear of
    one note, plus the pitch wobble seen in the spectral peaks. A 7th or 9th test on that chroma would write `G^7` or
@@ -85,17 +88,18 @@ All in `service/algorip/chords.py` unless named otherwise.
 
      | | shares |
      |---|---|
-     | 36:40 | 0.55 to 0.81 |
-     | 48:50 | bar 0 0.69, bars 1 and 2 0.40 and 0.42, bar 3 0.46, bar 4 0.55 |
-     | white noise | 0.36 |
-     | a synthetic triad | 0.99 to 1.0 |
+     | 36:40 | 0.53 to 0.78 |
+     | 48:50 | bar 0 0.69, bars 1 and 2 0.42 and 0.43, bar 3 0.447, bar 4 0.54 |
+     | white noise | 0.38 to 0.43 (three seeds) |
+     | synthetic triads and fifths | 1.0 |
 
-   - Starting value 0.45: 48:50's bars 1 and 2 carry bar 0's chord, and bar 3 stays `A#m`. The margins on 48:50 are
-     thin (0.42 against 0.46), so a rerun that moves a bar across the line is a finding to report, not to tune.
+   - Starting value 0.45: 48:50's bars 1 and 2 carry bar 0's chord. Bar 3 falls 0.003 under the line and carries it
+     too, where the first probe had it clear as `A#m`: a finding for Tom by ear. The margins are thin on both sides
+     (white noise reaches 0.43), so a rerun that moves a bar across the line is a finding to report, not to tune.
 
 3. **The third.** After the template picks a root:
    - **Neither third heard.** Both the minor third and the major third are under `THIRD_SHARE` of the root's peak
-     chroma (starting value 0.25; 36:40 reads B at most 0.12 and A# at most 0.07). If the root is in the key's
+     chroma (starting value 0.25; 36:40's bars 0 to 6 read B at most 0.16 and A# at most 0.17 of G). If the root is in the key's
      scale, the chord takes the key's diatonic quality on that degree (`key.py` `_SCALE_STEPS`: in G minor, G is
      minor). A root outside the key keeps the template's pick.
    - **Third heard.** If one third clears the test, it decides.
@@ -105,7 +109,8 @@ All in `service/algorip/chords.py` unless named otherwise.
 
 4. **Sevenths and ninths.** On a clear bar, measured on the peak chroma against the root:
    - **7th:** the minor 7th (10 semitones) or the major 7th (11) at or above `EXT_SHARE` of the root. If both clear
-     it, the louder one is written. Starting value: 0.4, which keeps 48:50's F at 0.32 out.
+     it, the louder one is written. Starting value: 0.4, chosen to keep 48:50's F (0.32 in the first probe) out;
+     re-measured, it reads 0.44 and clears it, a finding for Tom by ear.
    - **9th:** the major 9th (2 semitones) at or above `EXT_SHARE`. A minor 9th is never written.
    - **Not a smear.** An extension a semitone from a chord tone counts only if its peak chroma (not its CQT chroma)
      clears the test. The peak chroma already does this; a test pins it with a smeared fixture.
@@ -117,15 +122,23 @@ All in `service/algorip/chords.py` unless named otherwise.
      | 7th only | `7` or `^7` | `m7` or `m^7` |
      | 9th only | `add9` | `madd9` |
 
-   - The heard chords, before colour (these are what `_triads:` holds), on 48:50: `D#m` for bar 0 (no third heard,
-     so D# minor's i) and `A#m` for bars 3 and 4 (v in D# minor). Bars 1 and 2 are covered under the clear-bar test.
-   - On 36:40: `Gm` in every bar, except perhaps bar 3. Its F# reads 0.47 against G at 0.95 (0.49), which
-     clears 0.4 and would write `Gm^7`. Whether that F# is a note or the G's wobble is the first thing to check when
-     built. If it is the wobble, the smear test needs strengthening, not a higher `EXT_SHARE`.
-   - Bar 7 is the one ambiguous bar: the CQT template picks G (G, A#, D),
-     while the peak chroma's loudest pitch class is C (C 1.0, G 0.67, A# 0.65), which is `Cm7` with no third. The
-     root stays the template's in this change. If Tom hears `Cm7` there, moving the root choice to the peak chroma
-     is the follow-up.
+   - The heard triads `estimate_chords` writes now (task 1): 36:40 `Gm Gm Gm Gm Gm Gm Gm Gm G`, 48:50
+     `D# D# D# D# A#`. Where these differ from the first probe's expectation (`Gm` in every bar; `D#m … A#m A#m`)
+     they are findings for Tom by ear, not values to tune:
+     - 36:40 bar 8 hears B at 0.40 of G against A# at 0.37, so it writes `G`.
+     - 48:50 bar 0 hears G at 0.29 of D#, so it writes `D#`; bars 1 to 3 repeat it (bar 3 is unclear, see above);
+       bar 4 hears D at 0.40 against C# at 0.39 of A#, so it writes `A#`.
+   - The heard chords with extensions (what `_triads:` holds), predicted from the measured peak chroma at
+     `EXT_SHARE` 0.4 against the root (task 2 confirms):
+     - 36:40: `Gm` in bars 0 to 2 and 4 to 7 (7ths at most 0.23, 9ths at most 0.26). Bar 3's F# reads 0.49 of G,
+       which writes `Gm^7`; whether that F# is a note or the G's wobble is the first thing to check by ear (the
+       wobbling-fifth fixture puts F# at 0.01, so the peak chroma does not make it from a wobble). Bar 8: the 9th
+       (A) at 1.0 and both 7ths at 0.67 of G, so `G9` or `G^9` by the 7ths' tie.
+     - 48:50: bar 0 the 9th (F) at 0.44, so `D#add9`, repeated in bars 1 to 3; bar 4 the minor 7th (G#) at 0.43 and
+       the 9th (C) at 0.62, so `A#9`.
+   - Bar 7 of 36:40 is the one ambiguous bar: the CQT template picks G, and the peak chroma reads G 1.0, C 0.91,
+     A# 0.77, which is `Gm` with C over it or `Cm7` with no third. The root stays the template's in this change. If
+     Tom hears `Cm7` there, moving the root choice to the peak chroma is the follow-up.
 
 5. **The key's 7th for colour.** After the third and the heard extensions, a chord with no heard 7th borrows one:
    - **The borrowed 7th** is the key's scale note 10 or 11 semitones above the root. For a root in the scale, exactly
@@ -138,8 +151,10 @@ All in `service/algorip/chords.py` unless named otherwise.
    - **A heard 9th** with a borrowed 7th spells as a 9th chord (`m9`, `9`, `^9`) by the table above.
    - **Repeated bars.** A silent or unclear bar repeats the previous bar's symbol, colour included.
    - **Expected:**
-     - 36:40: `Gm7` in every bar (bar 3 `Gm^7` if its F# is heard, see above).
-     - 48:50: `D#m7 D#m7 D#m7 A#m7 A#m7`.
+     - Predicted from the re-measured peak chroma (task 3 confirms; differences from the first probe's
+       `Gm7` everywhere and `D#m7 D#m7 D#m7 A#m7 A#m7` are findings for Tom by ear):
+     - 36:40: `Gm7` in bars 0 to 2 and 4 to 7, `Gm^7` in bar 3 (a heard 7th wins), `G9` or `G^9` in bar 8.
+     - 48:50: `D#9 D#9 D#9 D#9 A#9` (bar 0's heard 9th with the borrowed C#; bar 4's heard 7th and 9th).
 
 6. **Where it lives.**
    - `estimate_chords` returns the heard symbols as now.

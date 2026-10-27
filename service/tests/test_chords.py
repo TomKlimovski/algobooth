@@ -1,10 +1,14 @@
 import numpy as np
+import pytest
 
 from algorip.audio import SR
 from algorip.chords import chord_name, estimate_chords, peak_chroma_bars
 from algorip.grid import Grid
 from algorip.key import Key
 from tests.synth import mix, pad_chords, silence
+
+# A 1-bar fixture is shorter than one STFT frame in the CQT's lowest, most downsampled octave.
+pytestmark = pytest.mark.filterwarnings("ignore:n_fft=.* is too large for input signal:UserWarning")
 
 G_MINOR = Key(tonic=7, mode="minor")
 G_MAJOR = Key(tonic=7, mode="major")
@@ -56,7 +60,31 @@ def test_a_heard_third_beats_the_key():
 
 def test_a_root_outside_the_key_keeps_the_templates_pick():
     y = pad_chords([(56, "5")], 120)  # G# is not in G minor
-    assert estimate_chords(y, SR, Grid(bpm=120, first_downbeat=0.0, bars=1), G_MINOR)[0] in ("G#", "G#m")
+    g = Grid(bpm=120, first_downbeat=0.0, bars=1)
+    assert estimate_chords(y, SR, g, G_MINOR) == estimate_chords(y, SR, g)
+    assert estimate_chords(y, SR, g)[0] in ("G#", "G#m")
+
+
+def test_the_diminished_degree_keeps_the_templates_pick():
+    y = pad_chords([(57, "5")], 120)  # A is ii in G minor, a diminished triad
+    g = Grid(bpm=120, first_downbeat=0.0, bars=1)
+    assert estimate_chords(y, SR, g, G_MINOR) == estimate_chords(y, SR, g)
+    # Every bare fifth's template pick is minor, so the rule itself is pinned on a peak chroma: a template A major
+    # with no third heard stays major on ii in G minor and on vii in A# major, where a full degree would follow the key.
+    from algorip.chords import _third
+    peak = np.zeros(12)
+    peak[[9, 4]] = 1.0, 0.5  # A and E
+    assert _third(9, False, peak, G_MINOR) is False
+    assert _third(9, False, peak, Key(tonic=10, mode="major")) is False
+    assert _third(9, False, peak, Key(tonic=9, mode="minor")) is True  # i in A minor takes the key's third
+
+
+def test_both_thirds_heard_the_louder_decides():
+    g = Grid(bpm=120, first_downbeat=0.0, bars=1)
+    minor = (pad_chords([(55, "minor")], 120) + 0.4 * pad_chords([(55, "major")], 120)).astype(np.float32)
+    major = (pad_chords([(55, "major")], 120) + 0.4 * pad_chords([(55, "minor")], 120)).astype(np.float32)
+    assert estimate_chords(minor, SR, g, G_MAJOR) == ["Gm"]
+    assert estimate_chords(major, SR, g, G_MINOR) == ["G"]
 
 
 def test_a_noise_bar_repeats_the_previous_chord():
@@ -70,5 +98,6 @@ def test_peak_chroma_names_the_notes_not_their_smear():
     y = pad_chords([(55, "5wobble")], 120)
     bar = peak_chroma_bars(y, SR, Grid(bpm=120, first_downbeat=0.0, bars=1))[0]
     bar = bar / bar.max()
-    assert bar[7] == 1.0 and bar[2] >= 0.3          # G and D
+    assert bar[7] == 1.0                             # G is the loudest
     assert bar[6] < 0.25 and bar[8] < 0.25          # no F# or G# from the wobble
+    assert bar[6] < bar[2] and bar[8] < bar[2]      # and each under the D that is played
