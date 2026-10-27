@@ -76,11 +76,22 @@ All in `service/algorip/chords.py` unless named otherwise.
    - The triad template match and the silence gate stay as they are (CQT chroma and STFT chroma). Only the third
      and extension tests, and the clear-bar test, read the peak chroma.
 
-2. **A clear bar.** A bar whose peak chroma has fewer than two pitch classes at or above `CLEAR_SHARE` of its
-   loudest is not clear, and repeats the previous chord as a silent bar does.
-   - Starting value: 0.5.
-   - On 48:50, bar 1 should fail this test and carry bar 0's chord. Bar 2 may pass: its peak chroma has B 1.0 and
-     C# 0.57, and the template then still writes `Em`. Report what it writes; do not tune `CLEAR_SHARE` to hide it.
+2. **A clear bar.** A bar whose four strongest peak pitch classes hold less than `CLEAR_SHARE` of its peak chroma
+   is not clear, and repeats the previous symbol as a silent bar does. Flat chroma, as from noise, spreads its weight;
+   a chord concentrates it.
+   - The first version of this rule ("fewer than two pitch classes at half the loudest") would have called noise
+     clear, because flat chroma has many pitch classes near the top.
+   - Measured top-four shares:
+
+     | | shares |
+     |---|---|
+     | 36:40 | 0.55 to 0.81 |
+     | 48:50 | bar 0 0.69, bars 1 and 2 0.40 and 0.42, bar 3 0.46, bar 4 0.55 |
+     | white noise | 0.36 |
+     | a synthetic triad | 0.99 to 1.0 |
+
+   - Starting value 0.45: 48:50's bars 1 and 2 carry bar 0's chord, and bar 3 stays `A#m`. The margins on 48:50 are
+     thin (0.42 against 0.46), so a rerun that moves a bar across the line is a finding to report, not to tune.
 
 3. **The third.** After the template picks a root:
    - **Neither third heard.** Both the minor third and the major third are under `THIRD_SHARE` of the root's peak
@@ -128,8 +139,7 @@ All in `service/algorip/chords.py` unless named otherwise.
    - **Repeated bars.** A silent or unclear bar repeats the previous bar's symbol, colour included.
    - **Expected:**
      - 36:40: `Gm7` in every bar (bar 3 `Gm^7` if its F# is heard, see above).
-     - 48:50: `D#m7` for bar 0 and `A#m7` for bars 3 and 4. A bar 2 `Em` would stay `Em`, since E is outside D#
-       minor.
+     - 48:50: `D#m7 D#m7 D#m7 A#m7 A#m7`.
 
 6. **Where it lives.**
    - `estimate_chords` returns the heard symbols as now.
