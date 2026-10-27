@@ -109,7 +109,8 @@ All in `service/algorip/chords.py` unless named otherwise.
 
 4. **Sevenths and ninths.** On a clear bar, measured on the peak chroma against the root:
    - **7th:** the minor 7th (10 semitones) or the major 7th (11) at or above `EXT_SHARE` of the root. If both clear
-     it, neither is written and the bar borrows the key's 7th (section 5): a played chord rarely holds both, and on
+     it, neither is written and the bar falls to section 5's borrowed 7th, if any (a root outside the key, on the
+     diminished degree, or a minor chord whose key 7th is major keeps no 7th): a played chord rarely holds both, and on
      36:40's bar 8 (F 0.6656 against F# 0.6675 of G) they are smear around the 9th, a 0.002 coin flip. Starting
      value: 0.4, chosen to keep 48:50's F (0.32 in the first probe) out; re-measured, it reads 0.44 and clears it, a
      finding for Tom by ear.

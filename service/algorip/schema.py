@@ -96,7 +96,8 @@ class Analysis(BaseModel):
     bass: list[Note]
     bass_harmonics: float
     chords: list[str]  # coloured with the key's 7th for the house sound (colour_chords); heard_chords has them as heard
-    heard_chords: list[str] | None = None  # the chords as the stem plays them; None on a result from before they were kept
+    # the chords as the stem plays them; None on a result from before they were kept
+    heard_chords: list[str] | None = None
     melody: list[Note] | None
     bass_loop: BassLoop | None = None
     drum_summary: DrumSummary | None = None

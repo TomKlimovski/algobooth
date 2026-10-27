@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from algorip.audio import SR
-from algorip.chords import chord_name, colour_chords, estimate_chords, peak_chroma_bars, spell
+from algorip.chords import _parse, chord_name, colour_chords, estimate_chords, peak_chroma_bars, spell
 from algorip.grid import Grid
 from algorip.key import Key
 from tests.synth import mix, pad_chords, silence
@@ -157,7 +157,16 @@ def test_a_heard_quality_the_key_would_not_give_takes_the_scales_seventh():
 
 def test_a_heard_seventh_wins_and_a_heard_ninth_spells_a_ninth_chord():
     assert colour_chords(["Gm^7", "Gmadd9"], G_MINOR) == ["Gm^7", "Gm9"]
+    assert colour_chords(["A#add9"], G_MINOR) == ["A#^9"]  # III's borrowed major 7th with a heard 9th
 
 
 def test_no_chord_stays_no_chord():
     assert colour_chords(["~", "Gm"], G_MINOR) == ["~", "Gm7"]
+
+
+@pytest.mark.parametrize("root", [7, 10])  # G, and a sharp root (A#)
+@pytest.mark.parametrize("minor", [False, True])
+@pytest.mark.parametrize("seventh", [None, 10, 11])
+@pytest.mark.parametrize("ninth", [False, True])
+def test_parse_inverts_spell(root, minor, seventh, ninth):
+    assert _parse(spell(root, minor, seventh, ninth)) == (root, minor, seventh, ninth)
