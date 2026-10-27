@@ -124,9 +124,11 @@ def generate(a: Analysis, s: SoundChoice, title: str, start: float, end: float) 
     body.extend(bass_lines(a, s, lane))
     if a.chords:
         body.append(_chord_line("chords", a.chords, s, lane))
-        # The chords as heard, muted, under the coloured ones: unmute `_triads:` to hear the stem's own.
-        if a.heard_chords and a.heard_chords != a.chords:
-            body.append(_chord_line("_triads", a.heard_chords, s, lane))
     if a.melody:  # None (no melody stem) or an empty line: no melody voice
         body.append(f'melody: note("{notes_mini(a.melody, a.bars)}"){_instrument(s)}.gain({s.melody_gain:g})')
+    # The chords as heard, muted: unmute `_triads:` to hear the stem's own. It goes last, not under `chords:`,
+    # because every named line takes a key on the method keyboard's line row (7 slots, the rest dropped): an A/B
+    # line must not push `melody:` off it.
+    if a.chords and a.heard_chords and a.heard_chords != a.chords:
+        body.append(_chord_line("_triads", a.heard_chords, s, lane))
     return "\n".join(head + body) + "\n"

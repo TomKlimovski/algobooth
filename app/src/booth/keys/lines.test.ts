@@ -9,8 +9,8 @@ describe('patternLines', () => {
     const code = Object.values(golden)[0];
     expect(code).toBeTruthy();
     const lines = patternLines(code);
-    expect(lines.map((l) => l.label)).toEqual(['drums', 'claps', 'hats', 'fills', 'bass', 'bass2', 'chords', 'triads', 'melody']);
-    expect(lines.map((l) => l.muted)).toEqual([false, false, false, true, false, true, false, true, false]);
+    expect(lines.map((l) => l.label)).toEqual(['drums', 'claps', 'hats', 'fills', 'bass', 'bass2', 'chords', 'melody', 'triads']);
+    expect(lines.map((l) => l.muted)).toEqual([false, false, false, true, false, true, false, false, true]);
     expect(lines.map((l) => l.n)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
   });
 

@@ -10,5 +10,5 @@ bass: note("[~ ~ g1@2] [~ g1 ~ g1] [~ ~ g1@2] [~ g1@2 g2]").s("sawtooth").lpf(37
 // bars 5–9 add this under the bass (a variation): remove the underscore to hear it (match 0.80 without, 0.94 with)
 _bass2: note("<~ ~ ~ ~ [~ ~ [g1 ~ ~ ~] [g1 ~ ~ ~]] [[g2 ~ ~ ~] [g1 ~ ~ ~] [g1 ~ ~ ~] ~] [[g1 g1 ~ ~] [g1 ~ ~ ~] [g1 ~ ~ ~] [g1 ~ ~ ~]] [[g1 g2 ~ ~] [~ ~ g1 ~] [g1@2 ~ ~] [g1 ~ ~ ~]] [[g1 g1 ~ ~] [g1 ~ g1 ~] [g1 ~ ~ ~] [g1 ~ ~ ~]]>").s("sawtooth").lpf(370).shape(0.3).gain(0.41).orbit(2)
 chords: chord("<G7 Gm7 G7 G7 G7 G7 G7 Gm7 G9>").voicing().s("gm_epiano1").room(0.4).gain(0.6).orbit(2)
-_triads: chord("<G Gm G G G G G Gm Gadd9>").voicing().s("gm_epiano1").room(0.4).gain(0.6).orbit(2)
 melody: note("<[[~ g3@3] ~ ~ [~ ~ ~ g3]] [[~ ~ g3@2] ~ ~ [~ ~ ~ g3]] [[~ g3@3] ~ ~ [~ ~ ~ g3]] [[~ g3 g3@2] ~ ~ [~ ~ ~ g3]] [[~ g3@3] ~ ~ ~] [[~ g3 g3@2] ~ ~ ~] [[~ g3@3] ~ ~ ~] [[~ ~ c5@2] [~ ~ c5 ~] ~ ~] [~ ~ [d3@2 ~ ~] ~]>").s("gm_epiano1").gain(0.6)
+_triads: chord("<G Gm G G G G G Gm Gadd9>").voicing().s("gm_epiano1").room(0.4).gain(0.6).orbit(2)

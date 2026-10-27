@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import pytest
@@ -177,12 +178,23 @@ def test_the_kick_ducks_the_bass_and_chords_on_lane_2():
     assert ".orbit(" not in generate(no_kick, choose_sounds(no_kick), "t", 0, 8)
 
 
-def test_the_heard_chords_are_a_muted_triads_line_under_the_coloured_ones():
+def test_the_heard_chords_are_a_muted_triads_line_last():
     a = HOUSE.model_copy(update={"chords": ["Am7", "F^7", "C^7", "G7"], "heard_chords": ["Am", "F", "C", "G"]})
     lines = generate(a, choose_sounds(a), "t", 0, 8).splitlines()
-    i = next(n for n, line in enumerate(lines) if line.startswith("chords:"))
-    assert lines[i].startswith('chords: chord("<Am7 F^7 C^7 G7>")')
-    assert lines[i + 1] == lines[i].replace("chords:", "_triads:", 1).replace("<Am7 F^7 C^7 G7>", "<Am F C G>")
+    chords = next(line for line in lines if line.startswith("chords:"))
+    assert chords.startswith('chords: chord("<Am7 F^7 C^7 G7>")')
+    assert lines[-1] == chords.replace("chords:", "_triads:", 1).replace("<Am7 F^7 C^7 G7>", "<Am F C G>")
+
+
+def test_the_triads_line_keeps_melody_on_the_method_keyboard():
+    # The keyboard's line row has 7 slots, filled by named lines in order; lines past the 7th get no key. The build
+    # golden has drums, claps, hats, bass, _bass2, chords and heard chords; give it a melody.
+    build = Analysis.model_validate_json((GOLDEN / "build.analysis.json").read_text())
+    a = build.model_copy(update={"melody": [Note(bar=0, step=0, length=4, midi=69)]})
+    code = generate(a, choose_sounds(a), "t", 0, 8)
+    named = [m.group(1) for m in re.finditer(r"^_?([a-z][a-z0-9]*):", code, re.MULTILINE)]
+    assert {"drums", "claps", "hats", "bass", "bass2", "chords", "melody", "triads"} <= set(named)
+    assert "melody" in named[:7]
 
 
 def test_no_triads_line_when_nothing_was_borrowed_or_on_an_old_result():
