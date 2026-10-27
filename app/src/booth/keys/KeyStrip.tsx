@@ -4,6 +4,7 @@ import { PREVIEW_DELAY_MS } from '../../library/LibraryTree';
 import { findMethod, type MethodDoc } from '../../methods/catalogue';
 import type { DeckId, DeckState } from '../deckState';
 import { METHOD_MIME, type MethodDrag } from '../methodDrop';
+import { FILL_MIME, type FillDrag } from '../../fills/FillPanel';
 import { MethodTip } from '../MethodPanel';
 import { MOD_ENTER } from '../transportKeys';
 import { LETTER_ROWS, labelOf, nameOf, SLOT_LETTER, type Quantise, type Slot, type SnapshotKey } from './bindings';
@@ -132,10 +133,10 @@ export function KeyStrip(props: {
    * Chromium) never became the target, and the method landed in the code. So a key accepts `dragenter` too.
    */
   const dragEnter = (e: DragEvent) => {
-    if (carries(e, METHOD_MIME) || carries(e, KEY_MIME)) e.preventDefault();
+    if (carries(e, METHOD_MIME) || carries(e, FILL_MIME) || carries(e, KEY_MIME)) e.preventDefault();
   };
   const dragOver = (slot: Slot, e: DragEvent) => {
-    const method = carries(e, METHOD_MIME);
+    const method = carries(e, METHOD_MIME) || carries(e, FILL_MIME);
     if (!method && !carries(e, KEY_MIME)) return;
     e.preventDefault();
     e.dataTransfer!.dropEffect = method ? 'copy' : 'move';
@@ -145,10 +146,20 @@ export function KeyStrip(props: {
     setDropSlot(null);
     const from = e.dataTransfer?.getData(KEY_MIME);
     const raw = e.dataTransfer?.getData(METHOD_MIME);
-    if (!from && !raw) return;
+    const fill = e.dataTransfer?.getData(FILL_MIME);
+    if (!from && !raw && !fill) return;
     e.preventDefault();
     if (from) {
       if (from !== slot) props.controller.move(props.deck, from, slot);
+      return;
+    }
+    if (fill) {
+      try {
+        const drag = JSON.parse(fill) as FillDrag;
+        props.controller.dropFill(props.deck, slot, drag.fill, drag.mode);
+      } catch {
+        // not a fill this build knows
+      }
       return;
     }
     let drag: MethodDrag;
@@ -179,6 +190,7 @@ export function KeyStrip(props: {
           line: line(),
           derived: k()?.owner === 'derived',
           cued: k()?.owner === 'cued',
+          fill: k()?.binding.kind === 'fill',
           muted: line() && !k()!.on,
           drop: dropSlot() === p.slot,
         }}

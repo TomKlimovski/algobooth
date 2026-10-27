@@ -55,6 +55,10 @@
 .key.cued { border-color: #6fb3ff; }
 .key.cued .key-label { color: #9fcbff; }
 .key.cued.muted .key-label { color: #4a6a8a; }
+/* A fill key, in the Fills panel's orange; lit (.on) while its fill plays. */
+.key.fill { border-color: #4a3a28; }
+.key.fill .key-label { color: #ffb86c; }
+.key.fill.on .key-label { color: #fff; }
 .key.refused { border: 1px dashed #5c6170; background: #0e0f13; }
 .key.refused .key-label { color: #5c6170; }
 .key.pending { animation: key-pending 1s ease-in-out infinite; }

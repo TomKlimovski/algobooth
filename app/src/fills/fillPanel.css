@@ -1,0 +1,24 @@
+/* The Fills panel, in the Methods panel's colours (methodPanel.css). */
+.fills { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.fills-hint { margin: 6px 8px; color: #8b90a0; font-size: 11px; line-height: 1.4; }
+.fills-list { flex: 1; min-height: 0; overflow: auto; padding: 0 4px 4px; }
+.fill-row { padding: 4px; border-radius: 3px; border-left: 2px solid transparent; }
+.fill-row + .fill-row { margin-top: 2px; }
+.fill-row.playing { background: #1b2433; border-left-color: #ffb86c; }
+.fill-head { display: flex; align-items: baseline; gap: 6px; }
+.fill-name { flex: 1; color: #cfd3dc; }
+.fill-bars { color: #8b90a0; font-size: 10px; }
+.fill-about { color: #8b90a0; font-size: 11px; margin: 1px 0 3px; }
+.fill-modes { display: flex; gap: 4px; }
+.fill-mode {
+  padding: 1px 8px;
+  border: 1px solid #2a2d36;
+  border-radius: 3px;
+  background: #0a0b0e;
+  color: #8b90a0;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.fill-mode.preferred { color: #ffb86c; border-color: #4a3a28; }
+.fill-mode:hover { border-color: #3a5a8a; color: #cfd3dc; }

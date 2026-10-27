@@ -5,6 +5,7 @@ import { DIRT_SOUNDS, SOUNDFONTS } from '../engine/packs';
 export const SHIPPED = new Set([
   ...['bd', 'sd', 'rim', 'hh', 'oh', 'cp', 'lt', 'mt', 'ht', 'cr', 'rd', 'cb', 'perc', 'sh'],
   ...['sine', 'square', 'triangle', 'sawtooth', 'supersaw'],
+  ...['white', 'pink', 'brown'],
   'piano',
   ...DIRT_SOUNDS,
   ...Object.keys(SOUNDFONTS),

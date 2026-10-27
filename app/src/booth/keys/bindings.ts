@@ -1,5 +1,7 @@
 /** The method keyboard's data model: what a key does, and the layout a pattern file (or the settings) stores. */
 
+import { fillById, type FillMode } from './fills';
+
 /** A key position by physical code, 'KeyQ' to 'KeyM'. */
 export type Slot = string;
 export type SnapshotKey = 'F1' | 'F2' | 'F3' | 'F4' | 'F5' | 'F6' | 'F7' | 'F8';
@@ -14,7 +16,8 @@ export interface MethodPart {
 export type Binding =
   | ({ kind: 'method' } & MethodPart)
   | { kind: 'macro'; parts: MethodPart[] }
-  | { kind: 'line'; label: string };
+  | { kind: 'line'; label: string }
+  | { kind: 'fill'; fill: string; mode: FillMode };
 
 export interface Layout {
   bindings: Partial<Record<Slot, Binding | null>>;
@@ -98,6 +101,11 @@ function withBindings(layout: Layout, bindings: Layout['bindings']): Layout {
   return { ...layout, bindings };
 }
 
+/** A fill dropped on a slot: it replaces whatever the slot held (a fill does not chain). */
+export function withFillKey(layout: Layout, slot: Slot, fill: string, mode: FillMode): Layout {
+  return withBindings(layout, { ...layout.bindings, [slot]: { kind: 'fill', fill, mode } });
+}
+
 /** A method dropped on a slot; one already bound there becomes a macro with the part appended. */
 export function withDrop(layout: Layout, slot: Slot, part: MethodPart): Layout {
   const there = layout.bindings[slot];
@@ -167,12 +175,13 @@ export function sameLayout(a: Layout | null | undefined, b: Layout | null | unde
 export function labelOf(binding: Binding): string {
   const strip = (p: MethodPart) => p.snippet.replace(/^\./, '');
   if (binding.kind === 'line') return binding.label;
+  if (binding.kind === 'fill') return `${fillById(binding.fill)?.name.toLowerCase() ?? binding.fill}${binding.mode === 'switch' ? ' ⇄' : ''}`;
   if (binding.kind === 'macro') return binding.parts.map(strip).join('.');
   return strip(binding);
 }
 
 /** The method a key is named for: the macro's first part, or null for a line. */
 export function nameOf(binding: Binding): string | null {
-  if (binding.kind === 'line') return null;
+  if (binding.kind === 'line' || binding.kind === 'fill') return null;
   return binding.kind === 'macro' ? (binding.parts[0]?.name ?? null) : binding.name;
 }

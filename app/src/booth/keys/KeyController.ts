@@ -10,6 +10,7 @@ import {
   effectiveLayout,
   withCleared,
   withDrop,
+  withFillKey,
   withHidden,
   withMoved,
   withSnapshot,
@@ -22,6 +23,7 @@ import {
   type SnapshotKey,
 } from './bindings';
 import { appendCue, canCue, clearCode, cueBlock, cuedLabel, cueOf, cueSounding, cueSourceFor, goCode, REFUSED_CUE } from './cue';
+import { fillById, fillOf, FILL_LABEL, withFill, withoutFill, type FillMode } from './fills';
 import { PressTracker } from './hold';
 import { lineAt, lineLabels, patternLines, refindTarget, type PatternLine } from './lines';
 import { applyEdits, flipMute, isOn, nudge, REFUSED_LINE, toggle, type Edit, type Outcome } from './press';
@@ -87,6 +89,15 @@ const FKEY = /^F[1-8]$/;
 
 const none = (): Record<DeckId, ReadonlySet<string>> => ({ A: new Set(), B: new Set() });
 
+export const REFUSED_FILL = 'start the deck to play a fill';
+
+/**
+ * The fill a deck is playing, as the controller knows it: `token` tells a stale end apart from the current one,
+ * `slot` is the key that fired it (null from the panel), `handle` the timer that ends it, and `looping` is set
+ * when that timer found the key still held, so the release ends it.
+ */
+interface Playing { token: number; slot: Slot | null; handle: ReturnType<typeof setTimeout> | null; looping: boolean }
+
 /** One replacement for the span where `a` and `b` differ, so a flush is one small transaction. */
 function diff(a: string, b: string): Edit {
   let p = 0;
@@ -107,6 +118,10 @@ function diff(a: string, b: string): Edit {
  */
 export class KeyController {
   private readonly queues: Record<DeckId, KeyQueue>;
+  /** Fills start and end on the bar line whatever the keys' quantise says, so each deck has a second queue. */
+  private readonly fillQueues: Record<DeckId, KeyQueue>;
+  private readonly playing: Record<DeckId, Playing | null> = { A: null, B: null };
+  private fillToken = 0;
   private readonly trackers: Record<DeckId, PressTracker>;
   private readonly presses = new Map<string, Press>();
   /** The slot each queued job is for, so taking one back knows whether its key still has work pending. */
@@ -136,14 +151,15 @@ export class KeyController {
     this.setTimer = deps.setTimer ?? (((f: () => void, ms?: number) => setTimeout(f, ms)) as typeof setTimeout);
     this.clearTimer = deps.clearTimer ?? ((h?: ReturnType<typeof setTimeout>) => clearTimeout(h));
     const now = deps.now ?? (() => Date.now());
-    const queue = (id: DeckId) =>
+    const queue = (id: DeckId, quantise: () => Quantise) =>
       new KeyQueue(() => this.api(id), (jobs) => this.flush(id, jobs), {
-        quantise: deps.quantise,
+        quantise,
         now,
         setTimer: this.setTimer,
         clearTimer: this.clearTimer,
       });
-    this.queues = { A: queue('A'), B: queue('B') };
+    this.queues = { A: queue('A', deps.quantise), B: queue('B', deps.quantise) };
+    this.fillQueues = { A: queue('A', () => 'bar'), B: queue('B', () => 'bar') };
     this.trackers = { A: new PressTracker(now), B: new PressTracker(now) };
   }
 
@@ -169,7 +185,13 @@ export class KeyController {
       target.removeEventListener('keydown', keydown);
       target.removeEventListener('keyup', keyup);
       target.removeEventListener('blur', blur);
-      DECK_IDS.forEach((id) => this.queues[id].drop());
+      DECK_IDS.forEach((id) => {
+        this.queues[id].drop();
+        this.fillQueues[id].drop();
+        const p = this.playing[id];
+        if (p?.handle) this.clearTimer(p.handle);
+        this.playing[id] = null;
+      });
       this.deferred.forEach((h) => this.clearTimer(h));
       this.deferred.clear();
       if (this.ticker !== null) this.clearTimer(this.ticker);
@@ -218,6 +240,10 @@ export class KeyController {
     const binding = this.layout(id)[slot]?.binding;
     if (!binding || !this.trackers[id].down(slot)) return;
     this.mark(this.down, id, slot, true);
+    if (binding.kind === 'fill') {
+      this.fire(id, binding.fill, binding.mode, slot);
+      return;
+    }
     const press: Press = { binding, ran: false, revert: false, after: null, job: null, target: this.pressedOn(id) };
     this.presses.set(`${id}|${slot}`, press);
     press.job = this.toggleJob(id, slot, binding, press.target, press);
@@ -251,7 +277,7 @@ export class KeyController {
   /** Shift (up) or Ctrl (down) on a key: doubles or halves the argument of its method on the target line. */
   nudge(id: DeckId, slot: Slot, dir: 'up' | 'down'): void {
     const binding = this.layout(id)[slot]?.binding;
-    if (!binding || binding.kind === 'line') return;
+    if (!binding || binding.kind === 'line' || binding.kind === 'fill') return;
     const pressed = this.pressedOn(id);
     this.push(id, slot, () => {
       const w = this.work!;
@@ -279,7 +305,7 @@ export class KeyController {
     if (!deck) return;
     const keys = unwrap(ds.state.keys);
     if (save) {
-      ds.setKeys(withSnapshot(keys, key, deck.getCode()));
+      ds.setKeys(withSnapshot(keys, key, withoutFill(deck.getCode()))); // a fill recalled would never go out
       return;
     }
     const text = keys.snapshots?.[key];
@@ -290,6 +316,86 @@ export class KeyController {
     this.push(id, key, () => {
       this.work!.code = text;
     });
+  }
+
+  // ---- fills ----
+
+  /**
+   * A fill from the catalogue, on the next bar line: injected over the deck, or switched in for its drum lines.
+   * It goes out on its own after its bars, on the bar line; fired from a key that is still held by then, it keeps
+   * looping until the bar after the release. A new fill replaces one that is playing. A stopped deck refuses it.
+   */
+  fire(id: DeckId, fillId: string, mode: FillMode, slot: Slot | null = null): void {
+    const fill = fillById(fillId);
+    const deck = this.api(id);
+    if (!fill || !deck) return;
+    if (!deck.scheduler.started) {
+      this.deps.deckState[id].setError(REFUSED_FILL);
+      return;
+    }
+    const token = ++this.fillToken;
+    this.pushFill(id, slot ?? 'Fill', () => {
+      const w = this.work!;
+      const old = this.playing[id];
+      if (old?.handle) this.clearTimer(old.handle);
+      // The flush runs a clock lead before the bar line, so the nearest whole cycle is the one it lands on.
+      w.code = withFill(w.code, fill, mode, Math.round(deck.scheduler.now()));
+      w.userEvent = 'input.fill';
+      const playing: Playing = { token, slot, handle: null, looping: false };
+      this.playing[id] = playing;
+      w.then.push(() => {
+        const { clock, cps } = deck.scheduler;
+        const lead = (clock?.duration ?? DEFAULT_CLOCK_DURATION) + (clock?.minLatency ?? DEFAULT_MIN_LATENCY);
+        // Into its last bar, so the end queues for the bar line after it.
+        const ms = (lead + (fill.bars - 1) / cps) * 1000 + REVERT_MARGIN_MS;
+        const setTimer = this.setTimer;
+        playing.handle = setTimer(() => {
+          playing.handle = null;
+          if (this.playing[id] !== playing) return;
+          if (slot && this.down[0]()[id].has(slot)) playing.looping = true;
+          else this.endFill(id, token);
+        }, ms);
+      });
+    });
+  }
+
+  /** Takes the deck's fill out on the next bar line, if `token` is still the one playing. */
+  private endFill(id: DeckId, token: number): void {
+    this.pushFill(id, 'Fill', () => {
+      if (this.playing[id]?.token !== token) return;
+      this.playing[id] = null;
+      const w = this.work!;
+      w.code = withoutFill(w.code);
+      w.userEvent = 'input.fill';
+    });
+  }
+
+  private pushFill(id: DeckId, slot: string, job: Job): void {
+    this.jobSlots.set(job, slot);
+    this.mark(this.pending, id, slot, true);
+    this.fillQueues[id].push(job);
+    this.countdown();
+  }
+
+  /** The fill playing on the deck, by the code: what the panel and a fill key light up for. */
+  fillPlaying(id: DeckId): string | null {
+    const b = fillOf(this.deps.deckState[id].state.liveCode);
+    return b ? b.name : null;
+  }
+
+  /** A fill dropped on a key from the Fills panel, written to the layer that owns the slot. */
+  dropFill(id: DeckId, slot: Slot, fill: string, mode: FillMode): void {
+    const keys = this.keys(id);
+    if (dropTarget(this.deps.global(), keys, slot) === 'pattern') this.deps.deckState[id].setKeys(withFillKey(keys, slot, fill, mode));
+    else this.writeGlobal(id, withFillKey(this.deps.global(), slot, fill, mode));
+  }
+
+  /** A fill's own work, dropped: its queued start or end and its timer; the code is left as it is. */
+  private forgetFill(id: DeckId): void {
+    this.fillQueues[id].drop();
+    const p = this.playing[id];
+    if (p?.handle) this.clearTimer(p.handle);
+    this.playing[id] = null;
   }
 
   // ---- cue, Go and Clear ----
@@ -346,7 +452,8 @@ export class KeyController {
       const w = this.work!;
       const c = cueOf(w.code);
       if (!c) return;
-      w.code = goCode(w.code, c);
+      w.code = goCode(withoutFill(w.code), c);
+      this.forgetFill(id);
       w.userEvent = 'input.go';
       w.then.push(() => {
         this.forgetReverts(id, w);
@@ -367,12 +474,14 @@ export class KeyController {
     const code = deck.getCode();
     const cue = cueOf(code);
     if (!cue) return;
-    if (cueSounding(cue)) {
+    // A playing fill must go out through an evaluation too, or the deck keeps playing it.
+    if (cueSounding(cue) || fillOf(code)) {
       this.push(id, 'Clear', () => {
         const w = this.work!;
         const c = cueOf(w.code);
         if (!c) return;
-        w.code = clearCode(w.code, c);
+        w.code = clearCode(withoutFill(w.code), c);
+        this.forgetFill(id);
         w.userEvent = 'input.clear-cue';
         w.then.push(() => ds.setCueSource(null));
       });
@@ -459,7 +568,7 @@ export class KeyController {
       const line = b.kind === 'line' ? lines.find((l) => l.label === b.label) : target;
       out[slot] = {
         ...s,
-        on: !!line && isOn(code, line, b),
+        on: b.kind === 'fill' ? fillOf(code)?.name === fillById(b.fill)?.name : !!line && isOn(code, line, b),
         held: down.has(slot),
         pending: pending.has(slot),
         refused: !!refused?.has(slot),
@@ -553,7 +662,9 @@ export class KeyController {
     const cue = cueOf(code);
     const cuedLines = new Set(cue?.lines.map((l) => l.firstLine));
     const cued = cue ? cue.lines.filter((l) => l.label !== null).map((l) => ({ label: l.label!, short: cuedLabel(cue, l) })) : [];
-    const own = lineLabels(lines.filter((l) => !cuedLines.has(l.firstLine)));
+    // A fill's own line comes and goes on the bar: it is not a pad.
+    const fill = fillOf(code);
+    const own = lineLabels(lines.filter((l) => !cuedLines.has(l.firstLine) && !(fill && l.label === FILL_LABEL && l.from > fill.from)));
     return effectiveLayout(this.deps.global(), this.keys(id), own, cued);
   }
 
@@ -585,6 +696,11 @@ export class KeyController {
   /** A press ended; `held` releases revert, waiting behind the press itself when it has not landed yet. */
   private ended(id: DeckId, slot: Slot, held: boolean): void {
     this.mark(this.down, id, slot, false);
+    const p = this.playing[id];
+    if (p?.looping && p.slot === slot) {
+      p.looping = false;
+      this.endFill(id, p.token);
+    }
     const key = `${id}|${slot}`;
     const press = this.presses.get(key);
     this.presses.delete(key);
@@ -714,9 +830,16 @@ export class KeyController {
       this.deferred.delete(inv.handle);
     }
     this.queues[id].drop();
+    const fill = this.playing[id];
+    this.forgetFill(id);
     this.pending[1]((p) => ({ ...p, [id]: new Set() }));
     // The deck is stopped by now, so each push flushes at once.
     reverts.forEach((inv) => this.queueInverse(id, inv));
+    if (fill) {
+      // Stopped: nothing to play it out over, so it comes out now.
+      this.playing[id] = fill;
+      this.endFill(id, fill.token);
+    }
     this.countdown();
   }
 
@@ -747,6 +870,7 @@ export class KeyController {
   private loaded(id: DeckId): void {
     const queued = [...this.inverses[id]].filter((inv) => inv.handle === null);
     this.queues[id].drop();
+    this.forgetFill(id);
     this.pending[1]((p) => ({ ...p, [id]: new Set([...this.inverses[id]].filter((inv) => inv.handle !== null).map((inv) => inv.slot)) }));
     queued.forEach((inv) => this.queueInverse(id, inv));
     this.deps.deckState[id].setCueSource(null);
@@ -758,8 +882,10 @@ export class KeyController {
     let waiting = false;
     for (const id of DECK_IDS) {
       const q = this.queues[id];
-      this.deps.deckState[id].setQueue(q.pending, q.beatsLeft());
-      waiting ||= q.pending > 0;
+      const f = this.fillQueues[id];
+      const beats = [q.beatsLeft(), f.beatsLeft()].filter((b): b is number => b !== null);
+      this.deps.deckState[id].setQueue(q.pending + f.pending, beats.length ? Math.min(...beats) : null);
+      waiting ||= q.pending + f.pending > 0;
     }
     if (waiting && this.ticker === null) {
       const setTimer = this.setTimer;

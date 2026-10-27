@@ -12,6 +12,7 @@ import { Fader } from './Fader';
 import { MasterStrip } from './MasterStrip';
 import { MethodPanel } from './MethodPanel';
 import { LessonPanel } from '../lessons/LessonPanel';
+import { FillPanel } from '../fills/FillPanel';
 import type { Lesson } from '../lessons/lessons';
 import { LOAD_OVER_EDITS_PROMPT } from '../library/store';
 import { newPatternDecision } from './deckFile';
@@ -118,8 +119,8 @@ export function Booth(props: {
       flash(`Play failed: ${e instanceof Error ? e.message : String(e)}`),
     );
 
-  // The right-hand column shows the Methods panel or the Lessons panel; both stay mounted.
-  const [side, setSide] = createSignal<'methods' | 'lessons'>('methods');
+  // The right-hand column shows the Methods, Fills or Lessons panel; all stay mounted.
+  const [side, setSide] = createSignal<'methods' | 'fills' | 'lessons'>('methods');
 
   /**
    * A lesson example's ▶: loads it onto the performing deck and plays it. A deck already holding a lesson example
@@ -286,12 +287,21 @@ export function Booth(props: {
           <button role="tab" aria-selected={side() === 'methods'} classList={{ on: side() === 'methods' }} onClick={() => setSide('methods')}>
             Methods
           </button>
+          <button role="tab" aria-selected={side() === 'fills'} classList={{ on: side() === 'fills' }} onClick={() => setSide('fills')}>
+            Fills
+          </button>
           <button role="tab" aria-selected={side() === 'lessons'} classList={{ on: side() === 'lessons' }} onClick={() => setSide('lessons')}>
             Lessons
           </button>
         </div>
         <div class="booth-side-pane" hidden={side() !== 'methods'}>
           <MethodPanel onInsert={(drag) => booth.state.decks[props.library.state.target]?.insertSnippet(drag)} />
+        </div>
+        <div class="booth-side-pane" hidden={side() !== 'fills'}>
+          <FillPanel
+            playing={() => keys.fillPlaying(props.library.state.target)}
+            onFire={(fill, mode) => keys.fire(props.library.state.target, fill, mode)}
+          />
         </div>
         <div class="booth-side-pane" hidden={side() !== 'lessons'}>
           <LessonPanel target={() => props.library.state.target} onTry={(code, lesson) => void tryLesson(code, lesson)} />

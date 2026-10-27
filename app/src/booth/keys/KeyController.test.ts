@@ -764,3 +764,83 @@ describe('cue, go and clear', () => {
     uninstall();
   });
 });
+
+describe('fills', () => {
+  const ROLL: Binding = { kind: 'fill', fill: 'snare_roll', mode: 'inject' };
+  const DROP: Binding = { kind: 'fill', fill: 'drop', mode: 'switch' };
+
+  test('a fill lands on the bar, whatever the quantise, and goes out after its bars', () => {
+    const { ctl, a } = setup({ started: true, now: 0.25, cps: 0.5, quantise: 'now' });
+    ctl.fire('A', 'snare_roll', 'inject');
+    expect(a.getCode()).toBe(CODE);
+    a.scheduler.now.mockReturnValue(0.97); // the flush runs a clock lead before the bar line
+    vi.advanceTimersByTime(1500); // the bar line at 1.5 s
+    expect(a.getCode()).toContain('\nfill: s("<sd*8');
+    expect(a.getCode()).toContain('.late(1)'); // lands on cycle 1 of a two-bar fill
+    expect(ctl.fillPlaying('A')).toBe('Snare roll');
+    expect(a.evaluate).toHaveBeenCalledTimes(1);
+    a.scheduler.now.mockReturnValue(1);
+    vi.advanceTimersByTime(2000); // into its second bar
+    expect(a.getCode()).toContain('\nfill: ');
+    a.scheduler.now.mockReturnValue(2.05);
+    vi.advanceTimersByTime(2000);
+    expect(a.getCode()).toBe(CODE);
+    expect(ctl.fillPlaying('A')).toBeNull();
+    expect(a.evaluate).toHaveBeenCalledTimes(2);
+  });
+
+  test('a switch mutes the drum lines while it plays', () => {
+    const { ctl, a } = setup({ started: true, now: 0.9, cps: 0.5 });
+    ctl.fire('A', 'drop', 'switch');
+    vi.advanceTimersByTime(200);
+    expect(a.getCode()).toContain('\n_drums: s("bd*4")\n_hats: s("hh*8")\n// fill: Drop out');
+    a.scheduler.now.mockReturnValue(1.05);
+    vi.advanceTimersByTime(2000);
+    expect(a.getCode()).toBe(CODE);
+  });
+
+  test('a stopped deck refuses a fill', () => {
+    const { ctl, a, deckState } = setup();
+    ctl.fire('A', 'snare_roll', 'inject');
+    expect(a.getCode()).toBe(CODE);
+    expect(deckState.A.state.error).toBe('start the deck to play a fill');
+  });
+
+  test('a fill key held past the fill keeps it looping until the bar after the release', () => {
+    const { ctl, a } = setup({ started: true, now: 0.9, cps: 0.5, global: { bindings: { KeyQ: DROP } } });
+    ctl.togglePerform();
+    expect(ctl.shown('A').KeyQ?.on).toBe(false);
+    ctl.press('A', 'KeyQ');
+    vi.advanceTimersByTime(200);
+    expect(ctl.shown('A').KeyQ?.on).toBe(true);
+    a.scheduler.now.mockReturnValue(1.05);
+    vi.advanceTimersByTime(4000); // a bar and more, key still down
+    expect(a.getCode()).toContain('// fill: Drop out');
+    ctl.release('A', 'KeyQ');
+    a.scheduler.now.mockReturnValue(3.05);
+    vi.advanceTimersByTime(2000);
+    expect(a.getCode()).toBe(CODE);
+  });
+
+  test('a fill line is not a line key, and a new fill replaces the playing one', () => {
+    const { ctl, a } = setup({ started: true, now: 0.9, cps: 0.5, global: { bindings: { KeyQ: ROLL } } });
+    ctl.fire('A', 'drop', 'switch');
+    vi.advanceTimersByTime(200);
+    expect(Object.values(ctl.shown('A')).some((k) => k?.binding.kind === 'line' && k.binding.label === 'fill')).toBe(false);
+    a.scheduler.now.mockReturnValue(1.9);
+    ctl.fire('A', 'snare_roll', 'inject');
+    vi.advanceTimersByTime(200);
+    expect(a.getCode()).toContain('\ndrums: '); // the switch's mutes came back
+    expect(ctl.fillPlaying('A')).toBe('Snare roll');
+    expect(ctl.shown('A').KeyQ?.on).toBe(true);
+  });
+
+  test('Stop takes a playing fill out at once', () => {
+    const { ctl, a } = setup({ started: true, now: 0.9, cps: 0.5 });
+    ctl.fire('A', 'drop', 'switch');
+    vi.advanceTimersByTime(200);
+    a.scheduler.started = false;
+    a.onToggle.forEach((f) => f(false));
+    expect(a.getCode()).toBe(CODE);
+  });
+});
