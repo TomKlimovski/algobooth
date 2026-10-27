@@ -38,13 +38,58 @@ def spell(root: int, minor: bool, seventh: int | None, ninth: bool) -> str:
     """The symbol for a root, its third, a 7th (10 or 11 semitones, or None) and a 9th: "Am7", "G^9", "Gmadd9".
 
     The single place chord symbols are formed: a 9th with a 7th is a 9 chord ("9"/"^9", "m9"/"m^9"), a 7th alone
-    "7"/"^7" ("m7"/"m^7"), a 9th alone "add9" ("madd9").
+    "7"/"^7" ("m7"/"m^7"), a 9th alone "add9" ("madd9"). Any other 7th raises, so a bad parse fails here.
     """
+    if seventh not in (None, 10, 11):
+        raise ValueError(f"a 7th is 10 or 11 semitones, or None: {seventh!r}")
     name = chord_name(root, minor)
     major_seventh = "^" if seventh == 11 else ""
     if seventh is not None:
         return name + major_seventh + ("9" if ninth else "7")
     return name + ("add9" if ninth else "")
+
+
+_SUFFIXES = {  # what `spell` writes after the root and "m" -> (7th, 9th)
+    "": (None, False),
+    "add9": (None, True),
+    "7": (10, False),
+    "9": (10, True),
+    "^7": (11, False),
+    "^9": (11, True),
+}
+
+
+def _parse(symbol: str) -> tuple[int, bool, int | None, bool]:
+    """The root, minor or not, 7th and 9th of a symbol `spell` wrote; the inverse of `spell`."""
+    name = symbol[:2] if symbol[1:2] == "#" else symbol[:1]
+    rest = symbol[len(name) :]
+    minor = rest.startswith("m")
+    seventh, ninth = _SUFFIXES[rest[1:] if minor else rest]
+    return PITCH_NAMES.index(name), minor, seventh, ninth
+
+
+def colour_chords(chords: list[str], key: Key) -> list[str]:
+    """Each heard symbol with no 7th of its own borrows the key's 7th on its root; "~" stays "~".
+
+    The borrowed 7th is whichever of 10 or 11 semitones above the root is in the key's scale (on a scale root exactly
+    one is). There is none on a root outside the key, on its diminished degree, or where it would make a minor chord
+    with a major 7th. The diminished degree (ii in minor, vii in major) is the scale root with no perfect fifth in the
+    scale, as `_third` reads it; a tritone test would also catch VI in minor and IV in major, whose 4th is raised. A
+    heard 7th wins, and a heard 9th with a borrowed 7th spells a 9 chord. A silent or unclear bar already repeats its
+    neighbour's heard symbol, so it repeats the colour too.
+    """
+    out = []
+    for symbol in chords:
+        if symbol == NO_CHORD:
+            out.append(symbol)
+            continue
+        root, minor, seventh, ninth = _parse(symbol)
+        if seventh is None and root in key.scale and (root + 7) % 12 in key.scale:
+            borrowed = 10 if (root + 10) % 12 in key.scale else 11
+            if not (minor and borrowed == 11):
+                seventh = borrowed
+        out.append(spell(root, minor, seventh, ninth))
+    return out
 
 
 def _templates() -> list[tuple[str, np.ndarray]]:
@@ -142,18 +187,19 @@ def _third(root: int, minor: bool, peak: np.ndarray, key: Key | None) -> bool:
 def _extensions(root: int, peak: np.ndarray) -> tuple[int | None, bool]:
     """The 7th (10, 11 or None) and whether the 9th is heard: each at EXT_SHARE of the root's peak chroma.
 
-    If both 7ths clear it the louder is written (an exact tie, the minor 7th). A minor 9th is never written. The
-    peak chroma keeps a smear out: the wobbling fifth reads F# 0.01 and G# 0.00 of G.
+    If both 7ths clear it neither is written: a played chord rarely holds both, and on 36:40's bar 8 (F 0.6656 and
+    F# 0.6675 of G) they are smear around the 9th, a 0.002 coin flip; `colour_chords` then borrows the key's 7th. A
+    minor 9th is never written. The peak chroma keeps a smear out: the wobbling fifth reads F# 0.01 and G# 0.00 of G.
 
     Measured on 36:40 (of G): 7ths at most 0.23 and 9ths at most 0.33 in bars 0 to 7, except bar 3's F# 0.49, which
-    writes `Gm^7`; bar 8 A 1.00, F# 0.6675 and F 0.6656, so `G^9` by 0.002. On 48:50, bar 0 F 0.44 of D#
+    writes `Gm^7`; bar 8 A 1.00, F# 0.6675 and F 0.6656, so `Gadd9`. On 48:50, bar 0 F 0.44 of D#
     (`D#add9`), bar 4 G# 0.43 and C 0.62 of A# (`A#9`). Bar 3's F#, and bar 8's 7th, are open findings (see the design).
     """
     floor = EXT_SHARE * peak[root]
     if floor <= 0:
         return None, False
     sevenths = [s for s in (10, 11) if peak[(root + s) % 12] >= floor]
-    seventh = max(sevenths, key=lambda s: (peak[(root + s) % 12], -s)) if sevenths else None
+    seventh = sevenths[0] if len(sevenths) == 1 else None
     return seventh, bool(peak[(root + 2) % 12] >= floor)
 
 

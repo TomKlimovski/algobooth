@@ -109,8 +109,10 @@ All in `service/algorip/chords.py` unless named otherwise.
 
 4. **Sevenths and ninths.** On a clear bar, measured on the peak chroma against the root:
    - **7th:** the minor 7th (10 semitones) or the major 7th (11) at or above `EXT_SHARE` of the root. If both clear
-     it, the louder one is written. Starting value: 0.4, chosen to keep 48:50's F (0.32 in the first probe) out;
-     re-measured, it reads 0.44 and clears it, a finding for Tom by ear.
+     it, neither is written and the bar borrows the key's 7th (section 5): a played chord rarely holds both, and on
+     36:40's bar 8 (F 0.6656 against F# 0.6675 of G) they are smear around the 9th, a 0.002 coin flip. Starting
+     value: 0.4, chosen to keep 48:50's F (0.32 in the first probe) out; re-measured, it reads 0.44 and clears it, a
+     finding for Tom by ear.
    - **9th:** the major 9th (2 semitones) at or above `EXT_SHARE`. A minor 9th is never written.
    - **Not a smear.** An extension a semitone from a chord tone counts only if its peak chroma (not its CQT chroma)
      clears the test. The peak chroma already does this; a test pins it with a smeared fixture.
@@ -130,12 +132,12 @@ All in `service/algorip/chords.py` unless named otherwise.
        bar 4 hears D at 0.40 against C# at 0.39 of A#, so it writes `A#`.
    - The heard chords with extensions (what `_triads:` holds), as `estimate_chords` writes them at `EXT_SHARE` 0.4
      against the root (task 2 measured; differences are findings for Tom by ear): 36:40
-     `Gm Gm Gm Gm^7 Gm Gm Gm Gm G^9`, 48:50 `D#add9 D#add9 D#add9 D#add9 A#9`.
-     - 36:40: `Gm` in bars 0 to 2 and 4 to 7 (7ths at most 0.23, 9ths at most 0.26). Bar 3's F# reads 0.49 of G,
-       which writes `Gm^7`; whether that F# is a note or the G's wobble is the first thing to check by ear (the
-       wobbling-fifth fixture puts F# at 0.01, so the peak chroma does not make it from a wobble). Bar 8: the 9th
-       (A) at 1.00 and both 7ths at 0.67 of G (F# 0.6675 against F 0.6656), so `G^9` by 0.002: which 7th it is
-       is a finding for Tom by ear.
+     `Gm Gm Gm Gm^7 Gm Gm Gm Gm Gadd9`, 48:50 `D#add9 D#add9 D#add9 D#add9 A#9`.
+     - 36:40: `Gm` in bars 0 to 2 and 4 to 7 (7ths at most 0.23, 9ths at most 0.26; bar 3's 9th is 0.33). Bar 3's
+       F# reads 0.49 of G, which writes `Gm^7`; whether that F# is a note or the G's wobble is the first thing to
+       check by ear (the wobbling-fifth fixture puts F# at 0.01, so the peak chroma does not make it from a wobble).
+       Bar 8: the 9th (A) at 1.00 and both 7ths at 0.67 of G (F# 0.6675 against F 0.6656), so neither 7th is
+       written: `Gadd9`, which takes G minor's F in colour. Which 7th it is, if either, is a finding for Tom by ear.
      - 48:50: bar 0 the 9th (F) at 0.44, so `D#add9`, repeated in bars 1 to 3; bar 4 the minor 7th (G#) at 0.43 and
        the 9th (C) at 0.62, so `A#9`.
    - Bar 7 of 36:40 is the one ambiguous bar: the CQT template picks G, and the peak chroma reads G 1.0, C 0.91,
@@ -153,9 +155,10 @@ All in `service/algorip/chords.py` unless named otherwise.
    - **A heard 9th** with a borrowed 7th spells as a 9th chord (`m9`, `9`, `^9`) by the table above.
    - **Repeated bars.** A silent or unclear bar repeats the previous bar's symbol, colour included.
    - **Expected:**
-     - Predicted from the re-measured peak chroma (task 3 confirms; differences from the first probe's
-       `Gm7` everywhere and `D#m7 D#m7 D#m7 A#m7 A#m7` are findings for Tom by ear):
-     - 36:40: `Gm7` in bars 0 to 2 and 4 to 7, `Gm^7` in bar 3 (a heard 7th wins), `G^9` in bar 8 (heard, by 0.002 over `G9`).
+     - Measured in task 3 with `colour_chords(estimate_chords(...), key)` on both stems (differences from the first
+       probe's `Gm7` everywhere and `D#m7 D#m7 D#m7 A#m7 A#m7` are findings for Tom by ear):
+     - 36:40: `Gm7 Gm7 Gm7 Gm^7 Gm7 Gm7 Gm7 Gm7 G9`: `Gm7` in bars 0 to 2 and 4 to 7, `Gm^7` in bar 3 (a heard 7th
+       wins), `G9` in bar 8 (the heard 9th with G minor's F, since both 7ths were heard).
      - 48:50: `D#9 D#9 D#9 D#9 A#9` (bar 0's heard 9th with the borrowed C#; bar 4's heard 7th and 9th).
 
 6. **Where it lives.**

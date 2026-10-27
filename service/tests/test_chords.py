@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from algorip.audio import SR
-from algorip.chords import chord_name, estimate_chords, peak_chroma_bars, spell
+from algorip.chords import chord_name, colour_chords, estimate_chords, peak_chroma_bars, spell
 from algorip.grid import Grid
 from algorip.key import Key
 from tests.synth import mix, pad_chords, silence
@@ -114,7 +114,50 @@ def test_a_wobbling_fifth_gets_no_seventh_or_ninth():
     assert estimate_chords(y, SR, Grid(bpm=120, first_downbeat=0.0, bars=1), G_MINOR) == ["Gm"]
 
 
-def test_spelling():
-    assert spell(9, True, 10, False) == "Am7" and spell(9, True, 11, True) == "Am^9"
-    assert spell(7, False, None, True) == "Gadd9" and spell(7, True, None, True) == "Gmadd9"
-    assert spell(7, False, 10, True) == "G9" and spell(7, False, None, False) == "G"
+@pytest.mark.parametrize(
+    "root,minor,seventh,ninth,symbol",
+    [
+        (9, True, 10, False, "Am7"),
+        (9, True, 11, True, "Am^9"),
+        (7, False, None, True, "Gadd9"),
+        (7, True, None, True, "Gmadd9"),
+        (7, False, 10, True, "G9"),
+        (7, False, None, False, "G"),
+    ],
+)
+def test_spelling(root, minor, seventh, ninth, symbol):
+    assert spell(root, minor, seventh, ninth) == symbol
+
+
+def test_spell_takes_only_a_minor_or_major_seventh():
+    with pytest.raises(ValueError):
+        spell(7, False, 9, False)
+
+
+def test_both_sevenths_heard_writes_neither():
+    y = pad_chords([(57, "7+^7")], 120)  # A7 with a major 7th an octave up: both clear EXT_SHARE, at different levels
+    bar = peak_chroma_bars(y, SR, Grid(bpm=120, first_downbeat=0.0, bars=1))[0]
+    assert bar[7] >= 0.4 * bar[9] and bar[8] >= 0.4 * bar[9] and bar[7] != bar[8]
+    assert estimate_chords(y, SR, Grid(bpm=120, first_downbeat=0.0, bars=1)) == ["A"]
+
+
+def test_every_degree_borrows_the_keys_seventh():
+    assert colour_chords(["Gm", "A#", "Cm", "Dm", "D#", "F"], G_MINOR) == ["Gm7", "A#^7", "Cm7", "Dm7", "D#^7", "F7"]
+    c_major = Key(tonic=0, mode="major")
+    assert colour_chords(["C", "Dm", "Em", "F", "G", "Am"], c_major) == ["C^7", "Dm7", "Em7", "F^7", "G7", "Am7"]
+
+
+def test_no_colour_outside_the_key_on_the_diminished_degree_or_as_m_maj7():
+    assert colour_chords(["G#", "Am", "A#m"], G_MINOR) == ["G#", "Am", "A#m"]  # outside; ii; III's ^7 on a minor
+
+
+def test_a_heard_quality_the_key_would_not_give_takes_the_scales_seventh():
+    assert colour_chords(["D"], G_MINOR) == ["D7"]
+
+
+def test_a_heard_seventh_wins_and_a_heard_ninth_spells_a_ninth_chord():
+    assert colour_chords(["Gm^7", "Gmadd9"], G_MINOR) == ["Gm^7", "Gm9"]
+
+
+def test_no_chord_stays_no_chord():
+    assert colour_chords(["~", "Gm"], G_MINOR) == ["~", "Gm7"]

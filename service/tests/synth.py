@@ -286,6 +286,7 @@ _CHORDS = {
     "^7": (0, 4, 7, 11),
     "m9": (0, 3, 7, 10, 14),
     "9": (0, 4, 7, 10, 14),
+    "7+^7": (0, 4, 7, 10, 23),
     "5": (0, 7, 12),
     "5wobble": (0, 7, 12),
 }
@@ -304,8 +305,9 @@ def _wobbling_tone(freq: float, n: int) -> np.ndarray:
 def pad_chords(chords: list[tuple[int, str]], bpm: float) -> np.ndarray:
     """One (root_midi, quality) chord per bar; each note harmonics 1 and 2 at 1/n, held the whole bar.
 
-    Qualities: "major", "minor", "m7", "7", "^7", "m9", "9", "5" (root, fifth, octave), and "5wobble", the same
-    notes each wobbling +-40 cents at 6 Hz, which smears the chroma as Solomun 36:40's stab does.
+    Qualities: "major", "minor", "m7", "7", "^7", "m9", "9", "7+^7" (both 7ths, the major one an octave up so the
+    two read at different levels), "5" (root, fifth, octave), and "5wobble", the same notes each wobbling +-40 cents
+    at 6 Hz, which smears the chroma as Solomun 36:40's stab does.
     Each bar gets 10 ms fades so chord changes do not click.
     """
     out = np.zeros(_samples(len(chords) * _bar_seconds(bpm)))
