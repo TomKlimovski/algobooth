@@ -918,15 +918,26 @@
   ],
   "bass_harmonics": 0.8012998112944643,
   "chords": [
-    "G",
-    "G",
-    "G",
-    "G",
-    "G",
-    "G",
-    "G",
+    "Gm7",
+    "Gm7",
+    "Gm7",
+    "Gm^7",
+    "Gm7",
+    "Gm7",
+    "Gm7",
+    "Gm7",
+    "G9"
+  ],
+  "heard_chords": [
     "Gm",
-    "G"
+    "Gm",
+    "Gm",
+    "Gm^7",
+    "Gm",
+    "Gm",
+    "Gm",
+    "Gm",
+    "Gadd9"
   ],
   "melody": [
     {

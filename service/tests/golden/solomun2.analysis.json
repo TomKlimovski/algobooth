@@ -402,11 +402,18 @@
   ],
   "bass_harmonics": 0.539532506116182,
   "chords": [
-    "D#",
-    "Em",
-    "Em",
-    "A#",
-    "A#"
+    "D#9",
+    "D#9",
+    "D#9",
+    "D#9",
+    "A#9"
+  ],
+  "heard_chords": [
+    "D#add9",
+    "D#add9",
+    "D#add9",
+    "D#add9",
+    "A#9"
   ],
   "melody": null,
   "bass_loop": {

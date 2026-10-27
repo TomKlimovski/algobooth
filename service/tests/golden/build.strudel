@@ -7,4 +7,5 @@ hats: s("[~ ~ hh ~] [hh ~ hh ~] [hh ~ hh ~] [hh ~ ~ ~], ~ ~ ~ [~ ~ oh:2 ~]").ban
 bass: note("<[a1@8 c2 ~ e2 a1 g1 ~ e2 d2] [a1@8 g1 a1 d2 ~ e2 c2 a1 ~]>").s("sawtooth").lpf(430).shape(0.3).gain(0.55).orbit(2)
 // bars 6–8 add this under the bass (a variation): remove the underscore to hear it (match 0.92 without, 0.91 with)
 _bass2: note("[~ a1 a1 a1] a1*4 ~ ~").s("sawtooth").lpf(430).shape(0.3).gain(0.41).orbit(2)
-chords: chord("<Am F C G>").voicing().s("supersaw").unison(5).detune(0.2).lpf(500).room(0.4).gain(0.2).orbit(2)
+chords: chord("<Am7 F^7 C^7 G7>").voicing().s("supersaw").unison(5).detune(0.2).lpf(500).room(0.4).gain(0.2).orbit(2)
+_triads: chord("<Am F C G>").voicing().s("supersaw").unison(5).detune(0.2).lpf(500).room(0.4).gain(0.2).orbit(2)
