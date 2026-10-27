@@ -278,21 +278,46 @@ def swept_bass(notes: list[tuple[int, int, int, int]], bpm: float, bars: int, sw
     return out.astype(np.float32)
 
 
-_TRIADS = {"major": (0, 4, 7), "minor": (0, 3, 7)}
+_CHORDS = {
+    "major": (0, 4, 7),
+    "minor": (0, 3, 7),
+    "m7": (0, 3, 7, 10),
+    "7": (0, 4, 7, 10),
+    "^7": (0, 4, 7, 11),
+    "m9": (0, 3, 7, 10, 14),
+    "9": (0, 4, 7, 10, 14),
+    "5": (0, 7, 12),
+    "5wobble": (0, 7, 12),
+}
+_WOBBLE_CENTS = 40.0
+_WOBBLE_HZ = 6.0
+
+
+def _wobbling_tone(freq: float, n: int) -> np.ndarray:
+    """Harmonics 1 and 2 at 1/n, the pitch swinging +-_WOBBLE_CENTS at _WOBBLE_HZ: a smeared stab."""
+    t = np.arange(n) / SR
+    hz = freq * 2.0 ** (_WOBBLE_CENTS * np.sin(2 * np.pi * _WOBBLE_HZ * t) / 1200)
+    phase = 2 * np.pi * np.cumsum(hz) / SR
+    return sum(np.sin(k * phase) / k for k in (1, 2))
 
 
 def pad_chords(chords: list[tuple[int, str]], bpm: float) -> np.ndarray:
-    """One (root_midi, "major" | "minor") triad per bar; each note harmonics 1 and 2 at 1/n, held the whole bar.
+    """One (root_midi, quality) chord per bar; each note harmonics 1 and 2 at 1/n, held the whole bar.
 
+    Qualities: "major", "minor", "m7", "7", "^7", "m9", "9", "5" (root, fifth, octave), and "5wobble", the same
+    notes each wobbling +-40 cents at 6 Hz, which smears the chroma as Solomun 36:40's stab does.
     Each bar gets 10 ms fades so chord changes do not click.
     """
     out = np.zeros(_samples(len(chords) * _bar_seconds(bpm)))
     for bar, (root, quality) in enumerate(chords):
-        if quality not in _TRIADS:
+        if quality not in _CHORDS:
             raise ValueError(f"unknown chord quality: {quality!r}")
         start = _step_start(bar, 0, bpm)
         n = _step_start(bar + 1, 0, bpm) - start
-        chord = sum(_harmonic_tone(_midi_hz(root + i), n, harmonics=2) for i in _TRIADS[quality])
+        if quality == "5wobble":
+            chord = sum(_wobbling_tone(_midi_hz(root + i), n) for i in _CHORDS[quality])
+        else:
+            chord = sum(_harmonic_tone(_midi_hz(root + i), n, harmonics=2) for i in _CHORDS[quality])
         _place(out, start, chord * _ramps(n, 0.01))
     return out.astype(np.float32)
 

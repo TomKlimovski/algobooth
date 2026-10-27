@@ -1,10 +1,16 @@
-"""One chord per bar from the "other" stem: the best-matching major or minor triad; and how the stem sounds."""
+"""One chord per bar from the "other" stem: the best-matching major or minor triad; and how the stem sounds.
+
+The triad's root comes from a template match on CQT chroma. Its third, and whether the bar has a chord of its own,
+come from a peak chroma (`peak_chroma_bars`), which measures notes rather than their smear: on Solomun 36:40 the CQT
+chroma puts G# 0.44 to 0.58 and F# 0.30 to 0.43 either side of a bare G, where the peak chroma reads G and D, with
+A# at most 0.21 of G and B at most 0.22 in six of its nine bars: a root and a fifth, which takes G minor's third.
+"""
 
 import librosa
 import numpy as np
 
 from algorip.grid import Grid
-from algorip.key import PITCH_NAMES
+from algorip.key import PITCH_NAMES, Key
 from algorip.schema import OtherTone
 
 SILENT_BAR = 0.01  # a bar under this share of the loudest bar's chroma energy has no chord of its own
@@ -14,6 +20,10 @@ _TONE_HOP = 256
 DECAY_AFTER = 0.25  # seconds after an onset's peak at which its level is read
 PEAK_WITHIN = 0.05  # seconds: an onset's peak is the loudest frame this soon after it
 LOUD_SHARE = 0.1  # an onset or frame under this share of the stem's loudest frame is not measured
+CLEAR_SHARE = 0.45  # a bar whose four strongest peak pitch classes hold less than this share has no chord of its own
+THIRD_SHARE = 0.25  # a third under this share of the root's peak chroma is not heard
+_PEAK_BINS_PER_SEMITONE = 3
+_PEAK_OCTAVES = 7
 
 _TRIADS = {False: (0, 4, 7), True: (0, 3, 7)}  # minor -> intervals
 
@@ -43,7 +53,79 @@ def _bar_means(chroma: np.ndarray, sr: int, grid: Grid) -> list[np.ndarray]:
     return means
 
 
-def estimate_chords(other: np.ndarray, sr: int, grid: Grid) -> list[str]:
+def peak_chroma_bars(other: np.ndarray, sr: int, grid: Grid) -> list[np.ndarray]:
+    """Per bar, the mean peak chroma: each semitone by how far its centre bin stands above its neighbours.
+
+    A CQT at 3 bins per semitone from C1 over 7 octaves, tuned by the clip's own tuning, so bin 3k is semitone k's
+    centre and 3k-1, 3k+1 its neighbours. Per frame a semitone scores max(0, centre - max(neighbours)), and the
+    octaves sum into 12 pitch classes. A pitch wobble or a neighbour's skirt raises a centre bin and its neighbours
+    together, so it scores little; a held note stands alone. On 36:40 this reads G and D (D 0.49 of G up to louder
+    than G) where the CQT chroma shows F# and G# around the G. Zeros for a bar with no frames.
+    """
+    y = np.asarray(other, dtype=np.float32)
+    per_octave = 12 * _PEAK_BINS_PER_SEMITONE
+    # librosa.cqt reads tuning in fractions of one of its own bins (a third of a semitone here), while this estimate
+    # is in fractions of a semitone, so the bins move by a third of the estimate. Kept as measured: the spec's
+    # top-four shares (48:50's 0.40, 0.42, 0.46) and CLEAR_SHARE were taken this way. On the wobbling-fifth fixture
+    # the estimate reads -0.34 and D scores 0.41 of G; at tuning 0 it scores 0.24.
+    tuning = librosa.estimate_tuning(y=y, sr=sr)
+    c = np.abs(
+        librosa.cqt(
+            y,
+            sr=sr,
+            hop_length=_HOP,
+            fmin=librosa.note_to_hz("C1"),
+            n_bins=_PEAK_OCTAVES * per_octave,
+            bins_per_octave=per_octave,
+            tuning=tuning,
+        )
+    )
+    padded = np.pad(c, ((1, 1), (0, 0)))  # an edge bin's missing neighbour counts as silent
+    centres = padded[1:-1:_PEAK_BINS_PER_SEMITONE]
+    neighbours = np.maximum(padded[0:-2:_PEAK_BINS_PER_SEMITONE], padded[2::_PEAK_BINS_PER_SEMITONE])
+    peaks = np.maximum(0.0, centres - neighbours)  # (semitones, frames), semitone 0 is C1
+    chroma = peaks.reshape(_PEAK_OCTAVES, 12, -1).sum(axis=0)
+    return _bar_means(chroma, sr, grid)
+
+
+def _is_clear(peak: np.ndarray) -> bool:
+    """Whether the bar's four strongest peak pitch classes hold at least CLEAR_SHARE of its peak chroma.
+
+    A chord concentrates the weight, flat chroma spreads it. Measured top-four shares: a synthetic triad 0.99 to 1.0,
+    36:40's bars 0.54 to 0.83, 48:50's bar 0 0.70, bars 1 to 3 0.41, 0.43 and 0.46 and bar 4 0.56, white noise
+    0.36. At 0.45, 48:50's bars 1 and 2 carry bar 0's chord, and bar 3 keeps its own: thin margins, so a bar that
+    moves across the line on a rerun is a finding, not a reason to tune.
+    """
+    total = float(peak.sum())
+    return total > 0 and float(np.sort(peak)[-4:].sum()) >= CLEAR_SHARE * total
+
+
+def _third(root: int, minor: bool, peak: np.ndarray, key: Key | None) -> bool:
+    """Whether the chord on root is minor, by the third the peak chroma hears, else the key's, else the template's.
+
+    A third counts as heard at THIRD_SHARE of the root's peak chroma. On 36:40, A# reads at most 0.21 of G in bars 0
+    to 6 (1.53 in bar 7, under A# and C), and B 0.10 to 0.22 in six bars but 0.28, 0.33 and 0.53 in bars 2, 5 and
+    8, which therefore write `G`. If both are
+    heard, the louder decides (an exact tie keeps the template's pick). If neither is, a root in the key's scale
+    takes the key's diatonic quality: minor if the minor third is in the scale and the major third is not, major
+    the other way. A root outside the key keeps the template's pick.
+    """
+    lower, upper = peak[(root + 3) % 12], peak[(root + 4) % 12]
+    floor = THIRD_SHARE * peak[root]
+    heard_minor, heard_major = bool(lower >= floor), bool(upper >= floor)
+    if heard_minor and heard_major:
+        return bool(lower > upper) if lower != upper else minor
+    if heard_minor or heard_major:
+        return heard_minor
+    if key is None or root not in key.scale:
+        return minor
+    has_minor, has_major = (root + 3) % 12 in key.scale, (root + 4) % 12 in key.scale
+    if has_minor != has_major:
+        return has_minor
+    return minor
+
+
+def estimate_chords(other: np.ndarray, sr: int, grid: Grid, key: Key | None = None) -> list[str]:
     """Per bar, the triad whose binary template has the highest cosine similarity with the bar's mean chroma.
 
     The template match uses librosa's CQT chroma, which separates the triads cleanly. The silence
@@ -52,22 +134,30 @@ def estimate_chords(other: np.ndarray, sr: int, grid: Grid) -> list[str]:
     normalised per frame, so loudness carries into each bar's energy. A bar under 1% of the loudest
     bar's chroma energy repeats the previous bar's chord ("~" if it is the first bar). Ties go to the
     earlier template: major before minor, then lower root.
+
+    Then the peak chroma (`peak_chroma_bars`) has the last word on two things. A bar with no clear notes
+    (`_is_clear`) repeats the previous chord as a silent bar does: before, 48:50's noisy bars 1 and 2 wrote `Em`,
+    outside D# minor. And the third comes from what the stem plays, or from the key when it plays none (`_third`):
+    before, 36:40's bare G stab tied to `G` against a G minor key.
     """
     y = np.asarray(other, dtype=np.float32)
     means = _bar_means(librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=_HOP, norm=None), sr, grid)
     gate = _bar_means(librosa.feature.chroma_stft(y=y, sr=sr, hop_length=_HOP, norm=None), sr, grid)
+    peaks = peak_chroma_bars(y, sr, grid)
     energies = [float(m.sum()) for m in gate]
     loudest = max(energies, default=0.0)
     templates = _templates()
     chords: list[str] = []
-    for mean, energy in zip(means, energies):
+    for mean, energy, peak in zip(means, energies, peaks):
         size = float(np.linalg.norm(mean))
-        if loudest <= 0 or energy < SILENT_BAR * loudest or size <= 0:
+        if loudest <= 0 or energy < SILENT_BAR * loudest or size <= 0 or not _is_clear(peak):
             chords.append(chords[-1] if chords else NO_CHORD)
             continue
         unit = mean / size
         scores = [float(unit @ t) for _, t in templates]
-        chords.append(templates[int(np.argmax(scores))][0])
+        pick = int(np.argmax(scores))
+        root, minor = pick % 12, pick >= 12
+        chords.append(chord_name(root, _third(root, minor, peak, key)))
     return chords
 
 

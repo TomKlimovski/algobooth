@@ -133,7 +133,7 @@ def _analyse(stems: dict[str, Path], predict: Predictor, report: Callable[[float
     bass_harmonics = harmonic_ratio(bass, SR, bass_notes, grid)
     report(0.7)
 
-    chords = estimate_chords(other, SR, grid)
+    chords = estimate_chords(other, SR, grid, key)
     report(0.9)
 
     melody = transcribe_melody(stems["other"], grid, key, predict=predict)
