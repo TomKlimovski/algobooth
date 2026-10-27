@@ -128,12 +128,14 @@ All in `service/algorip/chords.py` unless named otherwise.
      - 36:40 bar 8 hears B at 0.40 of G against A# at 0.37, so it writes `G`.
      - 48:50 bar 0 hears G at 0.29 of D#, so it writes `D#`; bars 1 to 3 repeat it (bar 3 is unclear, see above);
        bar 4 hears D at 0.40 against C# at 0.39 of A#, so it writes `A#`.
-   - The heard chords with extensions (what `_triads:` holds), predicted from the measured peak chroma at
-     `EXT_SHARE` 0.4 against the root (task 2 confirms):
+   - The heard chords with extensions (what `_triads:` holds), as `estimate_chords` writes them at `EXT_SHARE` 0.4
+     against the root (task 2 measured; differences are findings for Tom by ear): 36:40
+     `Gm Gm Gm Gm^7 Gm Gm Gm Gm G^9`, 48:50 `D#add9 D#add9 D#add9 D#add9 A#9`.
      - 36:40: `Gm` in bars 0 to 2 and 4 to 7 (7ths at most 0.23, 9ths at most 0.26). Bar 3's F# reads 0.49 of G,
        which writes `Gm^7`; whether that F# is a note or the G's wobble is the first thing to check by ear (the
        wobbling-fifth fixture puts F# at 0.01, so the peak chroma does not make it from a wobble). Bar 8: the 9th
-       (A) at 1.0 and both 7ths at 0.67 of G, so `G9` or `G^9` by the 7ths' tie.
+       (A) at 1.00 and both 7ths at 0.67 of G (F# 0.6675 against F 0.6656), so `G^9` by 0.002: which 7th it is
+       is a finding for Tom by ear.
      - 48:50: bar 0 the 9th (F) at 0.44, so `D#add9`, repeated in bars 1 to 3; bar 4 the minor 7th (G#) at 0.43 and
        the 9th (C) at 0.62, so `A#9`.
    - Bar 7 of 36:40 is the one ambiguous bar: the CQT template picks G, and the peak chroma reads G 1.0, C 0.91,
@@ -153,7 +155,7 @@ All in `service/algorip/chords.py` unless named otherwise.
    - **Expected:**
      - Predicted from the re-measured peak chroma (task 3 confirms; differences from the first probe's
        `Gm7` everywhere and `D#m7 D#m7 D#m7 A#m7 A#m7` are findings for Tom by ear):
-     - 36:40: `Gm7` in bars 0 to 2 and 4 to 7, `Gm^7` in bar 3 (a heard 7th wins), `G9` or `G^9` in bar 8.
+     - 36:40: `Gm7` in bars 0 to 2 and 4 to 7, `Gm^7` in bar 3 (a heard 7th wins), `G^9` in bar 8 (heard, by 0.002 over `G9`).
      - 48:50: `D#9 D#9 D#9 D#9 A#9` (bar 0's heard 9th with the borrowed C#; bar 4's heard 7th and 9th).
 
 6. **Where it lives.**

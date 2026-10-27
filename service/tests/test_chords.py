@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from algorip.audio import SR
-from algorip.chords import chord_name, estimate_chords, peak_chroma_bars
+from algorip.chords import chord_name, estimate_chords, peak_chroma_bars, spell
 from algorip.grid import Grid
 from algorip.key import Key
 from tests.synth import mix, pad_chords, silence
@@ -101,3 +101,20 @@ def test_peak_chroma_names_the_notes_not_their_smear():
     assert bar[7] == 1.0                             # G is the loudest
     assert bar[6] < 0.25 and bar[8] < 0.25          # no F# or G# from the wobble
     assert bar[6] < bar[2] and bar[8] < bar[2]      # and each under the D that is played
+
+
+@pytest.mark.parametrize("quality,symbol", [("m7", "Am7"), ("7", "A7"), ("^7", "A^7"), ("m9", "Am9"), ("9", "A9")])
+def test_heard_extensions_round_trip(quality, symbol):
+    y = pad_chords([(57, quality)], 120)
+    assert estimate_chords(y, SR, Grid(bpm=120, first_downbeat=0.0, bars=1)) == [symbol]
+
+
+def test_a_wobbling_fifth_gets_no_seventh_or_ninth():
+    y = pad_chords([(55, "5wobble")], 120)
+    assert estimate_chords(y, SR, Grid(bpm=120, first_downbeat=0.0, bars=1), G_MINOR) == ["Gm"]
+
+
+def test_spelling():
+    assert spell(9, True, 10, False) == "Am7" and spell(9, True, 11, True) == "Am^9"
+    assert spell(7, False, None, True) == "Gadd9" and spell(7, True, None, True) == "Gmadd9"
+    assert spell(7, False, 10, True) == "G9" and spell(7, False, None, False) == "G"

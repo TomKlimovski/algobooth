@@ -22,6 +22,7 @@ PEAK_WITHIN = 0.05  # seconds: an onset's peak is the loudest frame this soon af
 LOUD_SHARE = 0.1  # an onset or frame under this share of the stem's loudest frame is not measured
 CLEAR_SHARE = 0.45  # a bar whose four strongest peak pitch classes hold less than this share has no chord of its own
 THIRD_SHARE = 0.25  # a third under this share of the root's peak chroma is not heard
+EXT_SHARE = 0.4  # a 7th or 9th under this share of the root's peak chroma is not heard
 _PEAK_BINS_PER_SEMITONE = 3
 _PEAK_OCTAVES = 7
 
@@ -31,6 +32,19 @@ _TRIADS = {False: (0, 4, 7), True: (0, 3, 7)}  # minor -> intervals
 def chord_name(root: int, minor: bool) -> str:
     """Sharps-only root name, with "m" for minor: "A#", "F#m"."""
     return PITCH_NAMES[root % 12] + ("m" if minor else "")
+
+
+def spell(root: int, minor: bool, seventh: int | None, ninth: bool) -> str:
+    """The symbol for a root, its third, a 7th (10 or 11 semitones, or None) and a 9th: "Am7", "G^9", "Gmadd9".
+
+    The single place chord symbols are formed: a 9th with a 7th is a 9 chord ("9"/"^9", "m9"/"m^9"), a 7th alone
+    "7"/"^7" ("m7"/"m^7"), a 9th alone "add9" ("madd9").
+    """
+    name = chord_name(root, minor)
+    major_seventh = "^" if seventh == 11 else ""
+    if seventh is not None:
+        return name + major_seventh + ("9" if ninth else "7")
+    return name + ("add9" if ninth else "")
 
 
 def _templates() -> list[tuple[str, np.ndarray]]:
@@ -125,8 +139,26 @@ def _third(root: int, minor: bool, peak: np.ndarray, key: Key | None) -> bool:
     return minor
 
 
+def _extensions(root: int, peak: np.ndarray) -> tuple[int | None, bool]:
+    """The 7th (10, 11 or None) and whether the 9th is heard: each at EXT_SHARE of the root's peak chroma.
+
+    If both 7ths clear it the louder is written (an exact tie, the minor 7th). A minor 9th is never written. The
+    peak chroma keeps a smear out: the wobbling fifth reads F# 0.01 and G# 0.00 of G.
+
+    Measured on 36:40 (of G): 7ths at most 0.23 and 9ths at most 0.33 in bars 0 to 7, except bar 3's F# 0.49, which
+    writes `Gm^7`; bar 8 A 1.00, F# 0.6675 and F 0.6656, so `G^9` by 0.002. On 48:50, bar 0 F 0.44 of D#
+    (`D#add9`), bar 4 G# 0.43 and C 0.62 of A# (`A#9`). Bar 3's F#, and bar 8's 7th, are open findings (see the design).
+    """
+    floor = EXT_SHARE * peak[root]
+    if floor <= 0:
+        return None, False
+    sevenths = [s for s in (10, 11) if peak[(root + s) % 12] >= floor]
+    seventh = max(sevenths, key=lambda s: (peak[(root + s) % 12], -s)) if sevenths else None
+    return seventh, bool(peak[(root + 2) % 12] >= floor)
+
+
 def estimate_chords(other: np.ndarray, sr: int, grid: Grid, key: Key | None = None) -> list[str]:
-    """Per bar, the triad whose binary template has the highest cosine similarity with the bar's mean chroma.
+    """Per bar, the chord heard: the triad whose binary template best matches the bar's mean chroma, plus a 7th or 9th.
 
     The template match uses librosa's CQT chroma, which separates the triads cleanly. The silence
     gate uses STFT chroma: the CQT's long low-frequency kernels smear a chord ~0.3 s into a silent
@@ -138,7 +170,8 @@ def estimate_chords(other: np.ndarray, sr: int, grid: Grid, key: Key | None = No
     Then the peak chroma (`peak_chroma_bars`) has the last word on two things. A bar with no clear notes
     (`_is_clear`) repeats the previous chord as a silent bar does: before, 48:50's noisy bars 1 and 2 wrote `Em`,
     outside D# minor. And the third comes from what the stem plays, or from the key when it plays none (`_third`):
-    before, 36:40's bare G stab tied to `G` against a G minor key.
+    before, 36:40's bare G stab tied to `G` against a G minor key. A 7th or 9th the peak chroma hears
+    (`_extensions`) is added, and `spell` writes the symbol.
     """
     y = np.asarray(other, dtype=np.float32)
     means = _bar_means(librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=_HOP, norm=None), sr, grid)
@@ -157,7 +190,7 @@ def estimate_chords(other: np.ndarray, sr: int, grid: Grid, key: Key | None = No
         scores = [float(unit @ t) for _, t in templates]
         pick = int(np.argmax(scores))
         root, minor = pick % 12, pick >= 12
-        chords.append(chord_name(root, _third(root, minor, peak, key)))
+        chords.append(spell(root, _third(root, minor, peak, key), *_extensions(root, peak)))
     return chords
 
 
