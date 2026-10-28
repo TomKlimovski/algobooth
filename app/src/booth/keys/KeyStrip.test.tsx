@@ -111,7 +111,8 @@ test('draws the five rows: 26 letters, 9 digits, 8 F keys and the hint line', ()
   expect($$('.key.num[data-n]').map((k) => k.dataset.n)).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9']);
   expect($$('.key.fn[data-key]').map((k) => k.dataset.key)).toEqual(['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8']);
   expect($('.key-hint').textContent).toContain('tap commit · hold audition · shift/ctrl+key nudge · 1–9 line · F1–F8 snapshot · tab deck · esc edit · ');
-  expect($('.key-hint').textContent).toContain('↵ play/stop · space both · ` stop all');
+  expect($('.key-hint').textContent).toContain('↵ play/stop · space both · ` stop all · ');
+  expect($('.key-hint').textContent).toMatch(/Z play\/stop · .*X update/);
 });
 
 test('each key shows its letter, its label and its state as classes', () => {

@@ -1,4 +1,4 @@
-import { transportAction, transportKey } from './transportKeys';
+import { globalKey, transportAction, transportKey } from './transportKeys';
 
 type Mods = { repeat?: boolean; metaKey?: boolean; ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean };
 const key = (code: string, target: EventTarget | null, mods: Mods = {}) => ({ code, target, ...mods });
@@ -52,4 +52,26 @@ test('no transport key works while another tab is showing', () => {
 test('transport action stops if anything plays, else starts', () => {
   expect(transportAction(true)).toBe('stop');
   expect(transportAction(false)).toBe('start');
+});
+
+test('Alt+Z plays or stops and Alt+X updates, on any tab and with any focus', () => {
+  const field = document.createElement('input');
+  for (const target of [document.body, editorLine(), field, document.createElement('button')]) {
+    expect(globalKey(key('KeyZ', target, { altKey: true }))).toBe('toggle');
+    expect(globalKey(key('KeyX', target, { altKey: true }))).toBe('update');
+  }
+});
+
+test('the global keys need Alt alone; plain, other modifiers and other letters are not theirs', () => {
+  expect(globalKey(key('KeyZ', document.body))).toBe(null);
+  expect(globalKey(key('KeyX', document.body, { shiftKey: true }))).toBe(null);
+  expect(globalKey(key('KeyZ', document.body, { ctrlKey: true }))).toBe(null);
+  expect(globalKey(key('KeyZ', document.body, { metaKey: true }))).toBe(null);
+  expect(globalKey(key('KeyZ', document.body, { altKey: true, shiftKey: true }))).toBe(null);
+  expect(globalKey(key('KeyC', document.body, { altKey: true }))).toBe(null);
+});
+
+test('a held global key repeats as swallowed, not as another press', () => {
+  expect(globalKey(key('KeyZ', document.body, { altKey: true, repeat: true }))).toBe('repeat');
+  expect(globalKey(key('KeyX', editorLine(), { altKey: true, repeat: true }))).toBe('repeat');
 });

@@ -17,7 +17,7 @@ import type { Lesson } from '../lessons/lessons';
 import { LOAD_OVER_EDITS_PROMPT } from '../library/store';
 import { newPatternDecision } from './deckFile';
 import { askSave } from './saveChoice';
-import { transportAction, transportKey } from './transportKeys';
+import { globalKey, transportAction, transportKey } from './transportKeys';
 import { DECK_CONTROLS, MASTER_CONTROLS } from '../engine/controlMap';
 import { settings, updateSettings } from '../settings/settings';
 import type { Quantise } from './keys/bindings';
@@ -147,8 +147,17 @@ export function Booth(props: {
 
   const stopAll = () => DECK_IDS.forEach((id) => booth.state.decks[id]?.stop());
   const anyStarted = () => DECK_IDS.some((id) => booth.state.decks[id]?.scheduler.started);
-  // Captured on the window, so Cmd+Enter in the editor toggles the deck before CodeMirror inserts a line.
+  // Captured on the window, so Cmd+Enter and the global Alt+Z/X reach the deck before CodeMirror (or a field) sees them.
   const onKey = (e: KeyboardEvent) => {
+    const g = ready() ? globalKey(e) : null;
+    if (g) {
+      e.preventDefault();
+      e.stopPropagation();
+      const deck = booth.state.decks[props.library.state.target];
+      if (g === 'toggle') deck?.toggle();
+      else if (g === 'update') void deck?.evaluate(false); // a failure shows in the deck's error line
+      return;
+    }
     const k = ready() ? transportKey(e, props.active?.() ?? true) : null;
     if (!k) return;
     e.preventDefault();

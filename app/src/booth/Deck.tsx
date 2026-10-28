@@ -21,7 +21,7 @@ import { KeyStrip } from './keys/KeyStrip';
 import { lineGutterExtension, patternLineDecoration, refreshLines } from './keys/lineGutter';
 import { REFUSED_ARG, REFUSED_LINE, type Edit } from './keys/press';
 import { insertAtCursor, methodDropExtension, type MethodDrag } from './methodDrop';
-import { MOD_ENTER } from './transportKeys';
+import { ALT_X, ALT_Z, MOD_ENTER } from './transportKeys';
 import { SaveDialog, type SaveTarget } from './SaveDialog';
 import { askSave } from './saveChoice';
 import './deck.css';
@@ -571,10 +571,12 @@ export function Deck(props: {
       />
       <div class="deck-error" role="alert">{deck.state.error}</div>
       <div class="deck-transport">
-        <button class="deck-btn" classList={{ on: deck.state.playing }} onClick={toggle} title={`Play or stop this deck (${MOD_ENTER} on the deck the keys play)`}>
+        <button class="deck-btn" classList={{ on: deck.state.playing }} onClick={toggle} title={`Play or stop this deck (${ALT_Z} or ${MOD_ENTER} on the deck the keys play)`}>
           {deck.state.playing ? 'Stop' : 'Play'}
         </button>
-        <button class="deck-btn ghost" onClick={update}>Update</button>
+        <button class="deck-btn ghost" onClick={update} title={`Re-evaluate, keeping it playing or stopped (${ALT_X} on the deck the keys play)`}>
+          Update
+        </button>
         <button class="deck-btn ghost" onClick={format} title="Every chained method on its own line">Format</button>
         <span class="deck-transport-gap" />
         <button class="deck-btn ghost" disabled={!props.library} onClick={() => void newPattern()}>New</button>

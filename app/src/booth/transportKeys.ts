@@ -39,5 +39,21 @@ export function transportKey(e: KeyLike, boothShowing = true, mac = IS_MAC): Tra
   return 'stopAll';
 }
 
+/**
+ * The global keys, the same on every tab, in either mode and with any focus (the editor and form fields too):
+ * Alt+Z (Option+Z on the Mac) plays or stops the deck the keys play, Alt+X updates it. Matched by physical key,
+ * since the Mac's Option turns the letters into Ω and ≈. A held key repeats as 'repeat', for the caller to swallow.
+ */
+export type GlobalKey = 'toggle' | 'update' | 'repeat';
+/** The global keys as the hint line and tooltips show them. */
+export const ALT_Z = IS_MAC ? '⌥Z' : 'alt+Z';
+export const ALT_X = IS_MAC ? '⌥X' : 'alt+X';
+
+export function globalKey(e: KeyLike): GlobalKey | null {
+  if ((e.code !== 'KeyZ' && e.code !== 'KeyX') || !e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return null;
+  if (e.repeat) return 'repeat';
+  return e.code === 'KeyZ' ? 'toggle' : 'update';
+}
+
 /** Any deck playing means Space stops everything; otherwise it starts everything. */
 export const transportAction = (anyStarted: boolean): 'stop' | 'start' => (anyStarted ? 'stop' : 'start');
