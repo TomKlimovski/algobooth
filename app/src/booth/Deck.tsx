@@ -25,6 +25,7 @@ import { cutVoices, isPitched, labelOf, planRestrike, RESTRIKE_LEAD, Voices } fr
 import { insertAtCursor, methodDropExtension, type MethodDrag } from './methodDrop';
 import { ALT_X, ALT_Z, MOD_ENTER } from './transportKeys';
 import { SaveDialog, type SaveTarget } from './SaveDialog';
+import { BeatMeter, createBeatClock } from './BeatMeter';
 import { askSave } from './saveChoice';
 import './deck.css';
 
@@ -395,6 +396,7 @@ export function Deck(props: {
   const lines = createMemo(() => props.controller.lines(id));
   const target = () => deck.state.targetLine;
   const cue = createMemo(() => cueOf(deck.state.liveCode));
+  const beat = createBeatClock(() => mirror.repl.scheduler, () => deck.state.playing);
 
   onMount(() => {
     fitCanvas();
@@ -561,7 +563,7 @@ export function Deck(props: {
   return (
     <section
       class="deck"
-      classList={{ 'drop-target': dragOver(), performing: props.perform() && props.performing() }}
+      classList={{ 'drop-target': dragOver(), performing: props.perform() && props.performing(), ticking: !!beat(), 'on-beat': !!beat()?.flash }}
       data-deck={id}
       onDragOver={onDragOver}
       onPointerDown={() => props.onUse?.()}
@@ -596,6 +598,7 @@ export function Deck(props: {
             </span>
           )}
         </Show>
+        <BeatMeter pos={beat()} waiting={deck.state.queued > 0} quantise={props.quantise()} />
         <Show when={deck.state.queued > 0}>
           <span class="deck-countdown" role="status">next {props.quantise()} in {deck.state.beatsLeft}</span>
         </Show>

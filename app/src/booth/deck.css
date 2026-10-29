@@ -135,3 +135,23 @@
 .save-actions { display: flex; gap: 6px; justify-content: flex-end; }
 .save-actions .deck-btn:disabled { opacity: 0.4; cursor: default; }
 .deck-header.cue-target { outline: 1px dashed #ffb86c; outline-offset: -1px; }
+
+/* The beat meter: bar.beat and four lamps, lit on the deck's own clock (BeatMeter.tsx). */
+.beat-meter { display: inline-flex; gap: 3px; align-items: center; align-self: center; }
+.beat-count {
+  min-width: 3.5em;
+  margin-right: 3px;
+  color: #8b90a0;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.beat-lamp { width: 10px; height: 6px; border-radius: 1px; background: #23262e; }
+.beat-lamp.lit { background: #3d5a73; }
+.beat-lamp.lit.flash { background: #61afef; }
+.beat-lamp.down.lit { background: #6e2a20; }
+.beat-lamp.down.lit.flash { background: #e94f37; }
+/* Presses are waiting: the lamp they land on is outlined, and blinks on every beat until they do. */
+.beat-meter.waiting .beat-count { color: #ffb86c; }
+.beat-lamp.landing { box-shadow: inset 0 0 0 1px #ffb86c; }
+.beat-lamp.landing.blink { background: #ffb86c; }

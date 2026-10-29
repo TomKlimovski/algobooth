@@ -61,7 +61,10 @@
 .key.fill.on .key-label { color: #fff; }
 .key.refused { border: 1px dashed #5c6170; background: #0e0f13; }
 .key.refused .key-label { color: #5c6170; }
+/* A waiting press pulses: on its deck's beat while that deck plays (the beat meter sets .on-beat), else on its own. */
 .key.pending { animation: key-pending 1s ease-in-out infinite; }
+.deck.ticking .key.pending { animation: none; box-shadow: inset 0 0 0 1px rgba(97, 175, 239, 0.15); }
+.deck.ticking.on-beat .key.pending { box-shadow: inset 0 0 0 2px rgba(97, 175, 239, 0.9); }
 .key.held { outline: 2px solid #61afef; outline-offset: -1px; }
 .key.drop { outline: 2px solid #ffb86c; outline-offset: -1px; background: #171a22; }
 
