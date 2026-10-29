@@ -13,6 +13,7 @@
     "windows": [
       {
         "title": "Algobooth",
+        "create": false,
         "width": 1400,
         "minWidth": 1100,
         "minHeight": 700,

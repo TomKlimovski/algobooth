@@ -3,6 +3,7 @@ mod service;
 mod settings;
 mod slug;
 mod watcher;
+mod webview;
 
 use tauri::Manager;
 
@@ -31,6 +32,7 @@ pub fn run() {
       service::commands::restart_service,
     ])
     .setup(|app| {
+      webview::create_main_window(app)?;
       // Rust owns the library root: commands never take it from the webview.
       let library_dir = settings::load(app.handle()).library_dir;
       app.manage(library::commands::LibraryRoot::new(library_dir));
