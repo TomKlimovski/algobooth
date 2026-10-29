@@ -34,6 +34,24 @@ export interface SyncOptions {
   clearTimer?: (handle: TimerHandle) => void;
 }
 
+/** Which deck leads a sync and which follows it. */
+export interface SyncRoles {
+  leader: DeckId;
+  follower: DeckId;
+}
+
+/**
+ * Picks the decks' roles when Sync is pressed: the playing deck leads and the stopped one follows, so the
+ * stopped deck can be synced and started on the bar, then faded in. With both playing, the deck the crossfader
+ * favours (0 is A, 1 is B) is the one being heard, so it leads and the other snaps to its bar; at the centre A
+ * leads. With neither playing there is nothing to sync to.
+ */
+export function syncRoles(started: Record<DeckId, boolean>, fader: number): SyncRoles | null {
+  if (!started.A && !started.B) return null;
+  const leader: DeckId = started.A && started.B ? (fader > 0.5 ? 'B' : 'A') : started.A ? 'A' : 'B';
+  return { leader, follower: leader === 'A' ? 'B' : 'A' };
+}
+
 /** A start of B held back until A's next bar line. */
 interface Wait {
   resolve: () => void;
@@ -42,7 +60,8 @@ interface Wait {
 }
 
 /**
- * DJ-style sync: deck B follows deck A's tempo and bar line, and latches.
+ * DJ-style sync: deck B follows deck A's tempo and bar line, and latches. A and B here are the roles, the leader
+ * and the follower (see `syncRoles`); either booth deck can take either.
  *
  * Tempo: every eval of either deck re-applies A's cps to B, after B's own
  * `setcpm` ran. Phase: Cyclist has no phase API, but `start()` puts cycle 0 at
@@ -76,8 +95,8 @@ export class SyncController {
   engage(): { ok: true } | { ok: false; reason: string } {
     const a = this.getA();
     const b = this.getB();
-    if (!a?.scheduler.started) return { ok: false, reason: 'Start deck A first' };
-    if (!b) return { ok: false, reason: 'Deck B is not ready' };
+    if (!a?.scheduler.started) return { ok: false, reason: `Start deck ${a?.id ?? 'A'} first` };
+    if (!b) return { ok: false, reason: `Deck ${a.id === 'A' ? 'B' : 'A'} is not ready` };
     this.on = true;
     this.applyTempo();
     a.afterEval.add(this.follow);

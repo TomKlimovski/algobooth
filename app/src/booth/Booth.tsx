@@ -3,7 +3,7 @@ import { initEngine } from '../engine/strudel';
 import { LibraryTree } from '../library/LibraryTree';
 import type { LibraryStore } from '../library/store';
 import { installMixer, type DeckMixer, type Knob as KnobName } from '../engine/mixer';
-import { SyncController } from '../engine/sync';
+import { SyncController, syncRoles, type SyncRoles } from '../engine/sync';
 import { Crossfader } from './Crossfader';
 import { Deck, type DeckApi } from './Deck';
 import { createBoothState, DEFAULT_KNOBS } from './boothState';
@@ -82,32 +82,52 @@ export function Booth(props: {
     }
   }
 
-  const sync = new SyncController(
-    () => booth.state.decks.A,
-    () => booth.state.decks.B,
-    setTimeout,
-    { onTempoChange: (id, cps) => decks[id].setCpm(cpmFromCps(cps)) },
-  );
+  // One controller per engage, since either deck may lead; `roles` says which while it is latched.
+  let sync: SyncController | null = null;
+  const [roles, setRoles] = createSignal<SyncRoles | null>(null);
   let messageTimer: ReturnType<typeof setTimeout> | undefined;
   const flash = (message: string) => {
     clearTimeout(messageTimer);
     booth.setMessage(message);
     messageTimer = setTimeout(() => booth.setMessage(null), MESSAGE_MS);
   };
+  /**
+   * Sync latches the stopped deck to the playing one (`syncRoles`) and starts it on the leader's next bar,
+   * so it can be brought in on the crossfader. Pressed again, it lets go.
+   */
   const toggleSync = () => {
-    if (sync.engaged) {
+    if (sync?.engaged) {
       sync.release();
+      sync = null;
+      setRoles(null);
       booth.setSync(false);
       return;
     }
+    const picked = syncRoles({ A: !!booth.state.decks.A?.scheduler.started, B: !!booth.state.decks.B?.scheduler.started }, booth.state.fader);
+    if (!picked) return flash('Start a deck first');
+    const { leader, follower } = picked;
+    sync = new SyncController(
+      () => booth.state.decks[leader],
+      () => booth.state.decks[follower],
+      setTimeout,
+      { onTempoChange: (id, cps) => decks[id].setCpm(cpmFromCps(cps)) },
+    );
     const result = sync.engage();
-    if (result.ok) booth.setSync(true);
-    else flash(result.reason);
+    if (!result.ok) {
+      sync = null;
+      return flash(result.reason);
+    }
+    setRoles(picked);
+    booth.setSync(true);
+    const deck = booth.state.decks[follower];
+    // Its start is held in beforeStart until the leader's bar line.
+    if (deck && !deck.scheduler.started)
+      void deck.evaluate(true).catch((e) => flash(`Play failed: ${e instanceof Error ? e.message : String(e)}`));
   };
   onCleanup(() => {
     clearTimeout(messageTimer);
     // Decks clean up first (children before parents), so leave them alone here.
-    sync.dispose();
+    sync?.dispose();
   });
 
   // A failed load already shows in the library sidebar's error line.
@@ -284,9 +304,13 @@ export function Booth(props: {
               disabled={!ready()}
               onClick={toggleSync}
               aria-pressed={booth.state.sync}
-              title="Deck B follows deck A's tempo and bar line"
+              title={
+                roles()
+                  ? `Deck ${roles()!.follower} follows deck ${roles()!.leader}'s tempo and bar line`
+                  : "The stopped deck takes the playing deck's tempo and starts on its next bar"
+              }
             >
-              Sync
+              {roles() ? `Sync ${roles()!.follower}→${roles()!.leader}` : 'Sync'}
             </button>
           </div>
         </footer>

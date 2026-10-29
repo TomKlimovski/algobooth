@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 import { fakeDeck } from '../test/fakeDeck';
 import { StartCancelled } from './evalLock';
-import { secondsToNextBoundary, SyncController } from './sync';
+import { secondsToNextBoundary, SyncController, syncRoles } from './sync';
 
 type Timer = [() => void, number];
 const recordTimers = () => {
@@ -224,4 +224,35 @@ test('release lets a held start through instead of cancelling it', async () => {
   s.release();
   await expect(playing).resolves.toBeUndefined();
   expect(b.scheduler.started).toBe(true);
+});
+test('the playing deck leads and the stopped one follows, whichever side it is on', () => {
+  expect(syncRoles({ A: true, B: false }, 0.5)).toEqual({ leader: 'A', follower: 'B' });
+  expect(syncRoles({ A: false, B: true }, 0.5)).toEqual({ leader: 'B', follower: 'A' });
+});
+test('with both playing, the deck the crossfader favours leads; at the centre A does', () => {
+  expect(syncRoles({ A: true, B: true }, 0.8)).toEqual({ leader: 'B', follower: 'A' });
+  expect(syncRoles({ A: true, B: true }, 0.2)).toEqual({ leader: 'A', follower: 'B' });
+  expect(syncRoles({ A: true, B: true }, 0.5)).toEqual({ leader: 'A', follower: 'B' });
+});
+test('with neither playing there is nothing to sync to', () => {
+  expect(syncRoles({ A: false, B: false }, 0.5)).toBeNull();
+});
+test('B can lead: A follows B\'s tempo and its start waits for B\'s bar', async () => {
+  const { timers, setTimer } = recordTimers();
+  const b = fakeDeck({ id: 'B', started: true, cps: 0.5, now: 3.25 });
+  const a = fakeDeck({ id: 'A', started: false, cps: 0.6 });
+  const s = new SyncController(() => b, () => a, setTimer);
+  expect(s.engage()).toEqual({ ok: true });
+  expect(a.setCps).toHaveBeenCalledWith(0.5);
+  const started = a.scheduler.start();
+  await flush();
+  expect(a.scheduler.started).toBe(false);
+  expect(timers.at(-1)![1]).toBeCloseTo(1500);
+  timers.at(-1)![0]();
+  await started;
+  expect(a.scheduler.started).toBe(true);
+});
+test('the refusal names the leading deck', () => {
+  const b = fakeDeck({ id: 'B', started: false }); const a = fakeDeck({ id: 'A' });
+  expect(new SyncController(() => b, () => a).engage()).toEqual({ ok: false, reason: 'Start deck B first' });
 });

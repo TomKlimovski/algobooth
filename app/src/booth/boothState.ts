@@ -14,7 +14,7 @@ export interface BoothFields {
   /** Master section over the summed mix, after both deck chains. */
   master: Record<MasterControl, number>;
   decks: Record<DeckId, DeckApi | null>;
-  /** Sync latched: deck B follows deck A's tempo and bar line. */
+  /** Sync latched: the deck that was stopped follows the playing one's tempo and bar line (`syncRoles`). */
   sync: boolean;
   /** Transient footer notice, such as why Sync refused. */
   message: string | null;
