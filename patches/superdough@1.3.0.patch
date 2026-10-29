@@ -1,0 +1,26 @@
+diff --git a/dist/index.mjs b/dist/index.mjs
+index da81977b3a8f9cb8af08440c61990437041f69b7..ea458ea896ec2601292f92c197df0ea3b3d09975 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -1957,6 +1957,8 @@ const No = async (e, t, n, o = 0.5, a = 0.5) => {
+         x.audioNodes.push(...te);
+       }
+   });
++  // algobooth: the voice's last per-voice gain, so a deck can cut it (patches/superdough@1.3.0.patch)
++  return { post: Ge };
+ }, pc = (e, t, n, o) => {
+   No(t, e - n, t.duration / o, o);
+ }, Ho = ["triangle", "square", "sawtooth", "sine", "user", "one"], To = [
+diff --git a/superdough.mjs b/superdough.mjs
+index 03a4c3da8f01c6f303ae0aa1205dbab340798b65..97581ed28cc5b00430aeab7cfb86e52336485357 100644
+--- a/superdough.mjs
++++ b/superdough.mjs
+@@ -1025,6 +1025,8 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5)
+       }
+     }
+   });
++  // algobooth: the voice's last per-voice gain, so a deck can cut it (patches/superdough@1.3.0.patch)
++  return { post };
+ };
+ 
+ export const superdoughTrigger = (t, hap, ct, cps) => {

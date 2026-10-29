@@ -8,6 +8,9 @@ patchedDependencies:
   '@strudel/core@1.2.6':
     hash: zwcejt3lxvphmxiqqfuwec5e7e
     path: patches/@strudel__core@1.2.6.patch
+  superdough@1.3.0:
+    hash: nisdmmy2csgva2oimd5ng5hwci
+    path: patches/superdough@1.3.0.patch
 
 dependencies:
   '@codemirror/state':
@@ -45,7 +48,7 @@ dependencies:
     version: 1.9.17
   superdough:
     specifier: 1.3.0
-    version: 1.3.0
+    version: 1.3.0(patch_hash=nisdmmy2csgva2oimd5ng5hwci)
 
 devDependencies:
   '@tauri-apps/api':
@@ -923,7 +926,7 @@ packages:
       '@strudel/transpiler': 1.2.6
       '@tonaljs/tonal': 4.10.0
       nanostores: 0.11.4
-      superdough: 1.3.0
+      superdough: 1.3.0(patch_hash=nisdmmy2csgva2oimd5ng5hwci)
     transitivePeerDependencies:
       - '@codemirror/lint'
     dev: false
@@ -978,7 +981,7 @@ packages:
     dependencies:
       '@strudel/core': 1.2.6(patch_hash=zwcejt3lxvphmxiqqfuwec5e7e)
       '@strudel/draw': 1.2.6
-      superdough: 1.3.0
+      superdough: 1.3.0(patch_hash=nisdmmy2csgva2oimd5ng5hwci)
       supradough: 1.2.4
     dev: false
 
@@ -2266,13 +2269,14 @@ packages:
     resolution: {integrity: sha512-XXWIQt633/EpAFx8aZDOTjBzrCaGmhvEQlQo6MVPfa2OzO2cWo+4hV9h+6UkHYlXGfy+ODXKUdP7Pthmcu5ATw==}
     dev: false
 
-  /superdough@1.3.0:
+  /superdough@1.3.0(patch_hash=nisdmmy2csgva2oimd5ng5hwci):
     resolution: {integrity: sha512-LhmsrErcv9EMFNb79+3tvn6h7WgzKp4yRe1XtT2+eRY9oEpV4Jz0nb9Dxil3OLaNhQ6V2FuwPWBLQJb2aVtwuQ==}
     engines: {node: '>=18.0.0'}
     dependencies:
       '@kabelsalat/lib': 0.4.1
       nanostores: 0.11.4
     dev: false
+    patched: true
 
   /supradough@1.2.4:
     resolution: {integrity: sha512-/v3cL9fq05QCQVwbttLHNZcjyyFFz5wdKvg3j6V6moRXpDlQG89l8dQtUIpQvHsxYI5sXNod9rh5bf+Y4NMGeA==}

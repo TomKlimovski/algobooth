@@ -68,7 +68,8 @@ test('a tap on a stopped deck toggles the method on the target line, one Update 
   expect(a.applyEdits).toHaveBeenCalledTimes(1);
   expect(a.applyEdits.mock.calls[0][1]).toBe('input.key');
   expect(a.evaluate).toHaveBeenCalledTimes(1);
-  expect(a.evaluate).toHaveBeenCalledWith(false);
+  // The changed line is named, so a playing deck re-strikes it (keys/restrike.ts).
+  expect(a.evaluate).toHaveBeenCalledWith(false, new Set(['drums']));
   expect(ctl.shown('A').KeyQ?.on).toBe(true);
   tap(ctl, 'A', 'KeyQ');
   expect(a.getCode()).toBe(CODE);

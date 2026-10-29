@@ -28,6 +28,7 @@ import { PressTracker } from './hold';
 import { lineAt, lineLabels, patternLines, refindTarget, type PatternLine } from './lines';
 import { applyEdits, flipMute, isOn, nudge, REFUSED_LINE, toggle, type Edit, type Outcome } from './press';
 import { KeyQueue, type Job } from './quantise';
+import { changedLabels } from './restrike';
 
 export interface ControllerDeps {
   decks: () => Record<DeckId, DeckApi | null>;
@@ -782,7 +783,8 @@ export class KeyController {
     if (w.code !== start) {
       deck.applyEdits([diff(start, w.code)], w.userEvent);
       this.codeChanged(id);
-      void deck.evaluate(false);
+      // The lines that changed are heard in their new form at once, not at their next note.
+      void deck.evaluate(false, changedLabels(start, w.code));
     }
     w.then.forEach((f) => f());
     // After the transaction, whose listener clears an earlier refusal, so this one shows.

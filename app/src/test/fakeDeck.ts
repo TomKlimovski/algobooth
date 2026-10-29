@@ -48,7 +48,7 @@ export function fakeDeck(opts: FakeDeckOptions = {}) {
   };
   const deck = {
     id: opts.id ?? 'A',
-    evaluate: vi.fn(async (_autostart?: boolean) => {}),
+    evaluate: vi.fn(async (_autostart?: boolean, _restrike?: ReadonlySet<string>) => {}),
     stop: vi.fn(),
     toggle: vi.fn(),
     setCode: vi.fn((code: string) => write(code)),

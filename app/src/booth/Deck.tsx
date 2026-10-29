@@ -19,7 +19,9 @@ import type { KeyController } from './keys/KeyController';
 import { cueOf, cueSourceFor, REFUSED_CUE } from './keys/cue';
 import { KeyStrip } from './keys/KeyStrip';
 import { lineGutterExtension, patternLineDecoration, refreshLines } from './keys/lineGutter';
+import { patternLines, type PatternLine } from './keys/lines';
 import { REFUSED_ARG, REFUSED_LINE, type Edit } from './keys/press';
+import { cutVoices, isPitched, labelOf, planRestrike, RESTRIKE_LEAD, Voices } from './keys/restrike';
 import { insertAtCursor, methodDropExtension, type MethodDrag } from './methodDrop';
 import { ALT_X, ALT_Z, MOD_ENTER } from './transportKeys';
 import { SaveDialog, type SaveTarget } from './SaveDialog';
@@ -28,8 +30,11 @@ import './deck.css';
 
 export interface DeckApi {
   id: DeckId;
-  /** Evaluates the code; `autostart` starts the deck, otherwise it keeps playing or stopped as it was. */
-  evaluate(autostart?: boolean): Promise<void>;
+  /**
+   * Evaluates the code; `autostart` starts the deck, otherwise it keeps playing or stopped as it was. `restrike`
+   * names the lines a key flush changed: on a playing deck they are heard in the new form at once (keys/restrike.ts).
+   */
+  evaluate(autostart?: boolean, restrike?: ReadonlySet<string>): Promise<void>;
   stop(): void;
   /** Stops the deck if it is playing, otherwise evaluates and starts it: the one transport button and Cmd/Ctrl+Enter. */
   toggle(): void;
@@ -216,30 +221,85 @@ export function Deck(props: {
   };
   const clearCanvas = () => canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
 
+  // The re-strike's view of the live pattern: the voices its lines are sounding, the pattern lines of the code
+  // that produced it (swapped in `editPattern`, as Cyclist takes the pattern), and the cycle Cyclist had queried
+  // up to at that swap, which is where the new pattern's own notes start.
+  const voices = new Voices();
+  let liveLines: PatternLine[] = [];
+  let evaluating = '';
+  let swapEnd = 0;
+
+  /** The deck's output: superdough plays the hap, and a labelled line's voice is kept so a re-strike can cut it. */
+  const output = (hap: any, deadline: number, duration: number, cps: number, t: number) => {
+    const label = labelOf(hap, liveLines);
+    const done = webaudioOutput(hap, deadline, duration, cps, t);
+    if (label !== null && hap.whole) {
+      const pitched = isPitched(hap.value);
+      Promise.resolve(done)
+        .then((v: any) => {
+          if (v?.post) voices.add({ label, begin: t, end: t + duration, cycles: duration * cps, pitched, post: v.post }, getAudioContext().currentTime);
+        })
+        // A sound superdough cannot play: Strudel's trigger logs it from `done`; there is nothing to track.
+        .catch(() => {});
+    }
+    return done;
+  };
+
+  /**
+   * The lines a key flush changed, heard in the new form now rather than at their next note: what was handed to
+   * superdough in the old form is taken back and replayed, and long notes ringing are cut and struck again.
+   */
+  const restrike = (labels: ReadonlySet<string>) => {
+    const s = mirror.repl.scheduler;
+    // A tempo change is applied on Cyclist's next tick, so the clock below would be the old one.
+    if (!s.started || !s.pattern || s.num_ticks_since_cps_change === 0) return;
+    const t0 = getAudioContext().currentTime + RESTRIKE_LEAD;
+    const toSeconds = (c: number) => (c - s.num_cycles_at_cps_change) / s.cps + s.seconds_at_cps_change + s.latency;
+    const c0 = (t0 - s.latency - s.seconds_at_cps_change) * s.cps + s.num_cycles_at_cps_change;
+    const haps = s.pattern
+      .queryArc(c0, Math.max(swapEnd, c0 + 1e-6), { _cps: s.cps, cyclist: 'cyclist' })
+      .map((hap: any) => ({ hap, label: labelOf(hap, liveLines) }));
+    const plan = planRestrike({ labels, voices: voices.live(t0), haps, t0, c0, end: swapEnd, cps: s.cps, toSeconds });
+    cutVoices(plan.cut, t0);
+    voices.remove(plan.cut);
+    // A sound that cannot play was already reported when Cyclist first played the line.
+    for (const { hap, t, duration } of plan.play) Promise.resolve(output(hap, 0, duration, s.cps, t)).catch(() => {});
+  };
+
+  // Bumped by every Stop, so a start queued behind the eval lock cannot undo a Stop pressed meanwhile.
+  let stopGeneration = 0;
   /**
    * Replaces StrudelMirror's `evaluate`, so every path takes the booth-wide eval lock: Play and Update,
    * Ctrl+Enter, the document-wide `repl-evaluate` event (Vim :w), sync's release and master play.
    * Never rejects; a failure shows in the deck's error line.
    */
-  // Bumped by every Stop, so a start queued behind the eval lock cannot undo a Stop pressed meanwhile.
-  let stopGeneration = 0;
-  const lockedEvaluate = async (autostart = true): Promise<void> => {
+  const lockedEvaluate = async (autostart = true, restrikeLines?: ReadonlySet<string>): Promise<void> => {
     const resumed = resumeAudio().catch(() => {});
     const generation = stopGeneration;
     mirror.flash();
+    // The code as it is evaluated (the editor may change while the lock is held), for `editPattern`'s line map.
+    const repl = {
+      scheduler: mirror.repl.scheduler,
+      evaluate: (code: string, start: boolean) => {
+        evaluating = code;
+        return mirror.repl.evaluate(code, start);
+      },
+    };
     try {
-      await evaluateExclusive(mirror.repl, mirror.code, autostart, () => resumed, () => generation === stopGeneration);
+      const ok = await evaluateExclusive(repl, mirror.code, autostart, () => resumed, () => generation === stopGeneration);
+      if (ok && restrikeLines?.size) restrike(restrikeLines);
     } catch (e) {
       deck.setError(String(e));
     }
   };
   // Re-evaluate without changing whether the deck is playing.
-  const update = () => mirror.evaluate(mirror.repl.scheduler.started);
+  const update = (restrikeLines?: ReadonlySet<string>) => lockedEvaluate(mirror.repl.scheduler.started, restrikeLines);
   const play = () => mirror.evaluate(true);
-  const evaluate = (autostart?: boolean) => (autostart ? play() : update());
+  const evaluate = (autostart?: boolean, restrikeLines?: ReadonlySet<string>) => (autostart ? play() : update(restrikeLines));
   const stop = () => {
     stopGeneration++;
     mirror.stop();
+    voices.clear();
   };
   const toggle = () => (mirror.repl.scheduler.started ? stop() : void play());
   /** Every chain's methods on their own lines, as one undoable edit; the code means the same, so nothing re-evaluates. */
@@ -354,7 +414,7 @@ export function Deck(props: {
       drawContext: canvas.getContext('2d'),
       drawTime: [-2, 2],
       transpiler,
-      defaultOutput: webaudioOutput,
+      defaultOutput: output,
       getTime: () => getAudioContext().currentTime,
       // Tighter scheduling than Strudel's defaults, so a key press is heard sooner (see DECK_CLOCK).
       ...DECK_CLOCK,
@@ -362,6 +422,8 @@ export function Deck(props: {
       // mirror's drawContext. Pattern.pianoroll() would draw to a global canvas.
       // scope takes its own ctx; its draw id starts with the mirror id so stop() cancels it.
       editPattern: (pat: any) => {
+        liveLines = patternLines(evaluating);
+        swapEnd = mirror.repl.scheduler.lastEnd;
         // `.orbit(n)` in the code picks one of this deck's own lanes (engine/lanes.ts), never another deck.
         const routed = routeToChannel(pat, ORBIT[id]);
         return settings().visualiser === 'scope'
@@ -574,7 +636,7 @@ export function Deck(props: {
         <button class="deck-btn" classList={{ on: deck.state.playing }} onClick={toggle} title={`Play or stop this deck (${ALT_Z} or ${MOD_ENTER} on the deck the keys play)`}>
           {deck.state.playing ? 'Stop' : 'Play'}
         </button>
-        <button class="deck-btn ghost" onClick={update} title={`Re-evaluate, keeping it playing or stopped (${ALT_X} on the deck the keys play)`}>
+        <button class="deck-btn ghost" onClick={() => void update()} title={`Re-evaluate, keeping it playing or stopped (${ALT_X} on the deck the keys play)`}>
           Update
         </button>
         <button class="deck-btn ghost" onClick={format} title="Every chained method on its own line">Format</button>
